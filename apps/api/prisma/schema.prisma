@@ -1,0 +1,13 @@
+// Prisma schema — Aaarchive.
+// Models follow PRD §7 and are added in Phase 0 ("DB schema"). Money is integer taka.
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
