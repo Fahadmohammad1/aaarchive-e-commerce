@@ -54,12 +54,12 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 
 **Web**
 - [x] [web] Folder skeleton for every route in PRD §12
-- [ ] [web] Design tokens from `design.md` §12 in `app/globals.css` (`@theme`), fonts via `next/font` (replace Geist), film-grain overlay
-- [ ] [web] `lib/i18n/` with `en.ts` + `t()`
+- [x] [web] Design tokens from `design.md` §12 in `app/globals.css` (`@theme`), fonts via `next/font` (replace Geist), film-grain overlay
+- [x] [web] `lib/i18n/` with `en.ts` + `getMessages()` / `format()`
 - [ ] [web] `lib/api/` client (`api-client.ts`, `api-error.ts`, `api-config.ts`, `session.ts`) + `/api/v1` rewrite in `next.config.ts`
 - [ ] [web] TanStack Query installed, `QueryProvider` with the global defaults from `rules.md` §4.2, mounted in the root layout
-- [ ] [web] shadcn/ui initialised for the admin, themed with our tokens
-- [ ] [web] Icon set chosen (Lucide vs Phosphor Light)
+- [x] [web] shadcn/ui initialised (Radix, `radix-nova`) for storefront and admin, themed with our tokens
+- [x] [web] Icon set chosen: Lucide (shadcn)
 
 **Deploy**
 - [ ] [repo] Hosting for the API chosen (free + commercial use); both apps deployed to a staging URL
@@ -112,8 +112,8 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 
 **Goal:** customers can browse, filter, search and view products on a fast, SEO-ready storefront that never reveals stock numbers (PRD §5.1–5.6).
 
-- [ ] [web] Store layout: header (Menu / logo / Cart chip, sticky), menu overlay, footer, floating WhatsApp/Messenger buttons, announcement bar slot
-- [ ] [web] Storefront components in `components/store/`: Tag, ArrowButton, IndexMarker, KanthaDivider, Wordmark, ProductCard, CategoryCard, skeletons
+- [x] [web] Store layout: header (Menu / logo / Cart chip, sticky), menu overlay, footer, floating WhatsApp/Messenger buttons, announcement bar slot *(built early with the home page; cart count and announcement still fixture data)*
+- [ ] [web] Storefront components in `components/store/`: Tag, ArrowButton, IndexMarker, KanthaDivider, Wordmark, ProductCard, CategoryCard, skeletons *(all done except skeletons)*
 - [ ] [api] Public `GET /products` (filters: category, collection, size, colour, price, in-stock; sort; 12 per page) and `GET /products/:slug` with variants' `stockStatus` only
 - [ ] [api] Public `GET /categories`, `GET /collections` (with product counts)
 - [ ] [api] `GET /search` with Postgres full-text + `pg_trgm` (migration enables the extension)
@@ -177,7 +177,7 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 - [ ] [api] `content`: home sections (hero, featured look, why-us, social posts), pages, FAQ, announcement bar
 - [ ] [api] `settings`: store info, delivery/payment toggles and numbers, advance delivery charge for COD, stock defaults, tracking IDs
 - [ ] [api] Staff management (Owner only): invite/create, role, deactivate
-- [ ] [web] Home sections H1–H6 per `design.md` §6 (hero, browse by category, featured look, exclusive collections, why us, social journey)
+- [ ] [web] Home sections H1–H6 per `design.md` §6 (hero, browse by category, featured look, exclusive collections, why us, social journey) *(UI built 2026-10-17 on fixture data in `lib/content/home-fixtures.ts`; awaiting design review, then wire to the API)*
 - [ ] [web] Content pages: about, contact (form + Turnstile), FAQ, size guide, policies
 - [ ] [web] Admin screens: content editor (images via Cloudinary), pages (rich text), FAQ, announcement, settings tabs, staff
 - [ ] [web] 404 and error pages per `design.md` §7.8
@@ -194,6 +194,7 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 - [ ] [web] `sitemap.ts`, `robots.ts`, canonical URLs on filtered listings, `Organization` JSON-LD
 - [ ] [web] GA4, Meta Pixel, Microsoft Clarity wired through `lib/analytics/` (IDs from settings)
 - [ ] [api] Facebook catalog feed `GET /feeds/facebook.xml`
+- [ ] [web] Remove Unsplash placeholders (`lib/content/home-fixtures.ts`) and the `images.unsplash.com` pattern in `next.config.ts`
 - [ ] [web] Performance pass: LCP < 2.5s, CLS < 0.1, storefront JS < 150 KB gzipped, Lighthouse mobile ≥ 85 on home/category/product
 - [ ] [web] Accessibility pass (WCAG 2.1 AA, keyboard, reduced motion)
 - [ ] [repo] Sentry free tier on both apps, and an uptime monitor on `/api/v1/health`

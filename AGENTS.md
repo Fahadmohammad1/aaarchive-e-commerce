@@ -118,7 +118,7 @@ One package: `bun run --filter @aaarchive/<web|api|shared> <script>`. Add a depe
 
 - Do not install a dependency, add a paid service, or change hosting without asking.
 - Do not invent endpoints or response shapes. If the API lacks something a screen needs, add it to the API (with the user's go-ahead) or record a blocker in `docs/memory.md`.
-- Do not hand-edit generated files (`apps/api/src/generated/`, `next-env.d.ts`, `components/ui/*` beyond theming).
+- Do not hand-edit generated files (`apps/api/src/generated/`, `next-env.d.ts`, `components/ui/*` beyond theming and added variants).
 - Do not run migrations against a shared or production database.
 - Do not commit or push unless asked.
 - Before reporting work done, run `bun run check`, `bun run typecheck` and `bun run test`. For UI, check the screen at mobile (375px) and desktop widths.

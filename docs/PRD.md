@@ -394,7 +394,7 @@ Two separate apps in one repository (Bun workspaces): a **Next.js** frontend and
 | Repository | Monorepo: `apps/web`, `apps/api`, `packages/shared` | **Bun** as package manager, **Biome** for lint/format |
 | Frontend | **Next.js (App Router) + TypeScript** | Storefront and admin. Server Components for SEO pages |
 | Client data fetching | **TanStack Query** | All client-side reads/writes of API data (admin, account, cart, checkout, search, tracking) |
-| UI | Tailwind CSS + shadcn/ui (admin) | Custom components for the storefront per `design.md` |
+| UI | Tailwind CSS + **shadcn/ui** (storefront and admin) + Lucide icons | Storefront components are built on shadcn and styled per `design.md` |
 | Forms & validation | React Hook Form + **Zod** (schemas shared by both apps via `packages/shared`) | |
 | Backend | **NestJS + TypeScript** | REST API at `/api/v1`. Owns all business rules, auth and data |
 | ORM | **Prisma** | Pooled connection for runtime, direct/session connection for migrations |

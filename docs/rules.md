@@ -49,9 +49,9 @@ Breaking any of these is a bug, however good the rest of the change is.
 | Client-only state | **Zustand** (cart, UI toggles), only when the state is not server data |
 | Forms | **React Hook Form** + `@hookform/resolvers/zod` + shared Zod schemas |
 | Styling | **Tailwind CSS v4** with the tokens from `design.md` |
-| Admin components | **shadcn/ui** (`components/ui/`) |
-| Storefront components | Our own, in `components/store/`, built to `design.md` |
-| Icons | Lucide or Phosphor Light (one set, decided in Phase 0), outline only |
+| UI components (storefront **and** admin) | **shadcn/ui** (`components/ui/`, Radix base, `radix-nova` style), themed by `globals.css`. Storefront pieces in `components/store/` are built **on** shadcn |
+| Class merging | `cn()` from `@/lib/utils` (shadcn's `cn` package) |
+| Icons | **Lucide** (`lucide-react`, shadcn's icon library), outline, 1.25–1.5px stroke |
 | Images | `next/image` with the Cloudinary loader |
 | Fonts | `next/font/google`, self-hosted: Alfa Slab One, JetBrains Mono, Inter, Hind Siliguri |
 | HTTP | The project's fetch client in `lib/api/` |
@@ -96,6 +96,8 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 | `float` / `Decimal` for money | `Int` taka | Rounding errors |
 | `any`, `@ts-ignore`, non-null `!` to silence errors | Proper types, `unknown` + narrowing, `@ts-expect-error` with a reason | Type safety |
 | Hard-coded colours, fonts, radii | Tokens from `design.md` / `globals.css` | Consistent theme |
+| Hand-rolling a component shadcn already has (button, dialog, sheet, tabs, select…) | `bunx shadcn@latest add <name>`, then style it | One component base |
+| Other icon libraries (Phosphor, Heroicons, react-icons…) | Lucide | One icon set |
 | Hard-coded user-facing strings in web components | `apps/web/lib/i18n/` | Bangla UI in Release 2 |
 | Heavy animation libraries on the storefront | CSS transitions / Web Animations API | JS budget < 150 KB |
 | `index.ts` barrel files | Import from the concrete file | Tree-shaking, clear ownership |
@@ -134,7 +136,8 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 
 **UI**
 
-- Build only from `design.md` tokens and components. Storefront: radius 0, no shadows. Admin: shadcn themed with our tokens.
+- Build only from `design.md` tokens and components, on top of shadcn/ui. Storefront: radius 0, no shadows. Admin: inside `.admin` (4px radius).
+- Customise shadcn through **variants** (cva) or `className` at the call site. Keep edits to `components/ui/*` to theming and added variants, and list added variants in `design.md` §12.1.
 - Mobile-first: design at 375px, then scale up. Tap targets ≥ 44px.
 - Accessibility: semantic HTML, labelled controls, visible focus (2px accent outline), keyboard-operable menus/sliders/modals, `prefers-reduced-motion` respected, decorative elements `aria-hidden`.
 - Every image has `alt` (product name + colour by default), explicit dimensions or aspect ratio (no CLS), and `priority` only for the LCP image.

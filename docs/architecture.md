@@ -161,13 +161,13 @@ The cart stores only `variantId` + `quantity` (+ a display snapshot). It never s
 | Caching | Cache Components (`cacheComponents: true`, `"use cache"`, `cacheTag`, `revalidateTag`) | enabled |
 | Routing guard | `proxy.ts` | planned |
 | Styling | Tailwind CSS v4: tokens in `app/globals.css` under `@theme`, no `tailwind.config` | installed |
-| Admin UI kit | shadcn/ui → `components/ui/`, themed with our tokens (`design.md` §12) | planned (Phase 0) |
-| Storefront UI | custom components in `components/store/` per `design.md` | planned |
+| UI components | **shadcn/ui** (Radix base, `radix-nova` style, `components.json`) → `components/ui/`, used by storefront **and** admin, themed in `globals.css` (`design.md` §12.1) | installed |
+| Storefront UI | `components/store/` — editorial pieces built on shadcn (Tag, ArrowButton, ScrollSlider, ProductCard…) per `design.md` | in progress |
 | Server data (client) | **TanStack Query v5**: every client-side read/write of API data (§3.3) | planned (Phase 0) |
 | Client state | Zustand (cart, UI) — never for server data | planned |
 | Forms | React Hook Form + Zod (`@hookform/resolvers`) | planned |
 | Fonts | `next/font/google`, self-hosted: Alfa Slab One, JetBrains Mono, Inter, Hind Siliguri | planned (replaces Geist) |
-| Icons | Lucide (1.25px stroke) or Phosphor Light | open |
+| Icons | **Lucide** (`lucide-react`, shadcn's icon library) | installed |
 | Images | `next/image` with a Cloudinary loader | planned |
 | Bot protection | Cloudflare Turnstile widget | planned |
 | Analytics | GA4, Meta Pixel, Microsoft Clarity via `lib/analytics/` | planned |
@@ -207,6 +207,7 @@ The folders exist now (empty ones hold a `.gitkeep`). Files marked *(planned)* a
 ```
 apps/web/
 ├── AGENTS.md · CLAUDE.md          # web-specific agent notes (Next.js 16 warning)
+├── components.json                # shadcn config (radix-nova, lucide)
 ├── proxy.ts                       # (planned) optimistic /admin guard
 ├── next.config.ts                 # cacheComponents, Tailwind turbopack loader, /api/v1 rewrite (planned)
 ├── .env.example
@@ -215,9 +216,10 @@ apps/web/
 │   ├── globals.css                # Tailwind v4 + design tokens under @theme
 │   ├── not-found.tsx · error.tsx · sitemap.ts · robots.ts   # (planned)
 │   ├── (store)/                   # storefront — shares header/footer/floating contact
-│   │   ├── layout.tsx             # (planned)
-│   │   ├── page.tsx               # home (currently the create-next-app placeholder)
-│   │   ├── _components/           # header, footer, menu overlay, home sections
+│   │   ├── layout.tsx             # grain, announcement bar, header, footer, floating contact
+│   │   ├── page.tsx               # home: six sections (design §6) on fixture data
+│   │   ├── _components/           # site-header (+ Sheet menu), site-footer, announcement-bar, floating-contact,
+│   │   │                          #   hero/category/featured-look/collections/why-us/social sections
 │   │   ├── shop/ · search/ · cart/ · track-order/
 │   │   ├── category/[slug]/ · collection/[slug]/
 │   │   ├── product/[slug]/        # (+ _components: gallery, variant picker, size chart)
@@ -234,18 +236,23 @@ apps/web/
 │   │       ├── content/ · settings/
 │   └── api/revalidate/            # the ONLY route handler: cache-tag webhook from the API
 ├── components/
-│   ├── ui/                        # shadcn/ui primitives (admin)
-│   ├── store/                     # storefront design system: Tag, ArrowButton, ProductCard, KanthaDivider, Wordmark…
+│   ├── ui/                        # shadcn/ui primitives — the base for storefront and admin
+│   ├── store/                     # storefront pieces on shadcn: Logo, Tag, ArrowButton, ScrollSlider, ProductCard, CategoryCard,
+│   │                              #   SectionHeading, IndexMarkers, KanthaDivider, Wordmark, ColorSwatches
 │   ├── admin/                     # admin building blocks used by several screens: DataTable, StatusBadge…
 │   └── providers/                 # QueryProvider, AuthProvider, AnalyticsProvider
 ├── lib/
 │   ├── api/                       # shared transport core — NOT a module
-│   ├── i18n/                      # every UI string (en.ts now, bn.ts in Release 2) + t()
+│   ├── i18n/                      # en.ts (every UI string), i18n.ts (getMessages, format); bn.ts in Release 2
 │   ├── analytics/                 # GA4 / Pixel / Clarity event helpers
-│   ├── utils.ts                   # (planned) cn()
+│   ├── utils.ts                   # cn() (shadcn)
+│   ├── content/home-fixtures.ts   # TEMPORARY home-page data (Unsplash placeholders) until Phase 6 wires GET /content/home
 │   ├── auth/ · product/ · category/ · collection/ · size-chart/ · cart/ · order/
 │   └── payment/ · coupon/ · delivery-zone/ · customer/ · content/ · settings/ · upload/
-└── public/{images,icons}/         # static brand assets (product photos are on Cloudinary)
+└── public/
+    ├── logo.png · logo.jpeg       # logo originals as supplied (black background)
+    ├── images/logo-*.png          # transparent web cuts: wordmark (header/menu), full (footer)
+    └── icons/                     # (future) monogram, doodles; product photos are on Cloudinary
 ```
 
 ### 3.6 Conventions
@@ -262,7 +269,7 @@ apps/web/
 
 - Filenames are kebab-case with the module prefix (`order-api.ts`). No `index.ts` barrels.
 - Route-private UI goes in that route's `_components/`. UI used by two or more routes goes in `components/store/` or `components/admin/`.
-- Storefront components do **not** import from `components/ui/`. The surfaces follow different design rules (`design.md` §5 vs §8).
+- Both surfaces build on `components/ui/` (shadcn). Storefront wrappers live in `components/store/`. Admin screens render inside `.admin` (4px radius, `design.md` §8).
 - Default to Server Components. Put `"use client"` on the smallest leaf that needs it.
 
 ### 3.7 Route map
@@ -435,6 +442,6 @@ Rules:
 1. **API hosting** (free + commercial use): Oracle Cloud Always Free VM (Docker + Nginx) vs Render/Koyeb free tiers. Watch cold starts and Supabase connection limits (Phase 0).
 2. **Backups:** GitHub Actions `pg_dump` → private storage target (Phase 7).
 3. **Order-number sequence:** Postgres sequence via raw migration vs a counter table (Phase 0).
-4. **Icon set:** Lucide vs Phosphor Light (Phase 0).
+4. **Social brand logos:** Lucide has none, so the footer uses text chips. Decide whether to add a brand-icon source.
 
 CI (GitHub Actions) is a Phase 0 task in `phases.md`.

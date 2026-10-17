@@ -25,8 +25,10 @@ Keywords: *cinematic · editorial · raw · warm-dark · label/tag aesthetic · 
 - Square corners everywhere — no rounded cards, no soft shadows
 - Thin hairline dividers and `// 01` index markers
 - Giant brand wordmark used as a background texture (outlined / glitched)
-- Asymmetric, staggered (masonry) image grids
-- Section rhythm: hero → categories → featured look → collection grid → why us → social → footer
+- The hero composition (main image + two side images, spotlight, markers, pills, headline)
+- A similar section *order* (hero → categories → featured look → product grid → why us → social → footer)
+
+**The hero, the social section and the footer follow the reference's structure (user decision, 2026-10-17).** The four sections between them (§6.3–6.6) have our own titles, layouts and content. See rows 12–16 below.
 
 ### 1.3 What we change (to make it our own)
 
@@ -43,13 +45,19 @@ Keywords: *cinematic · editorial · raw · warm-dark · label/tag aesthetic · 
 | 9 | Decorative-only product cards | Product cards show **sale price** and **out-of-stock** state | E-commerce needs |
 | 10 | Body text in monospace everywhere | Mono for labels/short copy; **readable sans for long text** (product descriptions, policies) | Readability, especially on mobile |
 | 11 | Cream outer page frame on desktop | Optional; if used, **4px** instead of a wide frame | Cleaner, more screen for content |
+| 12 | "Browse by category" slider with a taller middle card | **"The archive index"**: editorial bento of category photos, name over image (§6.3) | Original layout; image-led |
+| 13 | "Designed for every style": centred look, floating cards, wordmark behind | **"Look file No. 01"**: editorial photo with numbered shop-the-look hotspots + piece cards and look total (§6.4) | Original; shoppable |
+| 14 | "Exclusive collections…" sparse masonry, text tabs | **"Latest entries"**: chip filters + a 2×2 campaign tile ("Winter drop") leading a dense product grid (§6.5) | Original; campaign-led |
+| 15 | "The perfect blend…" portrait + icon list (comfort / quality / delivery / design) | **"Made to be kept"**: full-width campaign photo with heading and four promises overlaid (§6.6) | Original layout and content |
+| 16 | Social slider / footer | Kept close to the reference: "Follow our style journey" slider (§6.7) and the footer (§6.8), with our logo replacing the typed brand name | User preference |
 
 ### 1.4 Brand — Aaarchive
 
 | | |
 |---|---|
 | **Name** | Aaarchive |
-| **Written as** | "Aaarchive" in running text; **AAARCHIVE** (uppercase via CSS) in the logo, headings and giant wordmark |
+| **Written as** | "Aaarchive" in running text; **AAARCHIVE** (uppercase via CSS) in headings and the giant outlined wordmark texture |
+| **Logo** | Chrome/silver lowercase "aaarchive" script with an orbit swoosh and stars; tagline **"Archive the essence"**. Source: `apps/web/public/logo.png` (raster, black background). Web cuts with a transparent background: `public/images/logo-wordmark.png` (header, menu) and `public/images/logo-full.png` (footer, with tagline), rendered by `components/store/logo.tsx`. Never retype the logo in a font. |
 | **Idea** | An *archive* of looks — pieces worth keeping, season after season. Fits the editorial, catalogue-like design (index markers, tags, spec-sheet labels). |
 | **Signature detail** | The triple **A** is the brand's mark. Use it as a monogram (`AAA` stacked or set tight) for the favicon, social avatar, packaging stamp and product tags. |
 | **Voice** | Short, confident, slightly archival: "Filed under: Winter", "Archive No. 03", "Catalogued for Eid". Use archive language for collections and drops (e.g., collection names as `ARCHIVE 01 — WINTER DROP`). |
@@ -279,7 +287,7 @@ Mono-label items evenly spaced on a hairline. Active tab: `--fg` text + 2px `--f
       for all-day wear.
 ```
 
-Icons: **Phosphor Icons (thin/light)** or **Lucide** at 1.25px stroke — outline only, never filled.
+Icons: **Lucide** (shadcn's icon library, `lucide-react`) at 1.25px stroke — outline only, never filled. Lucide has no brand logos, so social links use square mono text chips (`FB`, `IG`, `TT`, `WA`) until brand icons are sourced.
 
 ### 5.10 Social post card
 
@@ -318,7 +326,7 @@ Small dot + mono-label: `● In Stock` (`--success`), `● Low Stock` (`--accent
 
 - "AAARCHIVE" in the display font at ~11vw, uppercase, spanning full width (no horizontal overflow).
 - Style: **outlined** (`-webkit-text-stroke: 1px var(--line-strong)`, transparent fill) with a horizontal **scan-line / glitch** texture (repeating-linear-gradient mask) at 30–50% opacity.
-- Used: behind the hero (top), behind the featured-look section (middle), and as the footer base (bottom, filled with a noisy gradient).
+- Used: behind the hero (top), behind the featured-look section (middle) and at the foot of the menu overlay. **Not in the footer**: the real logo replaced it there (2026-10-17).
 - Decorative: `aria-hidden="true"`.
 
 ### 5.17 Toast / notice
@@ -337,7 +345,7 @@ Desktop wireframes are approximate; mobile behaviour listed under each.
 [Menu]                     AAARCHIVE                        [Cart (0)]
 ```
 - Height 56px, transparent over the hero, then `--bg` with bottom hairline once scrolled.
-- Logo: wordmark in display font, 18–20px.
+- Logo: the chrome wordmark image (`logo-wordmark.png`), 32px tall on mobile, 40px on desktop.
 - Add a search icon (mono-label "Search") left of Cart on desktop; inside the menu on mobile.
 
 ### 6.2 Hero
@@ -360,80 +368,85 @@ Desktop wireframes are approximate; mobile behaviour listed under each.
 - **Mobile:** main image full width (with 16px padding), side images hidden or shown as a small row below; markers hidden; headline below the pills.
 - Our copy idea: "MADE FOR EVERY SEASON, WORN FOR EVERY STORY" (replace freely).
 
-### 6.3 Browse by category
+### 6.3 The archive index (categories)
 
 ```
-BROWSE                                   Short mono intro, right column,
-BY CATEGORY                              max 3 lines.
-───────────────────────────────────────────────────────────────
-[img]      [img]      [ TALL FEATURED ]      [img]      →
-[Hoodies][24 ITEMS]   [Panjabi][40 ITEMS]    ...
-                      PANJABI            ↗
-───────────────────────────────────────────────────────────────
-[Browse All ↗]                                          [‹][›]
+THE ARCHIVE                                   Everything we make, filed in one
+INDEX                                         drawer. Pick a section…
+┌──────────────────────┬──────────┬──────────┐
+│[24 ITEMS]            │[36 ITEMS]│[40 ITEMS]│
+│                      │ T-SHIRTS │          │
+│   lead photo (2×2)   ├──────────┤  tall    │
+│                      │[18 ITEMS]│  (1×2)   │
+│ // 01                │SWEATSHIRT│ PANJABI  │
+│ HOODIES              │          │          │
+├──────────────────────┼──────────┴──────────┤
+│ JOGGERS (2×1)        │ ACCESSORIES (2×1)   │
+└──────────────────────┴─────────────────────┘
+[Browse all ↗]
 ```
-- Horizontal slider (CSS scroll-snap + arrows). 4 visible on desktop, 1.5 on mobile (peek next card).
-- The card in the active position is taller (featured).
+- Bento: 4 columns × 3 rows on desktop, every cell filled; 2 columns on mobile (lead and last tile full width). Rows 13rem / 15rem / 17rem.
+- Each tile: photo (`object-cover`, slow 1.05 zoom on hover), bottom gradient scrim to `--bg`, `// 0N` marker + category name (display-lg on the lead, display-md on others, display-sm below `sm`), outline count tag top-left, marigold arrow square top-right on hover/focus.
+- Counts are product counts, never stock.
 
-### 6.4 Designed for every style (featured look)
-
-```
-              DESIGNED
-           FOR EVERY STYLE                 display-lg centred
-        short mono intro, 2 lines
-  ┌────────┐ ┌─────────────────┐  ◆ prop/product cut-out (optional)
-  │floating│ │                 │
-  │card    │ │   MAIN LOOK     │
-// 01 ──── // 02             │ // 03 ──── // 04
-████ GIANT WORDMARK (outlined, behind) ████████
-Hoodies  Panjabi  T-Shirts │[Learn More ↗]│ Sweatshirts  Joggers  Accessories
-───────────────────────────┴─────────────┴──────────────────────────────
-                             │ floating card 2 │
-```
-- Background: dark with a large, blurred, low-opacity motion-blur photo strip (as in the reference) — optional.
-- Category labels are links to category pages, evenly spaced on the bottom hairline, split left/right of the main image.
-- **Mobile:** main image full width, floating cards become a 2-up row below it, category labels become a horizontal scroll row.
-
-### 6.5 Exclusive collections (product grid)
+### 6.4 Look file No. 01 (featured look)
 
 ```
-EXCLUSIVE COLLECTIONS MADE               [Browse More ↗]
-FOR EVERY MOMENT
+┌────────────────────────────────────┐   LOOK FILE
+│[Filed under: Winter]               │   NO. 01
+│                (3)                 │   short mono intro
+│                                    │   ┌──────┐┌──────┐┌──────┐
+│             (2)                    │   │1 img ││2 img ││3 img │
+│     editorial photo (5:6)          │   └──────┘└──────┘└──────┘
+│        (1)                         │   NAME     NAME     NAME
+│                                    │   ৳1,950   ৳990     ৳750
+└────────────────────────────────────┘   ─────────────────────────
+                                         LOOK TOTAL ৳3,690  [Shop the look ↗]
+```
+- `--bg-sunken` section with a faint ember spotlight. Desktop 7/5 columns; mobile stacks photo → text → cards.
+- Hotspots: 32px marigold squares with the piece number and a soft ping (off under reduced motion), positioned by `hotspot {x, y}` percentages in the data; each links to the product and shows "name · price" on hover/focus (desktop).
+- Piece cards: 3:4 image with the matching number badge, name (display, 11–12px), price.
+
+### 6.5 Latest entries (product grid)
+
+```
+LATEST                                                  [Browse more ↗]
+ENTRIES
 mono intro
-Hoodies   Panjabi   T-Shirts   ‾‾New‾‾   Sweatshirts   Joggers      tabs on hairline
-───────────────────────────────────────────────────────────────
-┌────┐  (empty)    ┌────┐ ┌────┐
-│    │             │    │ │    │
-└────┘             └────┘ └────┘
-[tag][৳]           [tag][৳][tag][৳]
-       ┌────┐   ┌──────────────┐
-       │    │   │   LARGE      │
-       └────┘   │   (2 cols)   │
-┌────┐ [tag][৳] │              │
-│    │          └──────────────┘
-└────┘
+[New] [Hoodies] [Panjabi] [T-Shirts] [Sweatshirts] [Joggers]     chip filters
+┌───────────────────┐ ┌──────┐ ┌──────┐
+│ [Archive 01]      │ │ card │ │ card │
+│ WINTER            │ └──────┘ └──────┘
+│ DROP              │ ┌──────┐ ┌──────┐
+│ mono line         │ │ card │ │ card │
+│ [Shop the drop ↗] │ └──────┘ └──────┘
+└───────────────────┘
+┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐
+│ card │ │ card │ │ card │ │ card │
+└──────┘ └──────┘ └──────┘ └──────┘
 ```
-- 4-column masonry on desktop with intentional **empty cells** for an editorial feel (as in the reference). Items placed with CSS grid `grid-row: span` / `grid-column: span`, not a JS masonry library.
-- **Mobile:** 2-column grid, every 5th item full width; no empty cells.
+- Filters are shadcn Tabs styled as outline chips; the active chip is marigold.
+- The campaign tile (2 columns; 2 rows from `md`) is a full-bleed photo with a bottom scrim, accent tag, display-xl title, mono line and CTA. Content is admin-editable.
+- Grid: 4 columns desktop, 3 tablet, 2 mobile, `grid-flow-dense`; max 8 products (PRD H4), so campaign + 8 fills three desktop rows. Cards = §5.5.
 
-### 6.6 Why us — The perfect blend
+### 6.6 Made to be kept (why us)
 
 ```
 ═════════════ kantha stitch divider ═════════════
-THE PERFECT BLEND                │  ◯  EVERYDAY COMFORT
-OF STYLE AND COMFORT             │     text…
-mono intro                       │  ♛  PREMIUM QUALITY
- ↖ ┌──────────────────┐   ✓✓    │     text…
-   │  portrait image  │          │  ⇄  FAST DELIVERY
- ↙ └──────────────────┘ ↘        │     text…
-   ─── [Learn More ↗] ───        │  ◷  EASY EXCHANGE
-                                 │     text…
+┌─────────────────────────────────────────────────────────────────┐
+│ MADE TO                              full-width campaign photo  │
+│ BE KEPT                              (21:10 desktop, 4:5 mobile)│
+│ mono intro                                                      │
+│ [Learn more ↗]                                                  │
+│ ─────────────────────────────────────────────────────────────── │
+│ ☼ CUT FOR OUR   ⚖ FABRIC BY     ▭ PAY AT YOUR   ⇄ WRONG SIZE?   │
+│   WEATHER         THE GRAM        DOOR            SWAP IT       │
+│   text            text            text            text          │
+└─────────────────────────────────────────────────────────────────┘
 ```
-- Left half: heading, intro, image with small corner arrows (↖ ↙ ↘) like crop marks, Learn More button on a hairline below.
-- Small hand-drawn accent mark (e.g., a marigold doodle, tick marks) near the image — our own illustration, not the reference's.
-- Background: dark with a motion-blurred red photo strip at low opacity (optional).
-- Our 4 points: **Everyday Comfort, Premium Fabric, Fast Delivery (all over Bangladesh), Easy Exchange**.
-- **Mobile:** stack — heading → image → features (1 column).
+- Photo with left-to-right and bottom-to-top scrims to `--bg` so overlaid text keeps contrast. Heading display-xl.
+- Desktop: the four promises sit inside the photo on a `--line-strong` hairline, icons in marigold (Lucide, 1.25px). Below `lg`: photo with heading only, promises listed underneath (2 columns from `sm`).
+- Promise text is admin-editable content.
 
 ### 6.7 Follow our style journey (social)
 
@@ -448,17 +461,17 @@ mono intro                       │  ♛  PREMIUM QUALITY
 └─────┘  │     │     └─────┘  │     │
          └─────┘              └─────┘
 ```
-- Staggered: odd cards at top, even cards offset down 48–64px.
+- Staggered: odd cards at top, even cards offset down 48px (desktop). Scroll-snap slider with arrows (`ScrollSlider`).
 - Images are uploaded in admin (no paid social API). Each links to the post.
-- **Mobile:** horizontal scroll of cards (no stagger), 1.3 cards visible.
+- **Mobile:** horizontal scroll of cards (no stagger), ~1.3 cards visible.
 
 ### 6.8 Footer
 
 ```
 ═════════════ kantha stitch divider ═════════════
-                AAARCHIVE                         display-lg
+            [ full logo + "Archive the essence" ]    logo-full.png, ~256px mobile / 360px desktop
      short mono brand description, centred
-          [f] [ig] [tiktok] [wa]                square icon chips (first one accent)
+          [FB] [IG] [TT] [WA]                square text chips (first one accent)
    ┌────────────────────────────────────┐
    │  wide cinematic image (16:6)       │
    └────────────────────────────────────┘
@@ -466,9 +479,10 @@ mono intro                       │  ♛  PREMIUM QUALITY
 ┌───────────────────────────────────────────────────────────┐
 │ Home   About Us   Collections   Shop   FAQs   Track Order   Contact │  --cream bar, dark mono text
 └───────────────────────────────────────────────────────────┘
-██████████ GIANT WORDMARK (filled, noisy/glitched) ██████████
+───────────────────────────────────────────────────────────── hairline
         © 2026 Aaarchive. All rights reserved.
 ```
+- The brand name is not typed in the footer: the logo carries it. Only the © line names the company.
 - **Mobile:** nav bar wraps to 2 rows; policy chips wrap; image 4:3.
 
 ---
@@ -683,18 +697,43 @@ The admin prioritises **speed and clarity** over editorial style.
 }
 ```
 
-**Tailwind CSS v4** (no `tailwind.config`): define these in `apps/web/app/globals.css`. Keep the raw values on `:root` as above, then expose them to Tailwind under `@theme inline`, e.g. `--color-bg: var(--bg); --color-accent: var(--accent); --font-display: var(--font-display);`. That gives utilities like `bg-bg`, `text-fg-muted`, `bg-accent`, `font-display`. Components use these utilities, never raw hex values. `next/font` supplies the font variables, and the `--font-*` stacks above become their fallbacks.
+### 12.1 How the tokens live in code
 
-shadcn/ui (admin only) reads its own variable names (`--background`, `--foreground`, `--primary`, `--border`, `--radius`…). Map them onto the tokens above, e.g. `--background: var(--bg); --primary: var(--accent); --primary-foreground: var(--accent-fg); --radius: 0.25rem;` (admin radius 4px, §8). Never give shadcn a second palette.
+**Tailwind CSS v4 + shadcn/ui** (no `tailwind.config`). Tokens are defined in `apps/web/app/globals.css`. shadcn's variable names are the public API, and the design palette is mapped onto them. There is **one** palette (dark): `<html class="dark">`, never a second theme.
+
+| Design token | CSS variable | Tailwind utility |
+|---|---|---|
+| `--bg` | `--background` | `bg-background` |
+| `--bg-raised` | `--card` (also `--popover`, `--muted`, `--secondary`) | `bg-card` |
+| `--bg-sunken` | `--sunken` | `bg-sunken` |
+| `--fg` | `--foreground` | `text-foreground` |
+| `--fg-muted` | `--muted-foreground` | `text-muted-foreground` |
+| `--fg-subtle` | `--subtle` | `text-subtle` |
+| `--line` | `--border` | `border` / `border-border` |
+| `--line-strong` | `--line-strong` (also `--input`) | `border-line-strong` |
+| `--accent` (marigold) | **`--primary`** | `bg-primary`, `text-primary` |
+| `--accent-hover` | `--primary-hover` | `hover:bg-primary-hover` |
+| `--accent-fg` | `--primary-foreground` | `text-primary-foreground` |
+| `--cream` | `--cream` / `--cream-foreground` | `bg-cream` |
+| `--ember`, `--ember-deep` | `--ember`, `--ember-deep` | `bg-ember` |
+| `--success`, `--warning`, `--danger` | `--success`, `--warning`, `--destructive` | `text-success`, `text-destructive` |
+| — | `--accent` = shadcn's subtle **hover surface** (`#261113`), *not* marigold | `bg-accent` |
+
+- **Fonts:** `next/font` variables (`--font-alfa-slab`, `--font-jetbrains`, `--font-inter`, `--font-hind`) feed `font-display`, `font-mono`, `font-sans`. Hind Siliguri is in every stack.
+- **Type scale:** utilities `type-display-xl|lg|md|sm`, `type-mono-body|label|micro`, `type-text-body` (they set the font, size, line height, tracking and uppercase from §3.2).
+- **Helpers:** `site-container` (§4.1 gutters + 1320px max), `grain-overlay`, `spotlight`, `wordmark-outline` / `wordmark-filled`, `kantha-stitch`, `scrollbar-none`.
+- **Radius:** `--radius: 0` (storefront). The admin wraps its layout in `.admin`, which sets `--radius: 0.25rem` (§8).
+- **Components:** shadcn/ui (`components/ui/`) is the base for **both** storefront and admin. Storefront pieces in `components/store/` wrap shadcn (Tag = Badge, ArrowButton = Button, menu = Sheet, tabs = Tabs) and apply this document's rules. Custom variants added to shadcn: Button `cream`; Badge `sale`, `stock-out`.
 
 ---
 
 ## 13. Assets to prepare
 
-- [ ] AAARCHIVE wordmark (SVG) + AAA monogram (favicon, social avatar) + OG default image (1200×630)
+- [x] Logo provided (PNG, 2026-10-17) — transparent web cuts made
+- [ ] Logo as **SVG** or transparent PNG from the designer (sharper than the cut-out) + AAA monogram (favicon, social avatar) + OG default image (1200×630)
 - [ ] Marigold / kantha doodle illustrations (SVG, 2–3 small marks)
 - [ ] Grain texture (SVG data URI or 200×200 PNG)
-- [ ] Icon set chosen (Phosphor Light or Lucide) — values icons, social icons
+- [x] Icon set chosen: Lucide via shadcn (2026-10-17). Social brand logos still to source (or keep text chips)
 - [ ] Hero campaign shoot: 1 main + 2 side images (red-lit)
 - [ ] Category images (one per category, 3:4)
 - [ ] Featured-look image + 2 cut-out product thumbnails
