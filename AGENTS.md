@@ -88,7 +88,7 @@ Known override: **`architecture.md` §2 supersedes PRD §8.1/§8.3.** The backen
 - **Money is integer taka**, displayed as `৳1,250` via `formatTaka()`.
 - **BD phone** `01XXXXXXXXX` (013–019), normalised via `@aaarchive/shared/phone`, masked in tracking.
 - **Every admin route** checks auth + role in the API. UI guards are UX only.
-- **All UI strings live in `apps/web/lib/i18n/`.** Bangla UI is coming in Phase 2.
+- **All UI strings live in `apps/web/lib/i18n/`.** Bangla UI is coming in Release 2.
 - **Mobile performance:** LCP < 2.5s, CLS < 0.1, storefront JS < 150 KB gzipped, Lighthouse mobile ≥ 85.
 - **Accessibility:** WCAG 2.1 AA contrast, keyboard-operable UI, visible focus, `prefers-reduced-motion` respected.
 - **Never deploy to Vercel Hobby** (non-commercial). **No paid services** without the user's explicit approval.

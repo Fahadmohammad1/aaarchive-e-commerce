@@ -4,7 +4,7 @@
 |---|---|
 | **Scope** | The whole monorepo: `apps/web` (Next.js storefront + admin), `apps/api` (NestJS REST API), `packages/shared` |
 | **Last updated** | 17 October 2026 |
-| **Related docs** | `PRD.md` (what to build) · `design.md` (visual system) · `rules.md` · `phases.md` · `memory.md` |
+| **Related docs** | `PRD.md` (what to build) · `design.md` (visual system) · `rules.md` (what to use/avoid) · `phases.md` (build order) · `memory.md` (progress) |
 
 This file is the source of truth for **how** Aaarchive is built: repo layout, app flow, folder structure and stack. When code and this file disagree, fix one of them in the same change.
 
@@ -161,9 +161,9 @@ The cart stores only `variantId` + `quantity` (+ a display snapshot). It never s
 | Caching | Cache Components (`cacheComponents: true`, `"use cache"`, `cacheTag`, `revalidateTag`) | enabled |
 | Routing guard | `proxy.ts` | planned |
 | Styling | Tailwind CSS v4: tokens in `app/globals.css` under `@theme`, no `tailwind.config` | installed |
-| Admin UI kit | shadcn/ui → `components/ui/`, themed with our tokens | planned (Phase 0) |
+| Admin UI kit | shadcn/ui → `components/ui/`, themed with our tokens (`design.md` §12) | planned (Phase 0) |
 | Storefront UI | custom components in `components/store/` per `design.md` | planned |
-| Server data (client) | TanStack Query v5 (admin, account, search-as-you-type) | planned |
+| Server data (client) | **TanStack Query v5**: every client-side read/write of API data (§3.3) | planned (Phase 0) |
 | Client state | Zustand (cart, UI) — never for server data | planned |
 | Forms | React Hook Form + Zod (`@hookform/resolvers`) | planned |
 | Fonts | `next/font/google`, self-hosted: Alfa Slab One, JetBrains Mono, Inter, Hind Siliguri | planned (replaces Geist) |
@@ -173,15 +173,34 @@ The cart stores only `variantId` + `quantity` (+ a display snapshot). It never s
 | Analytics | GA4, Meta Pixel, Microsoft Clarity via `lib/analytics/` | planned |
 | Hosting | Cloudflare Workers via OpenNext (`@opennextjs/cloudflare`). **Never Vercel Hobby** (non-commercial) | planned |
 
-### 3.3 API client (`lib/api/`)
+### 3.3 Data fetching — Server Components + TanStack Query
+
+Two paths, chosen by **who needs the data and whether it must be indexed**:
+
+| Data | Path | Why |
+|---|---|---|
+| Public catalog: home, shop, category, collection, product details, content pages | **Server Component** → `lib/<module>/<module>-api.ts` with `"use cache"` + `cacheTag` | SEO, fast first paint, no client JS, revalidated by the API's webhook |
+| Product stock status | **Server Component**, uncached, inside `<Suspense>` | always current, still server-rendered |
+| Everything a Client Component reads or writes: admin screens, account, cart validation, coupon apply, checkout submit, order tracking, search-as-you-type, `/auth/me` | **TanStack Query** (`useQuery` / `useMutation` / `useInfiniteQuery`) | caching, dedupe, retries, cancellation, invalidation |
+| Server-rendered data that a Client Component also needs (e.g. a filter bar that refines the list) | Prefetch on the server with `queryClient.prefetchQuery`, wrap in `<HydrationBoundary state={dehydrate(queryClient)}>`, read with the same `useQuery` | one fetch, no flash |
+
+TanStack Query setup:
+
+- `components/providers/query-provider.tsx` creates one `QueryClient` per browser session (per request on the server) and is mounted in the root layout. Defaults: `staleTime` 60s, no retry on 4xx `ApiError`, up to 2 retries on network/5xx, no mutation retries.
+- Per module: `lib/<module>/<module>-keys.ts` (key factory, e.g. `productKeys.list(filters)`, `orderKeys.detail(id)`) and `lib/<module>/use-<thing>.ts` hooks. Components call hooks, never `useQuery` with inline keys.
+- Query functions call `lib/api/` and forward `signal`. Responses are parsed with the module's Zod schema.
+- Mutations invalidate exactly the keys they change (`queryClient.invalidateQueries({ queryKey: orderKeys.all })`). Catalog mutations in the admin also cause the API to revalidate storefront cache tags.
+- Admin queries are the only place stock numbers appear. They run in the browser of an authenticated user and are never prefetched in a public Server Component.
+
+### 3.4 API client (`lib/api/`)
 
 - `api.get/post/put/patch/delete<T>(path, opts)`: path relative to `NEXT_PUBLIC_API_URL`. Supports `query`, JSON body (FormData passes through), `signal`, `timeoutMs` (default 30s), optional Zod `schema`, Next fetch options.
 - Every failure throws `ApiError` (`status`, `code`, `message`, `details`; `status === 0` for network errors/timeouts).
-- Attaches `Authorization: Bearer <token>` when set, and does a single-flight refresh on 401 (§4.6). Never set the token on the server: module state is shared across users' requests.
+- Attaches `Authorization: Bearer <token>` when set, and does a single-flight refresh on 401 (§4.8). Never set the token on the server: module state is shared across users' requests.
 - **Same-origin proxy:** `next.config.ts` rewrites `/api/v1/:path*` → `${API_PROXY_TARGET}/:path*`. The refresh cookie stays first-party, the storefront needs no CORS, and the API URL can change without a rebuild. Server Components call `API_PROXY_TARGET` directly.
 - Planned files: `api-client.ts`, `api-error.ts`, `api-config.ts`, `session.ts`.
 
-### 3.4 Folder structure
+### 3.5 Folder structure
 
 The folders exist now (empty ones hold a `.gitkeep`). Files marked *(planned)* are created in the phase that needs them.
 
@@ -221,7 +240,7 @@ apps/web/
 │   └── providers/                 # QueryProvider, AuthProvider, AnalyticsProvider
 ├── lib/
 │   ├── api/                       # shared transport core — NOT a module
-│   ├── i18n/                      # every UI string (en.ts now, bn.ts Phase 2) + t()
+│   ├── i18n/                      # every UI string (en.ts now, bn.ts in Release 2) + t()
 │   ├── analytics/                 # GA4 / Pixel / Clarity event helpers
 │   ├── utils.ts                   # (planned) cn()
 │   ├── auth/ · product/ · category/ · collection/ · size-chart/ · cart/ · order/
@@ -229,7 +248,7 @@ apps/web/
 └── public/{images,icons}/         # static brand assets (product photos are on Cloudinary)
 ```
 
-### 3.5 Conventions
+### 3.6 Conventions
 
 **Feature modules (`lib/<module>/`)** — one per backend domain, not per page:
 
@@ -246,7 +265,7 @@ apps/web/
 - Storefront components do **not** import from `components/ui/`. The surfaces follow different design rules (`design.md` §5 vs §8).
 - Default to Server Components. Put `"use client"` on the smallest leaf that needs it.
 
-### 3.6 Route map
+### 3.7 Route map
 
 | URL | Rendering |
 |---|---|
@@ -337,7 +356,7 @@ request → helmet/CORS → /api/v1 → Guard (auth/role) → ZodValidationPipe 
 
 - **Stock privacy (§5.6):** public responses carry `stockStatus` from `stockStatusFor()` (`@aaarchive/shared/stock`) with the threshold (product override → setting, default 3). The number never leaves an admin route, and a public mapper never spreads a Prisma row.
 - **Over-quantity** → generic message. Quantity is capped per variant per order (default 5).
-- **Order placement (§8.4)** happens in one `prisma.$transaction`. Per item: `UPDATE variant SET stock = stock - qty WHERE id = ? AND stock >= qty`, where zero rows means `OUT_OF_STOCK`. Then create Order + OrderItems (snapshot) + Payment + first OrderEvent and increment the coupon `usedCount`. Email goes out after commit.
+- **Order placement (§8.4)** happens in one `prisma.$transaction`. Per item: `variant.updateMany({ where: { id, stock: { gte: qty } }, data: { stock: { decrement: qty } } })`, where `count === 0` means `OUT_OF_STOCK`. Then create Order + OrderItems (snapshot) + Payment + first OrderEvent and increment the coupon `usedCount`. Email goes out after commit.
 - **Prices** are recomputed from the DB on every cart validate, coupon apply and order.
 - **Stock restore** happens on Cancelled / Returned. **TrxID** is unique (DB constraint).
 - **Money** is `Int` taka. Order numbers are `AAR-` + sequence.
@@ -352,12 +371,27 @@ request → helmet/CORS → /api/v1 → Guard (auth/role) → ZodValidationPipe 
 
 After an admin write that changes the storefront, the service calls `RevalidationService.revalidate(tags)`. That POSTs to `FRONTEND_REVALIDATE_URL` with `REVALIDATE_SECRET`. A failure is logged, not thrown.
 
-### 4.7 Auth (proposed)
+### 4.7 Database — Supabase + Prisma
+
+Supabase is used **only as hosted PostgreSQL**. The API is its only client (no `supabase-js`, Supabase Auth, Storage or Realtime).
+
+| Env var (`apps/api/.env`) | Supabase connection | Used by |
+|---|---|---|
+| `DATABASE_URL` | **Transaction pooler**: `postgres://postgres.<ref>:<password>@aws-…pooler.supabase.com:6543/postgres` | the running API, via `PrismaPg` adapter (`src/prisma/prisma.service.ts`) |
+| `DIRECT_URL` | **Session pooler**: same host, port `5432` | Prisma CLI (`migrate`, `studio`) via `prisma.config.ts` |
+
+- The direct host `db.<ref>.supabase.co` is IPv6-only on the free tier. Use the session pooler for migrations unless the network has IPv6.
+- **Disable the Data API** in Supabase (Project Settings → Data API), or enable RLS with no policies on every table. Prisma's tables live in `public`, which Supabase would otherwise expose over REST to the anon key.
+- Migrations: `bun run --filter @aaarchive/api db:migrate` (`prisma migrate dev`) during development; `prisma migrate deploy` in CI/production. Seed with `prisma/seed.ts` (idempotent).
+- The free tier pauses after ~7 days idle and has no automatic backups. The uptime monitor on `/api/v1/health` (which runs `SELECT 1`) keeps it awake, and a scheduled `pg_dump` covers backups (Phase 7).
+- Credentials are provided by the user and live only in `apps/api/.env` (git-ignored). See `rules.md` §6.
+
+### 4.8 Auth (proposed)
 
 - `POST /auth/login` → `{ accessToken, user }`. The access token is short-lived and kept in memory by the web. The refresh token is an **httpOnly, Secure, SameSite=Lax cookie** scoped to `/api/v1/auth`.
 - `POST /auth/refresh` reads the cookie and returns a new access token (rotating the refresh token). `POST /auth/logout` clears it.
 - On a 401 the web refreshes once (single-flight) and retries. If the refresh fails, the session ends.
-- A non-sensitive `path=/` session-hint cookie lets `proxy.ts` do the optimistic `/admin` redirect.
+- A non-sensitive `path=/` session-hint cookie, set by the web on login and cleared on logout, lets `proxy.ts` do the optimistic `/admin` redirect.
 - Roles: `CUSTOMER | STAFF | OWNER` via `RolesGuard` + `@Roles()`. Passwords use argon2. Google OAuth for customers goes through the API callback.
 
 This replaces the Auth.js / Better Auth line in PRD §8.1.
@@ -398,8 +432,9 @@ Rules:
 
 ## 7. Open questions
 
-1. **API hosting** (free + commercial use): Oracle Cloud Always Free VM (Docker + Nginx) vs Render/Koyeb free tiers. Watch cold starts and Supabase connection limits.
-2. **CI:** GitHub Actions running `bun install --frozen-lockfile`, `bun run check`, `typecheck`, `test`, `build`. Not set up yet.
-3. **Backups:** GitHub Actions `pg_dump` → private storage target.
-4. **Order-number sequence:** Postgres sequence via raw migration vs a counter table.
-5. **Icon set:** Lucide vs Phosphor Light.
+1. **API hosting** (free + commercial use): Oracle Cloud Always Free VM (Docker + Nginx) vs Render/Koyeb free tiers. Watch cold starts and Supabase connection limits (Phase 0).
+2. **Backups:** GitHub Actions `pg_dump` → private storage target (Phase 7).
+3. **Order-number sequence:** Postgres sequence via raw migration vs a counter table (Phase 0).
+4. **Icon set:** Lucide vs Phosphor Light (Phase 0).
+
+CI (GitHub Actions) is a Phase 0 task in `phases.md`.

@@ -22,7 +22,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Data: the API is reached through the same-origin `/api/v1` rewrite via `lib/api/`. No database, Prisma or business logic here. The only route handler is `app/api/revalidate`.
 - Feature modules in `lib/<module>/`: `<module>-schemas.ts`, `<module>-api.ts`, `<module>-keys.ts`, `use-*.ts`, `<module>-store.ts` (client state only). Kebab-case filenames with the module prefix, no `index.ts` barrels. Route-private UI goes in `_components/`.
 - Shared request schemas, enums, `formatTaka`, phone helpers: import from `@aaarchive/shared/<topic>`. Don't re-implement them.
-- TanStack Query for client-side server data, Zustand only for real client state (cart, UI), React Hook Form + Zod for forms.
+- **TanStack Query for every client-side read/write of API data** (key factories in `<module>-keys.ts`, hooks in `use-*.ts`, always forward `signal`). Server Components for SEO pages. Zustand only for real client state (cart, UI). React Hook Form + Zod for forms. See `docs/architecture.md` §3.3 and `docs/rules.md` §4.2.
 - Every user-facing string comes from `lib/i18n/`.
 
 ## Commands (from the repo root)

@@ -8,7 +8,7 @@
 | **Version** | 1.0 (MVP) |
 | **Status** | Draft |
 | **Last updated** | 17 October 2026 |
-| **Related docs** | `design.md` (visual design system and page layouts) |
+| **Related docs** | `architecture.md` (how it is built) · `design.md` (visual system) · `rules.md` · `phases.md` (build plan) · `memory.md` |
 
 ---
 
@@ -57,7 +57,7 @@ The business is just starting, so the MVP is built and run **entirely on free to
 | **Budget** | Free tools and free tiers only. Unavoidable business costs: domain (yearly), courier charges per delivery, bKash/Nagad cash-out fees. |
 | **Hosting** | Must allow **commercial use** on the free plan. Vercel Hobby is **not** allowed (non-commercial only). |
 | **Market** | Customers are mostly on mobile, mostly arrive from Facebook/Instagram, prefer COD, and rarely read email. |
-| **Language** | English UI for MVP. Product names may include Bangla. Bangla UI is a Phase 2 item, so all UI strings must be kept in one place (i18n-ready). |
+| **Language** | English UI for MVP. Product names may include Bangla. Bangla UI is a Release 2 item, so all UI strings must be kept in one place (i18n-ready). |
 | **Currency** | BDT only, displayed as `৳1,250`. Whole taka, no decimals. |
 
 ---
@@ -87,7 +87,9 @@ The business is just starting, so the MVP is built and run **entirely on free to
 
 ## 4. Scope summary
 
-| Area | MVP (Phase 1) | Phase 2 (after launch) | Phase 3 (when growing, may be paid) |
+Releases are scope tiers. The build of Release 1 is broken into Phases 0–7 in `phases.md`.
+
+| Area | Release 1 — MVP | Release 2 (after launch) | Release 3 (when growing, may be paid) |
 |---|---|---|---|
 | Catalog | Categories, collections, variants, size chart, search, filters | Product reviews, "notify me" when back in stock | Recommendations |
 | Checkout | Guest checkout, COD, manual bKash/Nagad, coupons, delivery zones | Saved addresses, reorder | Payment gateway |
@@ -385,25 +387,29 @@ Setting         key, value(json)
 
 ### 8.1 Stack
 
+Two separate apps in one repository (Bun workspaces): a **Next.js** frontend and a **NestJS** API. How they fit together is specified in `architecture.md`.
+
 | Layer | Choice | Notes |
 |---|---|---|
-| Framework | **Next.js (App Router) + TypeScript** | One full-stack app: storefront, admin, and API (route handlers / server actions). A separate NestJS API can be split out later if needed. |
+| Repository | Monorepo: `apps/web`, `apps/api`, `packages/shared` | **Bun** as package manager, **Biome** for lint/format |
+| Frontend | **Next.js (App Router) + TypeScript** | Storefront and admin. Server Components for SEO pages |
+| Client data fetching | **TanStack Query** | All client-side reads/writes of API data (admin, account, cart, checkout, search, tracking) |
 | UI | Tailwind CSS + shadcn/ui (admin) | Custom components for the storefront per `design.md` |
-| Data fetching | Server Components; TanStack Query in the admin | |
-| Forms & validation | React Hook Form + Zod (shared schemas client/server) | |
-| ORM | Prisma | Use the connection pooler URL for runtime and direct URL for migrations |
-| Database | PostgreSQL on **Supabase free tier** | Alternative: Neon free tier |
-| Images | **Cloudinary free tier** (or Cloudflare R2) | Upload from admin, auto WebP/AVIF, responsive sizes |
-| Auth | Auth.js (or Better Auth) — credentials + Google | Admin and optional customer accounts |
+| Forms & validation | React Hook Form + **Zod** (schemas shared by both apps via `packages/shared`) | |
+| Backend | **NestJS + TypeScript** | REST API at `/api/v1`. Owns all business rules, auth and data |
+| ORM | **Prisma** | Pooled connection for runtime, direct/session connection for migrations |
+| Database | PostgreSQL on **Supabase free tier** | Used only as Postgres: no Supabase Auth, Storage or client SDK |
+| Images | **Cloudinary free tier** | Signed uploads from admin, auto WebP/AVIF, responsive sizes |
+| Auth | NestJS: JWT access token + httpOnly refresh cookie, argon2, roles | Admin/staff; optional customer accounts with Google OAuth |
 | Email | Resend or Brevo free tier | Order confirmation, password reset |
 | Bot protection | Cloudflare Turnstile | Checkout, login, contact form |
 | Search | PostgreSQL full-text + `pg_trgm` | |
 | Analytics | GA4, Meta Pixel, Microsoft Clarity | All free |
-| Hosting | **Cloudflare Workers/Pages via OpenNext** | Free tier allows commercial use. Alternative: free-tier VPS (e.g., Oracle Cloud Always Free) with Docker + Nginx. |
+| Hosting | Web: **Cloudflare Workers via OpenNext**. API: free tier that allows commercial use (e.g., Oracle Cloud Always Free VM with Docker) | To be confirmed — see `architecture.md` §7 |
 | DNS / CDN | Cloudflare (free) | |
 | Backups | GitHub Actions scheduled `pg_dump` → private storage | Supabase free tier has no daily backups |
 | Error tracking | Sentry free tier | |
-| Source control / CI | GitHub + GitHub Actions | Lint, type-check, build on every PR |
+| Source control / CI | GitHub + GitHub Actions | Lint, type-check, test, build on every PR |
 
 > **Do not deploy on Vercel Hobby** — its terms prohibit commercial use.
 > Free-tier limits change; re-check Supabase, Cloudinary, Cloudflare and Resend limits before launch.
@@ -417,31 +423,33 @@ Setting         key, value(json)
 | Cart, checkout, track order, account | Dynamic |
 | Admin | Dynamic, client-heavy |
 
-### 8.3 API (route handlers) — outline
+### 8.3 API (NestJS, base path `/api/v1`) — outline
+
+Paths below are relative to `/api/v1`. The web reaches them through a same-origin rewrite.
 
 **Public**
 
 ```
-GET  /api/products?category=&size=&color=&min=&max=&sort=&page=
-GET  /api/products/[slug]            → includes variants with stockStatus (no numbers)
-GET  /api/search?q=
-POST /api/cart/validate              → re-check items, prices, stock status
-POST /api/coupons/apply              → { code, items, phone } → discount
-POST /api/orders                     → place order (Turnstile token required)
-POST /api/orders/track               → { phone, orderNumber }
+GET  /products?category=&size=&color=&min=&max=&sort=&page=
+GET  /products/:slug                 → includes variants with stockStatus (no numbers)
+GET  /search?q=
+POST /cart/validate              → re-check items, prices, stock status
+POST /coupons/apply              → { code, items, phone } → discount
+POST /orders                         → place order (Turnstile token required)
+POST /orders/track               → { phone, orderNumber }
 ```
 
 **Admin** (auth + role check on every route)
 
 ```
-CRUD /api/admin/products, /variants, /categories, /collections, /coupons, /zones, /pages
-GET  /api/admin/orders?status=&payment=&q=&from=&to=
-PATCH /api/admin/orders/[id]/status
-POST /api/admin/orders/[id]/notes
-POST /api/admin/payments/[id]/verify | /reject
-CRUD /api/admin/blocked-phones
-GET  /api/admin/reports/summary
-POST /api/admin/uploads/sign         → signed Cloudinary upload params
+CRUD /admin/products, /variants, /categories, /collections, /coupons, /zones, /pages
+GET  /admin/orders?status=&payment=&q=&from=&to=
+PATCH /admin/orders/:id/status
+POST /admin/orders/:id/notes
+POST /admin/payments/:id/verify | /reject
+CRUD /admin/blocked-phones
+GET  /admin/reports/summary
+POST /admin/uploads/sign             → signed Cloudinary upload params
 ```
 
 ### 8.4 Order placement logic
@@ -450,7 +458,7 @@ POST /api/admin/uploads/sign         → signed Cloudinary upload params
 2. Check rate limits and phone blocklist.
 3. Load variants from DB; recalculate prices, coupon and delivery charge on the server.
 4. In one DB transaction:
-   - For each item: `UPDATE variant SET stock = stock - qty WHERE id = ? AND stock >= qty`. If any update affects 0 rows → abort with `OUT_OF_STOCK` (generic message to user).
+   - For each item: `UPDATE variant SET stock = stock - qty WHERE id = ? AND stock >= qty`. If any update affects 0 rows → abort with `OUT_OF_STOCK` (generic message to user). In Prisma: `variant.updateMany({ where: { id, stock: { gte: qty } }, data: { stock: { decrement: qty } } })` and check `count`.
    - Create `Order`, `OrderItem`s, `Payment` (if bKash/Nagad), first `OrderEvent`.
    - Increment coupon `usedCount`.
 5. After commit: send email (if any), return order number.
@@ -516,7 +524,7 @@ POST /api/admin/uploads/sign         → signed Cloudinary upload params
 | Search | `search` | `Search` |
 
 - Microsoft Clarity for heatmaps and session recordings.
-- **Facebook/Instagram product catalog feed:** `/api/feeds/facebook.xml` (or CSV) listing published products with price, availability, image and link, for Facebook Shop and catalog ads.
+- **Facebook/Instagram product catalog feed:** `/api/v1/feeds/facebook.xml` (served by the API) (or CSV) listing published products with price, availability, image and link, for Facebook Shop and catalog ads.
 
 ---
 
@@ -573,14 +581,18 @@ SMS is out of scope for MVP (paid). Phone confirmation calls are done manually b
 
 ## 13. Release plan
 
+Release 1 (MVP) is built in eight phases. Tasks, exit criteria and progress are tracked in `phases.md`.
+
 | Phase | Scope | Est. duration |
 |---|---|---|
-| **0. Setup** | Repo, CI, DB schema, design tokens, base components, auth, deploy pipeline | 1 week |
-| **1. Catalog** | Admin products/variants/categories/collections/images; shop, category, product pages; search | 2 weeks |
-| **2. Cart & checkout** | Cart, checkout, COD + manual bKash/Nagad, coupons, delivery zones, order placement, success page, emails | 1.5 weeks |
-| **3. Orders admin** | Order list/detail, status flow, payment verification, invoices, customers, blocklist, tracking page | 1.5 weeks |
-| **4. Home & content** | All home sections, content pages, settings, social posts | 1 week |
-| **5. Launch prep** | SEO, analytics, Pixel, FB catalog feed, performance pass, accessibility pass, backups, real product upload, test orders | 1 week |
+| **0. Foundation** | Monorepo, CI, Supabase + Prisma schema, seed, design tokens, API client, TanStack Query, deploy pipeline | 1 week |
+| **1. Authentication** | Admin/staff login, refresh, roles, guards | 0.5 week |
+| **2. Admin & catalog** | Admin shell; products/variants/stock/categories/collections/images/size charts | 1.5 weeks |
+| **3. Storefront catalog** | Layout, shop/category/collection, product page, search, SEO basics | 1.5 weeks |
+| **4. Cart & checkout** | Cart, checkout, COD + manual bKash/Nagad, coupons, delivery zones, order placement, success, tracking, emails | 1.5 weeks |
+| **5. Order management** | Order list/detail, status flow, payment verification, invoices, customers, blocklist, dashboard stats | 1.5 weeks |
+| **6. Home, content & settings** | Home sections, content pages, settings, staff; customer accounts if Q6 = yes | 1 week |
+| **7. Launch prep** | SEO, analytics, FB feed, performance & accessibility passes, monitoring, backups, production deploy | 1 week |
 | **Launch** | Soft launch to friends/followers → public launch | — |
 
 ### 13.1 Launch checklist

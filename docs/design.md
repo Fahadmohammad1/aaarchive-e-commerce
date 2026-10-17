@@ -4,7 +4,7 @@
 |---|---|
 | **Version** | 1.0 |
 | **Last updated** | 17 October 2026 |
-| **Related docs** | `PRD.md` (features and requirements) |
+| **Related docs** | `PRD.md` (features and requirements) · `architecture.md` (where tokens and components live in code) · `rules.md` |
 | **Reference** | Editorial dark fashion landing page (chosen reference shot). We adopt its **structure and mood**, not its brand, copy or imagery. |
 
 ---
@@ -108,7 +108,7 @@ Keywords: *cinematic · editorial · raw · warm-dark · label/tag aesthetic · 
 | **Display** (headings, wordmark text) | **Alfa Slab One** | `Georgia, serif` | Heavy slab serif, uppercase only. Alternative if we want to be further from the reference: **Ultra**. |
 | **Mono** (labels, tags, nav, buttons, short copy, prices) | **JetBrains Mono** (400, 500, 700) | `ui-monospace, monospace` | The "spec-sheet" voice |
 | **Text** (long paragraphs: descriptions, policies, FAQ) | **Inter** (400, 500) | `system-ui, sans-serif` | Readability |
-| **Bangla** (product names, Phase 2 UI) | **Hind Siliguri** (400, 600) | `"Noto Sans Bengali", sans-serif` | Add to every font stack so Bangla characters render consistently |
+| **Bangla** (product names, Release 2 UI) | **Hind Siliguri** (400, 600) | `"Noto Sans Bengali", sans-serif` | Add to every font stack so Bangla characters render consistently |
 
 ### 3.2 Type scale
 
@@ -683,7 +683,9 @@ The admin prioritises **speed and clarity** over editorial style.
 }
 ```
 
-Tailwind: map these to `theme.extend` (`colors.bg`, `colors.accent`, `fontFamily.display`, etc.) so components use tokens, never raw hex values.
+**Tailwind CSS v4** (no `tailwind.config`): define these in `apps/web/app/globals.css`. Keep the raw values on `:root` as above, then expose them to Tailwind under `@theme inline`, e.g. `--color-bg: var(--bg); --color-accent: var(--accent); --font-display: var(--font-display);`. That gives utilities like `bg-bg`, `text-fg-muted`, `bg-accent`, `font-display`. Components use these utilities, never raw hex values. `next/font` supplies the font variables, and the `--font-*` stacks above become their fallbacks.
+
+shadcn/ui (admin only) reads its own variable names (`--background`, `--foreground`, `--primary`, `--border`, `--radius`…). Map them onto the tokens above, e.g. `--background: var(--bg); --primary: var(--accent); --primary-foreground: var(--accent-fg); --radius: 0.25rem;` (admin radius 4px, §8). Never give shadcn a second palette.
 
 ---
 
