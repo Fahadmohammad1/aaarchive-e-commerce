@@ -107,10 +107,11 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 - [ ] [api] Colours and sizes: CRUD (`/admin/colors`, `/admin/sizes`), `size-charts`: templates + custom tables — all editable in the dashboard (PRD §6.7)
 - [ ] [api] `products`: CRUD with draft/published/archived status, featured flag, SEO fields, sale price + window, low-stock override, duplicate product
 - [ ] [api] Variants: generate from sizes × colours, SKU, stock, price override, active flag. Quick stock edit endpoint
-- [ ] [repo] Supabase: create bucket `media` (public, `image/webp`, 2 MB) + S3 access keys → `apps/api/.env`
-- [ ] [api] `media` module: `POST /admin/media` (sharp pipeline: content check, 40 MP cap, metadata strip, WebP 400/800/1200/1600 + blur), S3 upload, `MediaAsset`; `DELETE /admin/media/:id` when unreferenced — install `sharp`, `@aws-sdk/client-s3`
+- [x] [repo] Supabase: bucket `media` (public, `image/webp`, 2 MB) + S3 access keys in `apps/api/.env` (2026-10-18)
+- [x] [api] `media` module: `POST /admin/media` (sharp pipeline: content check, 40 MP cap, metadata strip, WebP 400/800/1200/1600 + blur), S3 upload, `MediaAsset`, `GET /admin/media`, `DELETE /admin/media/:id` when unreferenced — verified end to end on Supabase
 - [ ] [api] Product images reference media (order, main image, per-colour images)
-- [ ] [web] `lib/media/media-loader.ts` for `next/image`; image picker/uploader component in the dashboard
+- [x] [web] `components/store/media-image.tsx` (srcset over stored renditions)
+- [ ] [web] Image picker/uploader component in the dashboard (with the product editor)
 - [ ] [api] `revalidation` service calling the web's `/api/revalidate` after catalog writes
 - [ ] [web] Admin screens: categories (incl. photo, order, show on home), collections, sizes, colours, size charts, products list (search, filters, sort by stock), product editor (tabs: details, pricing, images, variants, size chart, SEO), inline variant stock table
 - [ ] [web] `app/api/revalidate` route (secret-checked `revalidateTag`)
@@ -224,7 +225,7 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 - [ ] [web] Revisit CSP: nonce-based `script-src` (drop `'unsafe-inline'`) if it can be done without losing static caching; add Turnstile/analytics domains
 - [ ] [repo] Scheduled `pg_dump` backup (GitHub Actions → private storage) and a tested restore
 - [ ] [repo] Production deploy: web on Cloudflare (OpenNext), API on the chosen host, domain + HTTPS, Search Console
-- [ ] [repo] Serve media from our domain (`/media/*` → Supabase Storage, cached by Cloudflare) to stay within Supabase's free egress; scheduled clean-up of unreferenced media
+- [ ] [repo] Serve media from our domain (`/media/*` → Supabase Storage, cached by Cloudflare with a long edge TTL) to stay within Supabase's free egress; API purges the Cloudflare cache when an image is deleted; scheduled clean-up of unreferenced media
 - [ ] [web] *(Needs approval)* Playwright test for the checkout flow
 - [ ] PRD §13.1 launch checklist completed
 - [ ] Soft launch to friends/followers → public launch

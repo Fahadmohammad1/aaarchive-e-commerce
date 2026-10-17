@@ -10,6 +10,13 @@ Living log of where the project stands. **Every agent updates this at the end of
 
 ## Completed
 
+- **2026-10-18** [api][web][shared] — Media upload pipeline live on Supabase Storage.
+  - Bucket `media` set public / `image/webp` / 2 MB (SQL on `storage.buckets`); derived `MEDIA_S3_ENDPOINT`, `MEDIA_S3_REGION` (ap-southeast-2), `MEDIA_PUBLIC_BASE_URL` into `apps/api/.env` and `NEXT_PUBLIC_MEDIA_BASE_URL` into `apps/web/.env.local` (user added the S3 keys).
+  - Deps: `sharp` 0.35.5, `@aws-sdk/client-s3`, `@types/multer`. Migration `20261018150000_media_assets` applied to Supabase (MediaAsset RLS on, anon no access).
+  - Shared `@aaarchive/shared/media` (purposes, widths, limits, `mediaAssetSchema`, `pickRendition`; 2 tests). API `modules/media`: `media-pipeline.ts` (decode-checked JPG/PNG/WebP, 40 MP cap, min side 200, rotate, metadata stripped, WebP 400–1600 + 16 px blur, ≤ 2 MB per rendition), `MediaStorageService` (S3, `Cache-Control: public, max-age=86400`), `MediaService` (upload with clean-up on failure, list, delete only when unreferenced by products/content/settings), `MediaController` (`/admin/media`, 8 MB multer limit, 30/min). 9 pipeline unit tests.
+  - Verified on Supabase: upload 201 → 4 renditions served publicly as WebP with no EXIF/marker; disguised PHP → 400 UNSUPPORTED_IMAGE; anonymous → 401; delete → bucket and DB empty. Found: Supabase CDN keeps serving deleted objects from cache → cache lifetime cut from 1 year to 1 day; Cloudflare purge-on-delete added to Phase 7.
+  - Web: `components/store/media-image.tsx` (`<img srcset>`, blur background).
+
 - **2026-10-18** [repo] — Media moves to **Supabase Storage** (user decision; Cloudinary dropped). Design: uploads go through the API (`POST /admin/media`): `sharp` content check, 40 MP cap, EXIF/GPS strip, WebP 400/800/1200/1600 + blur, stored via Supabase's S3 API with storage-only keys in a public `media` bucket (webp only, 2 MB); `MediaAsset` table referenced by `ProductImage.mediaId` and content `{ mediaId, alt }`; production serves `/media/*` through Cloudflare cache to protect free egress.
   - Docs: PRD §6.7/§8.1/§8.3/§9.3, architecture §4.7a (new) + diagram/stack, rules (stack, avoid-table, §6 Supabase, §8.4 uploads, §8.6), phases (Phase 2 media tasks, Phase 7 media CDN + clean-up).
   - Code: shared `imageSchema` → `{ mediaId, alt }`; Prisma `MediaAsset` + `ProductImage.mediaId` (Restrict); migration `20261018150000_media_assets` generated offline from a schema diff (ProductImage verified empty on Supabase; `prisma dev` kept hanging, so not applied locally — CI applies it on its Postgres); `next.config.ts` image allowlist + CSP from `NEXT_PUBLIC_MEDIA_BASE_URL`; `.env.example` (API `MEDIA_S3_*`, `MEDIA_BUCKET`, `MEDIA_PUBLIC_BASE_URL`; web `NEXT_PUBLIC_MEDIA_BASE_URL`).
@@ -118,7 +125,7 @@ Living log of where the project stands. **Every agent updates this at the end of
 
 ## Blockers / open questions
 
-- Media: waiting for the user to create bucket `media` (public, `image/webp`, 2 MB) + S3 access keys, approve deps `sharp` + `@aws-sdk/client-s3`, and approve applying migration `20261018150000_media_assets` to Supabase.
+- `SEED_OWNER_PASSWORD` is still in `apps/api/.env`; user to remove it once the password is saved elsewhere.
 - Local `bunx prisma dev` became unreliable (daemons hang in starting_up / grab port 4000). Use CI's Postgres or a disposable Postgres for migration tests.
 
 - [web] `next.config.ts` has `experimental.agentFeedback: true` (from create-next-app). It makes `next dev` add a block to `apps/web/AGENTS.md` asking agents to send feedback to the Next.js team. Agents must not send anything without the user's approval. Ask whether to turn it off.

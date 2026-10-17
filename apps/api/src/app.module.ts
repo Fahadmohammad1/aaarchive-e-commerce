@@ -14,6 +14,7 @@ import { ProxySecretMiddleware } from "./common/security/proxy-secret.middleware
 import { type Env, validateEnv } from "./config/env.schema.js";
 import { HealthModule } from "./health/health.module.js";
 import { AuthModule } from "./modules/auth/auth.module.js";
+import { MediaModule } from "./modules/media/media.module.js";
 import { PrismaModule } from "./prisma/prisma.module.js";
 
 @Module({
@@ -37,6 +38,7 @@ import { PrismaModule } from "./prisma/prisma.module.js";
     PrismaModule,
     HealthModule,
     AuthModule,
+    MediaModule,
   ],
   // Order matters: rate limit → authentication → role. Every route is
   // OWNER/STAFF-only unless it says @Public() or @Roles(...) (rules.md §8.3).

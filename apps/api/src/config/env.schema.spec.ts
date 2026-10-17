@@ -33,6 +33,12 @@ describe("validateEnv", () => {
         API_PROXY_SECRET: "s".repeat(32),
         REVALIDATE_SECRET: "r".repeat(16),
         TURNSTILE_SECRET_KEY: "t",
+        MEDIA_S3_ENDPOINT: "https://ref.storage.supabase.co/storage/v1/s3",
+        MEDIA_S3_REGION: "ap-southeast-2",
+        MEDIA_S3_ACCESS_KEY_ID: "id",
+        MEDIA_S3_SECRET_ACCESS_KEY: "secret",
+        MEDIA_PUBLIC_BASE_URL:
+          "https://ref.supabase.co/storage/v1/object/public/media",
       }),
     ).not.toThrow();
   });

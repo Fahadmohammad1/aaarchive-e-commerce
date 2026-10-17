@@ -168,7 +168,7 @@ The cart stores only `variantId` + `quantity` (+ a display snapshot). It never s
 | Forms | React Hook Form + Zod (`@hookform/resolvers`) | planned |
 | Fonts | `next/font/google`, self-hosted: Alfa Slab One, JetBrains Mono, Inter, Hind Siliguri | planned (replaces Geist) |
 | Icons | **Lucide** (`lucide-react`, shadcn's icon library) | installed |
-| Images | `next/image` with a media loader that picks the stored WebP width (`lib/media/`) | planned (Phase 2) |
+| Images | `components/store/media-image.tsx`: `<img srcset>` over the stored WebP widths (works in Server Components; no optimiser). `next/image` only for bundled assets (logo) and dev placeholders | built |
 | Bot protection | Cloudflare Turnstile widget | planned |
 | Analytics | GA4, Meta Pixel, Microsoft Clarity via `lib/analytics/` | planned |
 | Hosting | Cloudflare Workers via OpenNext (`@opennextjs/cloudflare`). **Never Vercel Hobby** (non-commercial) | planned |
@@ -408,10 +408,10 @@ dashboard ──multipart POST /admin/media (file ≤ 8 MB, OWNER/STAFF, rate-li
    sharp: decode (real JPG/PNG/WebP by content, not name) · reject > 40 MP (decompression bombs)
           auto-rotate · strip ALL metadata (EXIF/GPS) · resize to 400/800/1200/1600 (never upscale)
           · encode WebP · 16-px blur placeholder
-   S3 PutObject ×4 → bucket "media" (Cache-Control: public, max-age=31536000, immutable)
+   S3 PutObject ×4 → bucket "media" (Cache-Control: public, max-age=86400)
    MediaAsset row { storageKey, width, height, widths[], blurDataUrl, byteSize, uploadedById }
    ◄── 201 { id, url(s), width, height, blurDataUrl }
-storefront: <Image> with lib/media/media-loader.ts → {MEDIA_PUBLIC_BASE_URL}/{storageKey}/{w}.webp
+storefront: <MediaImage> → <img srcset> over {MEDIA_PUBLIC_BASE_URL}/{storageKey}/{w}.webp (no optimiser needed)
 ```
 
 - **Why through the API and not a direct browser upload:** the API can prove the file is an image, strip location data from staff phone photos, and produce consistent WebP sizes once — no paid image transformation or optimisation service is needed at view time.
@@ -419,7 +419,8 @@ storefront: <Image> with lib/media/media-loader.ts → {MEDIA_PUBLIC_BASE_URL}/{
 - **Bucket `media`:** public read (product images are public), Supabase-enforced limits: `image/webp` only, 2 MB per object. Only the API writes to it.
 - **Keys:** `products/<mediaId>/<width>.webp`, `content/<mediaId>/<width>.webp`, `brand/…` — ids are random, file names are never user-controlled.
 - **References:** `ProductImage.mediaId` and content blocks / settings store `{ mediaId, alt }`; the API resolves them to URLs. A `MediaAsset` with no references can be deleted (dashboard action; scheduled clean-up in Phase 7).
-- **Egress:** Supabase's free tier caps monthly egress. In production the website serves images from its own domain (`/media/*` → Supabase, cached by Cloudflare's free CDN; immutable keys make every image cacheable forever), so Supabase is hit roughly once per image size. Re-check limits before launch.
+- **Caching and deletes:** objects are stored with `Cache-Control: public, max-age=86400`. Supabase's CDN keeps serving a cached copy after an object is deleted (verified 2026-10-18), so one day is the longest a deleted image stays reachable at its (random, unguessable) URL.
+- **Egress:** Supabase's free tier caps monthly egress. In production the website serves images from its own domain (`/media/*` → Supabase, cached by Cloudflare's free CDN with a long edge TTL and a **purge on delete** from the API), so Supabase is hit roughly once per image size. Re-check limits before launch.
 - **CSP / next/image:** `img-src` and `images.remotePatterns` allow only the project's Storage origin (`NEXT_PUBLIC_MEDIA_BASE_URL`).
 
 ### 4.8 Exports (CSV / Excel)

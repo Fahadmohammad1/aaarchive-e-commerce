@@ -53,7 +53,7 @@ Breaking any of these is a bug, however good the rest of the change is.
 | UI components (storefront **and** admin) | **shadcn/ui** (`components/ui/`, Radix base, `radix-nova` style), themed by `globals.css`. Storefront pieces in `components/store/` are built **on** shadcn |
 | Class merging | `cn()` from `@/lib/utils` (shadcn's `cn` package) |
 | Icons | **Lucide** (`lucide-react`, shadcn's icon library), outline, 1.25–1.5px stroke |
-| Images | `next/image` with the media loader (`lib/media/`), stored WebP sizes |
+| Images | `MediaImage` (`<img srcset>` over stored WebP sizes) for uploaded media; `next/image` for bundled assets |
 | Fonts | `next/font/google`, self-hosted: Alfa Slab One, JetBrains Mono, Inter, Hind Siliguri |
 | HTTP | The project's fetch client in `lib/api/` |
 | Bot protection | Cloudflare Turnstile widget |

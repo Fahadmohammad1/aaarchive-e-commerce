@@ -49,6 +49,15 @@ export const envSchema = z.object({
   LOGIN_LOCK_MINUTES: z.coerce.number().int().min(1).max(1440).default(15),
   // Cloudflare Turnstile secret. Unset locally = check skipped; required in production.
   TURNSTILE_SECRET_KEY: z.string().optional(),
+
+  // ── Media: Supabase Storage via its S3 API (architecture §4.7a) ──
+  // Storage-only keys. Unset locally = uploads answer 503; required in production.
+  MEDIA_S3_ENDPOINT: z.url().optional(),
+  MEDIA_S3_REGION: z.string().min(1).optional(),
+  MEDIA_S3_ACCESS_KEY_ID: z.string().min(1).optional(),
+  MEDIA_S3_SECRET_ACCESS_KEY: z.string().min(1).optional(),
+  MEDIA_BUCKET: z.string().min(1).default("media"),
+  MEDIA_PUBLIC_BASE_URL: z.url().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -68,6 +77,21 @@ const productionRules = envSchema.superRefine((env, ctx) => {
       path: ["TURNSTILE_SECRET_KEY"],
       message: "Required in production",
     });
+  }
+  for (const key of [
+    "MEDIA_S3_ENDPOINT",
+    "MEDIA_S3_REGION",
+    "MEDIA_S3_ACCESS_KEY_ID",
+    "MEDIA_S3_SECRET_ACCESS_KEY",
+    "MEDIA_PUBLIC_BASE_URL",
+  ] as const) {
+    if (!env[key]) {
+      ctx.addIssue({
+        code: "custom",
+        path: [key],
+        message: "Required in production",
+      });
+    }
   }
   if (!env.REVALIDATE_SECRET) {
     ctx.addIssue({
