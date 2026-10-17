@@ -164,6 +164,7 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 - Change the schema only through migrations: `bun run --filter @aaarchive/api db:migrate` (`migrate dev`) against a **local or dev** database. Production uses `prisma migrate deploy`.
 - Never edit a migration that has been applied anywhere. Write a new one.
 - Destructive migrations (drop/rename column or table) need the user's approval and a data-preserving plan.
+- Catalog permissions (PRD §3): catalog **reads** are OWNER/STAFF, catalog **writes** are `@Roles("OWNER")`. Staff see read-only screens.
 - Seed data (sizes, colours, delivery zones, settings, first Owner account) lives in `prisma/seed.ts` and is idempotent.
 
 ---
@@ -173,7 +174,7 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 ### 5.1 API
 
 - Every error response has the shape `{ statusCode, message, code?, details? }` (`AllExceptionsFilter`).
-- Throw Nest `HttpException`s with a stable **`code`** for anything the UI must react to: `VALIDATION_ERROR`, `OUT_OF_STOCK`, `COUPON_INVALID`, `COUPON_EXPIRED`, `PHONE_BLOCKED`, `RATE_LIMITED`, `TURNSTILE_FAILED`, `TRXID_ALREADY_USED`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`. Add new codes to this list.
+- Throw Nest `HttpException`s with a stable **`code`** for anything the UI must react to: `VALIDATION_ERROR`, `OUT_OF_STOCK`, `COUPON_INVALID`, `COUPON_EXPIRED`, `PHONE_BLOCKED`, `RATE_LIMITED`, `TURNSTILE_FAILED`, `TRXID_ALREADY_USED`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `SLUG_TAKEN`, `NAME_TAKEN`, `CATEGORY_IN_USE`, `SIZE_IN_USE`, `COLOR_IN_USE`, `MEDIA_NOT_FOUND`, `MEDIA_IN_USE`. Add new codes to this list.
 - Unexpected errors: log the full error server-side and return a bare 500 (`INTERNAL_ERROR`). Never return stack traces, SQL or Prisma messages.
 - Never log passwords, tokens, full card/wallet data, or full phone numbers alongside names. Log order numbers and ids instead.
 - Status codes: 400 validation, 401 not logged in, 403 wrong role, 404 not found, 409 conflict (duplicate TrxID, slug), 422 business rule (out of stock, coupon), 429 rate limit.

@@ -1,13 +1,14 @@
-import { AdminTopBar } from "./_components/admin-top-bar";
+import { AdminShell } from "./_components/admin-shell";
 import { RequireAdmin } from "./_components/require-admin";
+
+// Dashboard pages render only after the in-browser session check
+// (RequireAdmin), so Next cannot pre-render them to check instant navigation.
+export const instant = false;
 
 export default function PanelLayout({ children }: LayoutProps<"/admin">) {
   return (
     <RequireAdmin>
-      <AdminTopBar />
-      <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-8">
-        {children}
-      </main>
+      <AdminShell>{children}</AdminShell>
     </RequireAdmin>
   );
 }

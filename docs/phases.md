@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Last updated** | 17 October 2026 |
-| **Current phase** | **Phase 2 — Admin dashboard & catalog management** (Phase 0: only API hosting left; Phase 1 done) |
+| **Current phase** | **Phase 2 — Admin dashboard & catalog management** — in progress (Phase 0: only API hosting left; Phase 1 done) |
 | **Related docs** | `PRD.md` (requirements) · `architecture.md` · `rules.md` · `design.md` · `memory.md` (day-to-day progress) |
 
 The build is split into **Phases 0–7**, which together deliver the MVP (PRD "Release 1"). Work after launch is grouped as **Release 2** and **Release 3** (PRD §4). "Phase" always means a build phase in this file. "Release" means a post-launch scope tier.
@@ -20,7 +20,7 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 |---|---|---|---|
 | 0 | Foundation | 1 week | done except API hosting |
 | 1 | Authentication | 0.5 week | done |
-| 2 | Admin dashboard & catalog management | 1.5 weeks | not started |
+| 2 | Admin dashboard & catalog management | 1.5 weeks | in progress |
 | 3 | Storefront catalog | 1.5 weeks | not started |
 | 4 | Cart, checkout & order placement | 1.5 weeks | not started |
 | 5 | Order management | 1.5 weeks | not started |
@@ -101,25 +101,26 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 
 **Goal:** the admin shell exists and the team can create the full catalog: categories, collections, products, variants with stock, images and size charts (PRD §6.2, §6.3).
 
-- [ ] [web] Admin shell: collapsible sidebar (240px), top bar with search + user menu, mobile layout (`design.md` §8)
-- [ ] [web] Dashboard home placeholder (real stats arrive in Phase 5)
-- [ ] [api] `categories`, `collections`: CRUD, slug generation, sort order, show-on-home flag
-- [ ] [api] Colours and sizes: CRUD (`/admin/colors`, `/admin/sizes`), `size-charts`: templates + custom tables — all editable in the dashboard (PRD §6.7)
+- [ ] [web] Admin shell: collapsible sidebar (240px), top bar with search + user menu, mobile layout (`design.md` §8) *(done 2026-10-19 except the top-bar search, which arrives with the products list)*
+- [x] [web] Dashboard home placeholder (real stats arrive in Phase 5) (2026-10-19)
+- [x] [api] `categories`, `collections`: CRUD, slug generation, sort order, show-on-home flag, photo from the media library (migration `20261019000000_catalog_images`) (2026-10-19)
+- [x] [api] Colours and sizes: CRUD (`/admin/colors`, `/admin/sizes`) (2026-10-19)
+- [ ] [api] `size-charts`: templates + custom tables — editable in the dashboard (PRD §6.7)
 - [ ] [api] `products`: CRUD with draft/published/archived status, featured flag, SEO fields, sale price + window, low-stock override, duplicate product
 - [ ] [api] Variants: generate from sizes × colours, SKU, stock, price override, active flag. Quick stock edit endpoint
 - [x] [repo] Supabase: bucket `media` (public, `image/webp`, 2 MB) + S3 access keys in `apps/api/.env` (2026-10-18)
 - [x] [api] `media` module: `POST /admin/media` (sharp pipeline: content check, 40 MP cap, metadata strip, WebP 400/800/1200/1600 + blur), S3 upload, `MediaAsset`, `GET /admin/media`, `DELETE /admin/media/:id` when unreferenced — verified end to end on Supabase
 - [ ] [api] Product images reference media (order, main image, per-colour images)
 - [x] [web] `components/store/media-image.tsx` (srcset over stored renditions)
-- [ ] [web] Image picker/uploader component in the dashboard (with the product editor)
-- [ ] [api] `revalidation` service calling the web's `/api/revalidate` after catalog writes
-- [ ] [web] Admin screens: categories (incl. photo, order, show on home), collections, sizes, colours, size charts, products list (search, filters, sort by stock), product editor (tabs: details, pricing, images, variants, size chart, SEO), inline variant stock table
-- [ ] [web] `app/api/revalidate` route (secret-checked `revalidateTag`)
-- [ ] [web] TanStack Query hooks + key factories for each module, with mutations invalidating the right keys
+- [ ] [web] Image picker/uploader component in the dashboard (with the product editor) *(single-photo `components/admin/image-picker.tsx` done and used by categories/collections; upload untested here — no storage keys in this environment; multi-image product gallery still to do)*
+- [x] [api] `revalidation` service calling the web's `/api/revalidate` after catalog writes (verified end to end, 2026-10-19)
+- [ ] [web] Admin screens: categories (incl. photo, order, show on home), collections, sizes, colours, size charts, products list (search, filters, sort by stock), product editor (tabs: details, pricing, images, variants, size chart, SEO), inline variant stock table *(categories, collections, sizes, colours done 2026-10-19)*
+- [x] [web] `app/api/revalidate` route (secret-checked `revalidateTag`) (2026-10-19)
+- [ ] [web] TanStack Query hooks + key factories for each module, with mutations invalidating the right keys *(category, collection, size, color, upload done)*
 - [ ] [api] Export building blocks (`common/export/`: columns, CSV writer with BOM + injection guard, exceljs XLSX writer, streaming `ExportService`) + tests — install `exceljs`
 - [ ] [api] `GET /admin/products/export` (variants with stock) — Owner only
 - [ ] [web] `components/admin/export-menu.tsx` (CSV / Excel) on the products list
-- [ ] [api] Tests: slug uniqueness, variant generation, sale-price window, Staff read-only on products
+- [ ] [api] Tests: slug uniqueness, variant generation, sale-price window, Staff read-only on products *(slug uniqueness + Staff read-only on categories/collections/sizes/colours done: `test/catalog.e2e-spec.ts`, `unique-slug.spec.ts`)*
 
 **Exit criteria:** the Owner creates a product with 2 colours × 4 sizes, uploads images, sets stock and publishes it. Staff can view but not edit products. Editing a product triggers revalidation.
 

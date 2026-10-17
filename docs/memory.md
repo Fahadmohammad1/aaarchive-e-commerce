@@ -5,10 +5,16 @@ Living log of where the project stands. **Every agent updates this at the end of
 ## Current status
 
 - **Phase:** 2 — Admin dashboard & catalog management (see `phases.md`)
-- **In progress:** Phase 2 — Admin dashboard & catalog management (not started).
-- **File currently being worked on:** —
+- **In progress:** Phase 2 — first slice done (shell, categories, collections, sizes, colours, revalidation). Next: size charts, then products + variants.
+- **File currently being worked on:** — (next: `apps/api/src/modules/size-charts/`)
 
 ## Completed
+
+- **2026-10-19** [api][web][shared] — Phase 2, first slice: admin shell + categories, collections, sizes, colours + storefront revalidation.
+  - Shared: `@aaarchive/shared/catalog` (`slugSchema`, `slugify`, create/update schemas — update schemas carry no defaults because Zod 4 fills defaults inside `.partial()`), `@aaarchive/shared/cache-tags` (tag names + revalidate header). 15 new tests (42 total).
+  - API: migration `20261019000000_catalog_images` (additive: `Category`/`Collection.imageId` → `MediaAsset` Restrict, `imageAlt`; `Collection.showOnHome`), applied to a local Postgres with no drift — **not applied to Supabase** (needs the user's go-ahead). Modules `categories`, `collections`, `sizes`, `colors` (admin controllers: reads OWNER/STAFF, writes OWNER; `409 SLUG_TAKEN / NAME_TAKEN / CATEGORY_IN_USE / SIZE_IN_USE / COLOR_IN_USE`, `400 MEDIA_NOT_FOUND`), global `revalidation` (`RevalidationService`), `common/slug/unique-slug.ts`, `common/prisma/prisma-errors.ts`; `MediaService.assertExists/toImageRef`, media delete also checks categories/collections. Tests: 7 new unit (30 total), `test/catalog.e2e-spec.ts` 7 cases (22 e2e total). `createUser()` test helper takes an email domain so parallel suites' clean-ups no longer delete each other's users.
+  - Web: admin shell (`admin-shell.tsx`, `admin-nav.ts`, `admin-nav-list.tsx`, new `admin-top-bar.tsx` with user menu, mobile Sheet), dashboard placeholder links to the catalog; screens `/admin/categories`, `/admin/collections`, `/admin/sizes`, `/admin/colors` (Owner edits, Staff read-only); `components/admin/*` (page-header, list-state, form-field, switch-field, confirm-delete-dialog, image-picker, group-thumb, catalog-group-form-dialog); `lib/{category,collection,size,color,upload}` modules; `lib/api/paged.ts`, `lib/i18n/error-text.ts`; `app/api/revalidate/route.ts`. shadcn primitives dialog, alert-dialog, dropdown-menu, switch, textarea, table, skeleton written by hand from shadcn's source (registry host `ui.shadcn.com` blocked here). `globals.css`: admin variables also on `html:has(.admin)` so portalled dialogs/menus get Inter + 4px radius. `export const instant = false` on the panel layout and pages (client-gated, Next's instant-navigation check cannot render them).
+  - Verified in Chromium (Playwright) at 1440px and 375px against a local API + Postgres: sign-in, create/edit/delete categories, slug clash + invalid slug messages, collection hidden badge, colour picker, sizes list, sidebar collapse, user menu, mobile menu; API → web `/api/revalidate` 204 on every write; route rejects missing/wrong secret (401) and bad body (400). Found + fixed: sticky table header covered the first row (inside the scroll container), portals lost the admin font/radius, actions off-screen at 375px. Not verified: photo upload (no Supabase S3 keys in this environment).
 
 - **2026-10-18** [api][web][shared] — Media upload pipeline live on Supabase Storage.
   - Bucket `media` set public / `image/webp` / 2 MB (SQL on `storage.buckets`); derived `MEDIA_S3_ENDPOINT`, `MEDIA_S3_REGION` (ap-southeast-2), `MEDIA_PUBLIC_BASE_URL` into `apps/api/.env` and `NEXT_PUBLIC_MEDIA_BASE_URL` into `apps/web/.env.local` (user added the S3 keys).
@@ -100,9 +106,10 @@ Living log of where the project stands. **Every agent updates this at the end of
 
 ## Next up
 
-2. Phase 2 — Admin dashboard & catalog management (after Phase 1 is live on Supabase).
-3. [web] Design tokens + fonts in `app/globals.css` / `app/layout.tsx` (replace Geist), shadcn init, `lib/api/` client, `/api/v1` rewrite.
-4. [repo] GitHub Actions CI: `bun install --frozen-lockfile`, `check`, `typecheck`, `test`, `build`.
+1. [api] Apply migration `20261019000000_catalog_images` to Supabase (`db:deploy`) once the user approves; check a category photo upload end to end there.
+2. [api][web] Size charts: `/admin/size-charts` (templates + custom table) + screen.
+3. [api][web] Products: CRUD, status, sale window, duplicate; variants from sizes × colours, quick stock edit; product images (gallery picker); products list with search (also wire the top-bar search); product editor tabs.
+4. [api][web] Export building blocks + products export (install `exceljs` after asking).
 
 ## Decisions
 
@@ -124,6 +131,9 @@ Living log of where the project stands. **Every agent updates this at the end of
 - **2026-10-17** [api] — Prisma pinned to 7.x (npm `latest` was 8.0.0-rc). Generated client in `src/generated/prisma`, git-ignored.
 
 ## Blockers / open questions
+
+- **2026-10-19** Old free-text `Category.image` / `Collection.image` columns are unused (replaced by `imageId` + `imageAlt`); dropping them is destructive → needs the user's approval (tables are empty).
+- **2026-10-19** `ui.shadcn.com` is blocked by this cloud environment's network policy, so `bunx shadcn add` fails here; allow the host in the environment settings or re-add the hand-written primitives later (`design.md` §12.1).
 
 - `SEED_OWNER_PASSWORD` is still in `apps/api/.env`; user to remove it once the password is saved elsewhere.
 - Local `bunx prisma dev` became unreliable (daemons hang in starting_up / grab port 4000). Use CI's Postgres or a disposable Postgres for migration tests.
