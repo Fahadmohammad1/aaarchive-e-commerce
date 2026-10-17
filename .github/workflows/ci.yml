@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Check, typecheck, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Disposable database for the migration check only (never Supabase).
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: aaarchive_ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # Also builds packages/shared and generates the Prisma client (postinstall).
+      - run: bun install --frozen-lockfile
+
+      # Known-vulnerable dependencies fail the build (docs/rules.md §8.9).
+      # Ignored advisories are listed, with reasons, in rules.md §8.10.
+      - name: Dependency audit
+        run: bun audit --audit-level=high --ignore GHSA-vfj7-8cjw-p6xm
+
+      - run: bun run check
+      - run: bun run typecheck
+      - run: bun run test
+      - run: bun run build
+
+      # Prisma: migrations apply cleanly and describe exactly what schema.prisma says.
+      - name: Migrations apply and match the schema
+        working-directory: apps/api
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/aaarchive_ci
+          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/aaarchive_ci
+        run: |
+          bunx prisma migrate deploy
+          bunx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
+
+      # Auth/security e2e tests run against the migrated disposable database.
+      - name: API e2e (real database)
+        working-directory: apps/api
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/aaarchive_ci
+        run: bun run test:e2e
+

@@ -86,8 +86,8 @@ Run a script in one package with `bun run --filter @aaarchive/<name> <script>`, 
             │  REST /api/v1 · Prisma · auth · business rules · stock      │
             └──────┬───────────────┬──────────────┬──────────────┬───────┘
                    ▼               ▼              ▼              ▼
-              PostgreSQL       Cloudinary      Resend/Brevo   Cloudflare
-              (Supabase)       (images)        (email)        Turnstile
+              PostgreSQL       Storage         Resend/Brevo   Cloudflare
+              (Supabase)       (Supabase)      (email)        Turnstile
 ```
 
 ### 2.1 Who owns what
@@ -102,7 +102,7 @@ Run a script in one package with `bun run --filter @aaarchive/<name> <script>`, 
 | Order placement, atomic stock decrement | calls `POST /orders` | ✅ |
 | Auth (password, Google OAuth, sessions, roles) | holds the access token in memory, guards routes for UX | ✅ issues tokens, enforces roles |
 | Turnstile | renders widget, sends token | ✅ verifies token |
-| Image upload | uploads bytes to Cloudinary with a signature | ✅ issues the signature |
+| Image upload | sends the file to `POST /admin/media` | ✅ validates, strips metadata, resizes to WebP, stores in Supabase Storage |
 | Cache invalidation after admin edits | `revalidateTag` in `/api/revalidate` | ✅ calls the webhook |
 
 `apps/web` has **no database access and no secrets beyond `REVALIDATE_SECRET`**. If a screen needs data the API does not return, add it to the API in the same change. Do not reconstruct it in the client.
@@ -168,7 +168,7 @@ The cart stores only `variantId` + `quantity` (+ a display snapshot). It never s
 | Forms | React Hook Form + Zod (`@hookform/resolvers`) | planned |
 | Fonts | `next/font/google`, self-hosted: Alfa Slab One, JetBrains Mono, Inter, Hind Siliguri | planned (replaces Geist) |
 | Icons | **Lucide** (`lucide-react`, shadcn's icon library) | installed |
-| Images | `next/image` with a Cloudinary loader | planned |
+| Images | `next/image` with a media loader that picks the stored WebP width (`lib/media/`) | planned (Phase 2) |
 | Bot protection | Cloudflare Turnstile widget | planned |
 | Analytics | GA4, Meta Pixel, Microsoft Clarity via `lib/analytics/` | planned |
 | Hosting | Cloudflare Workers via OpenNext (`@opennextjs/cloudflare`). **Never Vercel Hobby** (non-commercial) | planned |
@@ -196,7 +196,7 @@ TanStack Query setup:
 
 - `api.get/post/put/patch/delete<T>(path, opts)`: path relative to `NEXT_PUBLIC_API_URL`. Supports `query`, JSON body (FormData passes through), `signal`, `timeoutMs` (default 30s), optional Zod `schema`, Next fetch options.
 - Every failure throws `ApiError` (`status`, `code`, `message`, `details`; `status === 0` for network errors/timeouts).
-- Attaches `Authorization: Bearer <token>` when set, and does a single-flight refresh on 401 (§4.8). Never set the token on the server: module state is shared across users' requests.
+- Attaches `Authorization: Bearer <token>` when set, and does a single-flight refresh on 401 (§4.10). Never set the token on the server: module state is shared across users' requests.
 - **Same-origin proxy:** `next.config.ts` rewrites `/api/v1/:path*` → `${API_PROXY_TARGET}/:path*`. The refresh cookie stays first-party, the storefront needs no CORS, and the API URL can change without a rebuild. Server Components call `API_PROXY_TARGET` directly.
 - Planned files: `api-client.ts`, `api-error.ts`, `api-config.ts`, `session.ts`.
 
@@ -252,7 +252,7 @@ apps/web/
 └── public/
     ├── logo.png · logo.jpeg       # logo originals as supplied (black background)
     ├── images/logo-*.png          # transparent web cuts: wordmark (header/menu), full (footer)
-    └── icons/                     # (future) monogram, doodles; product photos are on Cloudinary
+    └── icons/                     # (future) monogram, doodles; product photos live in Supabase Storage
 ```
 
 ### 3.6 Conventions
@@ -300,7 +300,7 @@ apps/web/
 | Security | `helmet`, CORS limited to `FRONTEND_ORIGIN` | throttling, Turnstile and auth added in their phases |
 | Tests | Vitest 4: `*.spec.ts` unit, `test/*.e2e-spec.ts` e2e with supertest | |
 
-Planned (install when the module is built, after asking): `@nestjs/jwt` + `passport`, `argon2`, `@nestjs/throttler`, `cloudinary`, `resend`, `cookie-parser`.
+Planned (install when the module is built, after asking): `sharp` (image processing), `@aws-sdk/client-s3` (Supabase Storage via its S3 API), `resend`.
 
 ### 4.2 Folder structure
 
@@ -309,7 +309,8 @@ apps/api/
 ├── AGENTS.md · CLAUDE.md          # api-specific agent notes
 ├── prisma/
 │   ├── schema.prisma              # models from PRD §7 (Phase 0)
-│   └── migrations/                # created by `bun run db:migrate`
+│   ├── migrations/                # 20261018000000_init (+ order_number_seq, RLS), 20261018120000_content_blocks_faq
+│   └── seed.ts                    # idempotent: sizes, colours, zones, settings, text-only content blocks
 ├── prisma.config.ts               # Prisma CLI config (schema, migrations, DIRECT_URL)
 ├── .env.example
 ├── src/
@@ -319,12 +320,14 @@ apps/api/
 │   ├── common/                    # cross-cutting, no business logic
 │   │   ├── filters/all-exceptions.filter.ts
 │   │   ├── pipes/zod-validation.pipe.ts
-│   │   └── guards/ · decorators/ · interceptors/     # (as needed)
+│   │   ├── auth/                  # JwtAuthGuard, RolesGuard, SameOriginGuard, @Public/@Roles/@CurrentUser
+│   │   ├── security/              # ProxySecretMiddleware
 │   ├── prisma/                    # global PrismaService
 │   ├── health/                    # GET /api/v1/health
 │   ├── generated/prisma/          # generated client (git-ignored)
 │   └── modules/                   # one folder per domain (empty until its phase)
-│       ├── auth/ · users/
+│       ├── auth/                  # login, refresh, logout, change password, Turnstile, password policy
+│       ├── users/
 │       ├── products/ · categories/ · collections/ · size-charts/
 │       ├── cart/ · orders/ · payments/ · coupons/ · delivery-zones/
 │       ├── customers/ · content/ · settings/ · uploads/ · reports/
@@ -352,7 +355,7 @@ Follow the Nest CLI layout (`bunx nest g resource modules/<name>`):
 ### 4.4 Request flow
 
 ```
-request → helmet/CORS → /api/v1 → Guard (auth/role) → ZodValidationPipe → Controller → Service → Prisma
+request → helmet/CORS → body limit (100 KB) → ProxySecretMiddleware → /api/v1 → ThrottlerGuard → Guard (auth/role) → ZodValidationPipe → Controller → Service → Prisma
         ← AllExceptionsFilter (on any throw) ← mapper ←──────────────────────────────────────────┘
 ```
 
@@ -372,13 +375,67 @@ request → helmet/CORS → /api/v1 → Guard (auth/role) → ZodValidationPipe 
 
 ### 4.6 Endpoints (PRD §8.3, under `/api/v1`)
 
-- **Public:** `GET /products`, `GET /products/:slug`, `GET /search`, `POST /cart/validate`, `POST /coupons/apply`, `POST /orders`, `POST /orders/track`, `GET /categories`, `GET /collections`, `GET /content/*`, `GET /feeds/facebook.xml`.
-- **Admin** (auth + role on every route): CRUD `/admin/products`, `/admin/variants`, `/admin/categories`, `/admin/collections`, `/admin/coupons`, `/admin/zones`, `/admin/pages`, `/admin/blocked-phones`. Also `GET /admin/orders`, `PATCH /admin/orders/:id/status`, `POST /admin/orders/:id/notes`, `POST /admin/payments/:id/verify|reject`, `GET /admin/reports/summary`, `POST /admin/uploads/sign`.
+- **Public:** `GET /products`, `GET /products/:slug`, `GET /search`, `POST /cart/validate`, `POST /coupons/apply`, `POST /orders`, `POST /orders/track`, `GET /categories`, `GET /collections`, `GET /content/home` (all home sections, resolved), `GET /content/site` (announcement, navigation, footer), `GET /pages/:slug`, `GET /faq`, `GET /settings/public` (logo, contact links, SEO defaults — never payment numbers' admin notes or secrets), `GET /feeds/facebook.xml`.
+- **Admin** (auth + role on every route): CRUD `/admin/products`, `/admin/variants`, `/admin/categories`, `/admin/collections`, `/admin/sizes`, `/admin/colors`, `/admin/size-charts`, `/admin/coupons`, `/admin/zones`, `/admin/pages`, `/admin/faq`, `/admin/social-posts`, `/admin/blocked-phones`. Content: `GET /admin/content`, `GET|PUT /admin/content/:key`. Settings: `GET|PUT /admin/settings/:key`. Also `GET /admin/orders`, `PATCH /admin/orders/:id/status`, `POST /admin/orders/:id/notes`, `POST /admin/payments/:id/verify|reject`, `GET /admin/reports/summary`, `POST /admin/uploads/sign`.
 - **Infra:** `GET /health`.
 
 After an admin write that changes the storefront, the service calls `RevalidationService.revalidate(tags)`. That POSTs to `FRONTEND_REVALIDATE_URL` with `REVALIDATE_SECRET`. A failure is logged, not thrown.
 
-### 4.7 Database — Supabase + Prisma
+### 4.7 Editable content (PRD §6.7)
+
+**Rule: every customer-facing word, image and link comes from the database, edited in the dashboard.** The only exception is interface wording (button labels, errors) in `apps/web/lib/i18n/`.
+
+| Kind | Stored in | Edited at |
+|---|---|---|
+| Catalog (products, variants, categories, collections, sizes, colours, size charts) | their own tables | catalog screens |
+| Zones, coupons, payments | tables / `Setting` | their screens, Settings |
+| Home sections, announcement, navigation, footer | `ContentBlock` (one row per key, JSON) | Content → Home / Site |
+| Pages, FAQ, social posts | `Page`, `FaqItem`, `SocialPost` | Content → Pages / FAQ / Social |
+| Logo, contact links, SEO defaults, tracking IDs | `Setting` | Settings |
+
+- **`ContentBlock`** keys and shapes are defined once in `@aaarchive/shared/content` (`contentSchemas`). `PUT /admin/content/:key` rejects unknown keys and validates `data` with that schema; the dashboard form uses the same schema through React Hook Form, so the two can never disagree. Adding a section = add a schema + a form + a storefront component.
+- **Stored vs public shape:** blocks store references (product ids, category slugs). `GET /content/home` resolves them into what the storefront renders (product name, price, image, stock *status*), drops references that are no longer published, and returns `null` for sections not created yet — the storefront then leaves that section out.
+- **Publishing:** a save writes the row, records `updatedById`, and revalidates the `content` tag (plus `home` / `site`), so the change is live on the next request. No drafts in the MVP.
+- **Seed:** `prisma/seed.ts` creates the text-only blocks (announcement, navigation, footer, archive index, social). Blocks that need photos are created by the admin.
+- **Until Phase 6** the storefront renders `apps/web/lib/content/home-fixtures.ts`; Phase 6 swaps it for `GET /content/home` and deletes the fixtures.
+
+### 4.7a Media (Supabase Storage)
+
+*Decision 18 Oct 2026 (owner): media lives in Supabase Storage, not Cloudinary.*
+
+```
+dashboard ──multipart POST /admin/media (file ≤ 8 MB, OWNER/STAFF, rate-limited)──► API
+   sharp: decode (real JPG/PNG/WebP by content, not name) · reject > 40 MP (decompression bombs)
+          auto-rotate · strip ALL metadata (EXIF/GPS) · resize to 400/800/1200/1600 (never upscale)
+          · encode WebP · 16-px blur placeholder
+   S3 PutObject ×4 → bucket "media" (Cache-Control: public, max-age=31536000, immutable)
+   MediaAsset row { storageKey, width, height, widths[], blurDataUrl, byteSize, uploadedById }
+   ◄── 201 { id, url(s), width, height, blurDataUrl }
+storefront: <Image> with lib/media/media-loader.ts → {MEDIA_PUBLIC_BASE_URL}/{storageKey}/{w}.webp
+```
+
+- **Why through the API and not a direct browser upload:** the API can prove the file is an image, strip location data from staff phone photos, and produce consistent WebP sizes once — no paid image transformation or optimisation service is needed at view time.
+- **Credentials:** Supabase **S3 access keys** (Storage → S3 Connection), held only by the API. They reach Storage only — never the `service_role` key, which bypasses everything.
+- **Bucket `media`:** public read (product images are public), Supabase-enforced limits: `image/webp` only, 2 MB per object. Only the API writes to it.
+- **Keys:** `products/<mediaId>/<width>.webp`, `content/<mediaId>/<width>.webp`, `brand/…` — ids are random, file names are never user-controlled.
+- **References:** `ProductImage.mediaId` and content blocks / settings store `{ mediaId, alt }`; the API resolves them to URLs. A `MediaAsset` with no references can be deleted (dashboard action; scheduled clean-up in Phase 7).
+- **Egress:** Supabase's free tier caps monthly egress. In production the website serves images from its own domain (`/media/*` → Supabase, cached by Cloudflare's free CDN; immutable keys make every image cacheable forever), so Supabase is hit roughly once per image size. Re-check limits before launch.
+- **CSP / next/image:** `img-src` and `images.remotePatterns` allow only the project's Storage origin (`NEXT_PUBLIC_MEDIA_BASE_URL`).
+
+### 4.8 Exports (CSV / Excel)
+
+PRD §6.9. Generated by the API, downloaded by the admin.
+
+- **Endpoint pattern:** `GET /admin/<resource>/export?format=csv|xlsx&<same filters as the list endpoint>` — e.g. `/admin/orders/export?format=xlsx&status=PENDING&from=2026-10-01`. The list and export share one Zod filter schema, so "what you see is what you export".
+- **Building blocks** in `apps/api/src/common/export/`:
+  - `export-columns.ts` — a typed column definition (`header`, `value(row)`, `type: text|number|money|date`, `width`) that each module declares once and both formats use.
+  - `csv-writer.ts` — RFC 4180 escaping, UTF-8 BOM, CSV-injection guard (prefix `'` on cells starting with `= + - @`).
+  - `xlsx-writer.ts` — `exceljs` streaming workbook writer: bold frozen header, column widths, `#,##0` money format.
+  - `ExportService.stream(res, { filename, format, columns, rows })` — sets `Content-Type` / `Content-Disposition` and streams rows from an async iterator that pages through Prisma (`take` 1,000 at a time), so memory stays flat.
+- **Guards:** same `RolesGuard` as the screen; hard cap 50,000 rows.
+- **Web:** `components/admin/export-menu.tsx` (shadcn `DropdownMenu`: "CSV" / "Excel") calls `lib/api` with `responseType: blob` (the bearer token lives in memory, so a plain `<a href>` cannot be used) and saves the file with the server's file name. A TanStack `useMutation` drives the loading state.
+
+### 4.9 Database — Supabase + Prisma
 
 Supabase is used **only as hosted PostgreSQL**. The API is its only client (no `supabase-js`, Supabase Auth, Storage or Realtime).
 
@@ -389,21 +446,48 @@ Supabase is used **only as hosted PostgreSQL**. The API is its only client (no `
 
 - The direct host `db.<ref>.supabase.co` is IPv6-only on the free tier. Use the session pooler for migrations unless the network has IPv6.
 - **Disable the Data API** in Supabase (Project Settings → Data API), or enable RLS with no policies on every table. Prisma's tables live in `public`, which Supabase would otherwise expose over REST to the anon key.
-- Migrations: `bun run --filter @aaarchive/api db:migrate` (`prisma migrate dev`) during development; `prisma migrate deploy` in CI/production. Seed with `prisma/seed.ts` (idempotent).
+- Migrations: `bun run --filter @aaarchive/api db:migrate` (`prisma migrate dev`) during development; `db:deploy` (`prisma migrate deploy`) for Supabase/production; `db:status` to check. Seed with `db:seed` (`prisma/seed.ts`, idempotent — never overwrites admin edits).
+- The init migration adds two things Prisma cannot express: the `order_number_seq` sequence (orders become `AAR-24101`, `AAR-24102`…) and `ENABLE ROW LEVEL SECURITY` on every table (no policies), which blocks Supabase's anon/authenticated REST roles while the API, connecting as the table owner, is unaffected. **Every future migration that creates a table must add the same RLS line.**
+- CI applies the migrations to a disposable Postgres and fails on any drift between `migrations/` and `schema.prisma`.
 - The free tier pauses after ~7 days idle and has no automatic backups. The uptime monitor on `/api/v1/health` (which runs `SELECT 1`) keeps it awake, and a scheduled `pg_dump` covers backups (Phase 7).
 - Credentials are provided by the user and live only in `apps/api/.env` (git-ignored). See `rules.md` §6.
 
-### 4.8 Auth (proposed)
+### 4.10 Auth (built in Phase 1)
 
-- `POST /auth/login` → `{ accessToken, user }`. The access token is short-lived and kept in memory by the web. The refresh token is an **httpOnly, Secure, SameSite=Lax cookie** scoped to `/api/v1/auth`.
-- `POST /auth/refresh` reads the cookie and returns a new access token (rotating the refresh token). `POST /auth/logout` clears it.
-- On a 401 the web refreshes once (single-flight) and retries. If the refresh fails, the session ends.
-- A non-sensitive `path=/` session-hint cookie, set by the web on login and cleared on logout, lets `proxy.ts` do the optimistic `/admin` redirect.
-- Roles: `CUSTOMER | STAFF | OWNER` via `RolesGuard` + `@Roles()`. Passwords use argon2. Google OAuth for customers goes through the API callback.
+```
+login form ──POST /auth/login {email,password,turnstileToken}──► API
+   Turnstile → argon2id verify (dummy hash for unknown emails) → lockout bookkeeping
+   ◄── 200 { accessToken (JWT HS256, 15 min), expiresIn, user }  +  Set-Cookie aar_rt (httpOnly, SameSite=Lax, Path=/api/v1/auth, 14 days)
+browser: access token in memory (lib/api/session.ts), session-hint cookie aar_session=1 (path=/, no secret)
+every API call: Authorization: Bearer … → JwtAuthGuard (verify JWT; re-read user: active? tokenVersion? session family live?) → RolesGuard
+401 → one single-flight POST /auth/refresh (cookie) → rotate token in the same family → retry the call
+```
 
-This replaces the Auth.js / Better Auth line in PRD §8.1.
+- **Modules:** `apps/api/src/modules/auth/` (controller, `AuthService`, `TokenService`, `TurnstileService`, `password-policy.ts`) and `apps/api/src/common/auth/` (`JwtAuthGuard`, `RolesGuard`, `SameOriginGuard`, `@Public()`, `@Roles()`, `@CurrentUser()`).
+- **Default deny:** both guards are global. A route is OWNER/STAFF-only unless it is `@Public()` or names other roles with `@Roles(...)`. Customer routes (Phase 6) must opt in.
+- **Sessions:** `RefreshToken` rows hold only SHA-256 hashes, grouped by `familyId` (one login). Refresh rotates the token; presenting a token replaced more than 10 s ago revokes the whole family (theft detection; the 10 s grace covers two tabs refreshing together). The access token carries `sid` (family) and `tv` (`User.tokenVersion`), so logout, logout-everywhere, password change and deactivation take effect on the next request.
+- **Endpoints:** `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `POST /auth/logout-all`, `GET /auth/me`, `POST /auth/change-password`. `SameOriginGuard` requires our `Origin` on the state-changing ones.
+- **Limits:** login 10/IP/15 min + 5 failures/account → 15-min lock; refresh 30/min; change-password 5/15 min.
+- **Web:** `AuthProvider` (mounted only in `app/admin/layout.tsx`) restores the session on load, refreshes 1 min before expiry, and signs out every tab via `BroadcastChannel`. `proxy.ts` sends guests to `/admin/login?next=…`; `RequireAdmin` is the client guard; `safeNextPath()` stops open redirects. Shared shapes: `@aaarchive/shared/auth`.
+- **Not yet:** customer accounts and Google OAuth (Phase 6, if PRD Q6 = yes); TOTP for Owners (decision pending).
 
----
+### 4.11 Security architecture
+
+The full checklist is `rules.md` §8; this is how the pieces connect.
+
+```
+Browser ──HTTPS──► web (Next.js)                         ──► API (NestJS)                     ──► Postgres (Supabase)
+  CSP, HSTS, no framing           proxy.ts: strip visitor's      ProxySecretMiddleware: no secret     RLS on every table;
+  (next.config.ts headers)        x-aaarchive-proxy, add the     → 403 (except /health)               anon/authenticated
+                                  real API_PROXY_SECRET          ThrottlerGuard: per-IP limits        have no privileges;
+                                  rewrite /api/v1 → API          (req.ip via TRUST_PROXY)             only the API's owner
+                                                                 Zod on every input, roles on         connection can read
+                                                                 every /admin route                   or write
+```
+
+- **Why the shared secret:** the browser only ever talks to the website. If the API were also callable directly, an attacker could skip the website, fake `X-Forwarded-For` to dodge per-IP limits, and hammer endpoints. With the secret required in production, the only way in is through `proxy.ts`, which overwrites anything the visitor sent.
+- **Client IP:** Next forwards `X-Forwarded-For`; the API trusts exactly `TRUST_PROXY` hops. Set it at deploy (web host = 1; add 1 for a CDN in front) and verify by watching the rate limiter see distinct visitors.
+- **Secrets:** `API_PROXY_SECRET` (web + API, same value), `REVALIDATE_SECRET` (web + API), JWT secrets (API, Phase 1), DB URLs (API). The API refuses to start in production without the first two.
 
 ## 5. packages/shared
 
@@ -415,6 +499,7 @@ Code both apps need, written once. Compiled with `tsc` to `dist/` (ESM + `.d.ts`
 | `@aaarchive/shared/phone` | `normalizeBdPhone()`, `maskBdPhone()`, `bdPhoneSchema` (error message is the code `INVALID_BD_PHONE`, which the web translates through `lib/i18n`) |
 | `@aaarchive/shared/stock` | `STOCK_STATUSES`, `stockStatusSchema`, `stockStatusFor()`, default threshold (3) and max qty (5) |
 | `@aaarchive/shared/order` | order status, payment status and payment method enums + schemas |
+| `@aaarchive/shared/content` | `contentSchemas` registry for every editable section (PRD §6.7), plus `imageSchema`, `linkSchema`, `hrefSchema` (blocks `javascript:` and plain http), `PROMISE_ICONS` |
 
 Rules:
 

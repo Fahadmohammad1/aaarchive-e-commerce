@@ -24,7 +24,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Feature modules in `lib/<module>/`: `<module>-schemas.ts`, `<module>-api.ts`, `<module>-keys.ts`, `use-*.ts`, `<module>-store.ts` (client state only). Kebab-case filenames with the module prefix, no `index.ts` barrels. Route-private UI goes in `_components/`.
 - Shared request schemas, enums, `formatTaka`, phone helpers: import from `@aaarchive/shared/<topic>`. Don't re-implement them.
 - **TanStack Query for every client-side read/write of API data** (key factories in `<module>-keys.ts`, hooks in `use-*.ts`, always forward `signal`). Server Components for SEO pages. Zustand only for real client state (cart, UI). React Hook Form + Zod for forms. See `docs/architecture.md` §3.3 and `docs/rules.md` §4.2.
-- Every user-facing string comes from `lib/i18n/`.
+- **Customer-facing content (copy, images, links, contact numbers, menus) comes from the API and is editable in the dashboard** (`docs/rules.md` golden rule 10). Only interface wording (button labels, errors) comes from `lib/i18n/`. `lib/content/home-fixtures.ts` is temporary until Phase 6.
 
 ## Commands (from the repo root)
 

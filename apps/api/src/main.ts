@@ -1,5 +1,6 @@
 import { ConfigService } from "@nestjs/config";
 import { NestFactory } from "@nestjs/core";
+import type { NestExpressApplication } from "@nestjs/platform-express";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import helmet from "helmet";
 import { AppModule } from "./app.module.js";
@@ -7,10 +8,19 @@ import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter.js";
 import type { Env } from "./config/env.schema.js";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bodyParser: false,
+  });
   const config = app.get(ConfigService<Env, true>);
 
   app.setGlobalPrefix("api/v1");
+  // Proxies in front of the API (web server, CDN): req.ip must be the visitor
+  // for rate limits and logs. 0 in local dev.
+  app.set("trust proxy", config.get("TRUST_PROXY", { infer: true }));
+  // Small JSON bodies only. Image uploads (multipart, ≤ 8 MB) are handled by
+  // the media route with its own limit.
+  app.useBodyParser("json", { limit: "100kb" });
+  app.useBodyParser("urlencoded", { limit: "100kb", extended: false });
   app.use(helmet());
   app.enableCors({
     origin: config.get("FRONTEND_ORIGIN", { infer: true }),

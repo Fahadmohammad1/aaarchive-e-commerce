@@ -1,5 +1,6 @@
-// Prisma schema — Aaarchive.
-// Models follow PRD §7 and are added in Phase 0 ("DB schema"). Money is integer taka.
+// Prisma schema — Aaarchive (PRD §7).
+// Rules (docs/rules.md §4.4): money is Int taka, every table has createdAt /
+// updatedAt, enums mirror @aaarchive/shared, change only through migrations.
 
 generator client {
   provider            = "prisma-client"
@@ -10,4 +11,580 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ── Enums ────────────────────────────────────────────────────────────────
+
+enum Role {
+  CUSTOMER
+  STAFF
+  OWNER
+}
+
+enum ProductStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+/// Mirrors ORDER_STATUSES in @aaarchive/shared/order.
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  RETURNED
+}
+
+/// Mirrors PAYMENT_STATUSES in @aaarchive/shared/order.
+enum PaymentStatus {
+  UNPAID
+  PENDING_VERIFICATION
+  PAID
+  REFUNDED
+  PARTIALLY_PAID
+}
+
+/// Mirrors PAYMENT_METHODS in @aaarchive/shared/order.
+enum PaymentMethod {
+  COD
+  BKASH
+  NAGAD
+}
+
+/// State of one manual bKash/Nagad payment record.
+enum PaymentRecordStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum CouponType {
+  PERCENT
+  FIXED
+}
+
+enum CouponScope {
+  ALL
+  CATEGORY
+  PRODUCT
+}
+
+enum OrderEventType {
+  STATUS
+  NOTE
+  CALL
+  PAYMENT
+}
+
+enum SocialPlatform {
+  FACEBOOK
+  INSTAGRAM
+  TIKTOK
+}
+
+// ── People ───────────────────────────────────────────────────────────────
+
+model User {
+  id               String    @id @default(cuid())
+  name             String
+  email            String?   @unique
+  /// Normalised 01XXXXXXXXX (@aaarchive/shared/phone).
+  phone            String?   @unique
+  passwordHash     String?
+  googleId         String?   @unique
+  role             Role      @default(CUSTOMER)
+  isActive         Boolean   @default(true)
+  /// Consecutive failed logins; reset on success (rules.md §8.2).
+  failedLoginCount Int       @default(0)
+  /// Set after too many failed logins; login is refused until then.
+  lockedUntil      DateTime?
+  /// Bumped on logout-everywhere, password change or deactivation: every
+  /// access token carrying an older value is rejected immediately.
+  tokenVersion     Int       @default(0)
+  lastLoginAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  addresses        Address[]
+  orders           Order[]
+  orderEvents      OrderEvent[]
+  verifiedPayments Payment[]      @relation("PaymentVerifiedBy")
+  blockedPhones    BlockedPhone[]
+  contentBlocks    ContentBlock[]
+  refreshTokens    RefreshToken[]
+  mediaAssets      MediaAsset[]
+
+  @@index([role])
+}
+
+model Address {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  phone     String
+  zoneId    String
+  district  String
+  area      String
+  address   String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  zone DeliveryZone @relation(fields: [zoneId], references: [id])
+
+  @@index([userId])
+  @@index([zoneId])
+}
+
+// ── Catalog ──────────────────────────────────────────────────────────────
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  image       String?
+  description String?
+  sortOrder   Int      @default(0)
+  showOnHome  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products Product[]
+
+  @@index([sortOrder])
+}
+
+model Collection {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  image       String?
+  description String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products ProductCollection[]
+
+  @@index([isActive, sortOrder])
+}
+
+model Product {
+  id                String        @id @default(cuid())
+  name              String
+  slug              String        @unique
+  shortDesc         String?
+  description       String?
+  fabric            String?
+  gsm               Int?
+  care              String?
+  tags              String[]      @default([])
+  categoryId        String
+  /// Whole taka.
+  basePrice         Int
+  /// Whole taka. Active only inside saleStart..saleEnd when those are set.
+  salePrice         Int?
+  saleStart         DateTime?
+  saleEnd           DateTime?
+  /// Overrides the global low-stock threshold (setting, default 3).
+  lowStockThreshold Int?
+  sizeChartId       String?
+  status            ProductStatus @default(DRAFT)
+  isFeatured        Boolean       @default(false)
+  seoTitle          String?
+  seoDesc           String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  category    Category            @relation(fields: [categoryId], references: [id])
+  sizeChart   SizeChart?          @relation(fields: [sizeChartId], references: [id], onDelete: SetNull)
+  images      ProductImage[]
+  variants    Variant[]
+  collections ProductCollection[]
+
+  @@index([categoryId])
+  @@index([status, createdAt])
+  @@index([isFeatured])
+  @@index([sizeChartId])
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  mediaId   String
+  alt       String?
+  /// Set when the image shows one colour (PDP switches gallery on colour change).
+  colorId   String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  /// Restrict: a stored image cannot be deleted while a product still uses it.
+  media   MediaAsset @relation(fields: [mediaId], references: [id], onDelete: Restrict)
+  color   Color?     @relation(fields: [colorId], references: [id], onDelete: SetNull)
+
+  @@index([productId, sortOrder])
+  @@index([mediaId])
+  @@index([colorId])
+}
+
+/// One uploaded image in Supabase Storage (docs/architecture.md §4.7a). The
+/// API stores WebP renditions at `{storageKey}/{width}.webp` for each width.
+model MediaAsset {
+  id           String   @id @default(cuid())
+  /// e.g. "products/ck…" — random, never a user file name.
+  storageKey   String   @unique
+  /// Size of the largest rendition.
+  width        Int
+  height       Int
+  /// Rendition widths that exist, ascending (e.g. [400, 800, 1200, 1600]).
+  widths       Int[]
+  /// Tiny base64 WebP for blur-up placeholders.
+  blurDataUrl  String
+  /// Total bytes stored across renditions.
+  byteSize     Int
+  /// What the media is for: "product", "content" or "brand".
+  purpose      String
+  uploadedById String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  uploadedBy    User?          @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  productImages ProductImage[]
+
+  @@index([purpose, createdAt])
+  @@index([uploadedById])
+}
+
+model ProductCollection {
+  productId    String
+  collectionId String
+  createdAt    DateTime @default(now())
+
+  product    Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@id([productId, collectionId])
+  @@index([collectionId])
+}
+
+model Color {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  hex       String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  variants Variant[]
+  images   ProductImage[]
+}
+
+model Size {
+  id        String   @id @default(cuid())
+  /// S, M, L, XL… or panjabi chest sizes 38, 40, 42…
+  name      String   @unique
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  variants Variant[]
+}
+
+/// One sellable size × colour of a product. `stock` never leaves admin routes (PRD §5.6).
+model Variant {
+  id            String   @id @default(cuid())
+  productId     String
+  sizeId        String
+  colorId       String
+  sku           String   @unique
+  stock         Int      @default(0)
+  /// Whole taka; overrides the product price when set.
+  priceOverride Int?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  size       Size        @relation(fields: [sizeId], references: [id])
+  color      Color       @relation(fields: [colorId], references: [id])
+  orderItems OrderItem[]
+
+  @@unique([productId, sizeId, colorId])
+  @@index([sizeId])
+  @@index([colorId])
+  @@index([stock])
+}
+
+model SizeChart {
+  id        String   @id @default(cuid())
+  name      String
+  /// e.g. ["Size", "Chest", "Length", "Shoulder", "Sleeve"] (inches)
+  columns   Json
+  /// e.g. [["M", 40, 28, 18, 25], …]
+  rows      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products Product[]
+}
+
+// ── Checkout ─────────────────────────────────────────────────────────────
+
+model DeliveryZone {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  /// Whole taka.
+  charge        Int
+  /// Shown to customers, e.g. "1–2 days".
+  estimatedDays String
+  sortOrder     Int      @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  addresses Address[]
+  orders    Order[]
+}
+
+model Coupon {
+  id            String      @id @default(cuid())
+  /// Stored upper-case.
+  code          String      @unique
+  type          CouponType
+  /// Percent (1–100) or whole taka, depending on type.
+  value         Int
+  minOrder      Int         @default(0)
+  /// Cap for PERCENT coupons, whole taka.
+  maxDiscount   Int?
+  startsAt      DateTime?
+  endsAt        DateTime?
+  usageLimit    Int?
+  perPhoneLimit Int?
+  scope         CouponScope @default(ALL)
+  /// Category or product ids, depending on scope.
+  scopeIds      String[]    @default([])
+  isActive      Boolean     @default(true)
+  usedCount     Int         @default(0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([isActive])
+}
+
+// ── Orders ───────────────────────────────────────────────────────────────
+
+model Order {
+  id             String        @id @default(cuid())
+  /// AAR-24101… from the order_number_seq sequence (see the init migration).
+  orderNumber    String        @unique
+  userId         String?
+  customerName   String
+  phone          String
+  altPhone       String?
+  email          String?
+  zoneId         String
+  district       String
+  area           String
+  address        String
+  note           String?
+  /// All money in whole taka, computed by the API — never from the client.
+  subtotal       Int
+  discount       Int           @default(0)
+  deliveryCharge Int
+  total          Int
+  couponCode     String?
+  paymentMethod  PaymentMethod
+  paymentStatus  PaymentStatus @default(UNPAID)
+  status         OrderStatus   @default(PENDING)
+  courierName    String?
+  trackingNumber String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  user     User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  zone     DeliveryZone @relation(fields: [zoneId], references: [id])
+  items    OrderItem[]
+  payments Payment[]
+  events   OrderEvent[]
+
+  @@index([phone])
+  @@index([status, createdAt])
+  @@index([paymentStatus])
+  @@index([paymentMethod])
+  @@index([createdAt])
+  @@index([userId])
+  @@index([zoneId])
+}
+
+/// Snapshot at order time, so old orders never change when products are edited.
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  variantId   String?
+  productName String
+  sizeName    String
+  colorName   String
+  sku         String
+  unitPrice   Int
+  quantity    Int
+  lineTotal   Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant Variant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([variantId])
+}
+
+model Payment {
+  id           String              @id @default(cuid())
+  orderId      String
+  method       PaymentMethod
+  amount       Int
+  senderNumber String?
+  /// Unique across all orders: one bKash/Nagad payment cannot pay twice.
+  trxId        String?             @unique
+  status       PaymentRecordStatus @default(PENDING)
+  verifiedById String?
+  verifiedAt   DateTime?
+  note         String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  order      Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  verifiedBy User? @relation("PaymentVerifiedBy", fields: [verifiedById], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([status])
+  @@index([verifiedById])
+}
+
+/// Status history, notes, call attempts and payment actions on an order.
+model OrderEvent {
+  id        String         @id @default(cuid())
+  orderId   String
+  type      OrderEventType
+  from      String?
+  to        String?
+  note      String?
+  byUserId  String?
+  createdAt DateTime       @default(now())
+
+  order  Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  byUser User? @relation(fields: [byUserId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, createdAt])
+  @@index([byUserId])
+}
+
+model BlockedPhone {
+  id          String   @id @default(cuid())
+  phone       String   @unique
+  reason      String
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy User? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([createdById])
+}
+
+// ── Content & settings ───────────────────────────────────────────────────
+
+model SocialPost {
+  id        String         @id @default(cuid())
+  image     String
+  link      String
+  /// e.g. "12K+ likes"
+  label     String
+  platform  SocialPlatform
+  sortOrder Int            @default(0)
+  isActive  Boolean        @default(true)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
+model Page {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  title     String
+  /// Rich text (HTML), sanitised on save.
+  content   String
+  seoTitle  String?
+  seoDesc   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FaqItem {
+  id        String   @id @default(cuid())
+  question  String
+  /// Rich text (HTML), sanitised on save.
+  answer    String
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
+/// Rotating refresh tokens (rules.md §8.2). Only a SHA-256 hash is stored.
+/// Every refresh replaces the token; presenting a token that was already
+/// replaced means it was stolen, and the whole family (session) is revoked.
+model RefreshToken {
+  id         String    @id @default(cuid())
+  userId     String
+  /// All tokens of one login session share a family.
+  familyId   String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  /// Set when rotated (replaced by a newer token in the same family).
+  replacedAt DateTime?
+  /// Set on logout, reuse detection or logout-everywhere.
+  revokedAt  DateTime?
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@index([expiresAt])
+}
+
+/// One editable storefront section (PRD §6.7), e.g. "home.hero". `data` is
+/// validated against contentSchemas[key] in @aaarchive/shared/content on every
+/// write — never trust it unvalidated.
+model ContentBlock {
+  key         String   @id
+  data        Json
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  updatedBy User? @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([updatedById])
+}
+
+/// Key/value store settings (PRD §6.8): store info, payments, stock defaults, tracking IDs…
+model Setting {
+  key       String   @id
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

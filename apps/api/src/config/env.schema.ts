@@ -20,12 +20,71 @@ export const envSchema = z.object({
   // Frontend cache webhook (POST /api/revalidate) and its shared secret.
   FRONTEND_REVALIDATE_URL: z.url().optional(),
   REVALIDATE_SECRET: z.string().min(16).optional(),
+
+  // Shared secret the web app's proxy.ts adds to every request it forwards
+  // (header x-aaarchive-proxy). When set, requests without it are refused, so
+  // the API cannot be called around the website (docs/rules.md §8).
+  // Required in production.
+  API_PROXY_SECRET: z.string().min(32).optional(),
+
+  // Number of reverse proxies in front of the API (web server, CDN…), so
+  // req.ip is the visitor and not the proxy. 0 = trust none (local dev).
+  TRUST_PROXY: z.coerce.number().int().min(0).max(5).default(0),
+
+  // Global rate limit per client IP (stricter limits sit on login, checkout…).
+  THROTTLE_LIMIT: z.coerce.number().int().positive().default(120),
+  THROTTLE_TTL_SECONDS: z.coerce.number().int().positive().default(60),
+
+  // ── Auth (rules.md §8.2) ──
+  // HMAC key for access tokens. Generate: openssl rand -hex 32
+  JWT_ACCESS_SECRET: z.string().min(32),
+  ACCESS_TOKEN_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(60)
+    .max(3600)
+    .default(900),
+  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(60).default(14),
+  LOGIN_MAX_ATTEMPTS: z.coerce.number().int().min(3).max(20).default(5),
+  LOGIN_LOCK_MINUTES: z.coerce.number().int().min(1).max(1440).default(15),
+  // Cloudflare Turnstile secret. Unset locally = check skipped; required in production.
+  TURNSTILE_SECRET_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
 
+const productionRules = envSchema.superRefine((env, ctx) => {
+  if (env.NODE_ENV !== "production") return;
+  if (!env.API_PROXY_SECRET) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["API_PROXY_SECRET"],
+      message: "Required in production",
+    });
+  }
+  if (!env.TURNSTILE_SECRET_KEY) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["TURNSTILE_SECRET_KEY"],
+      message: "Required in production",
+    });
+  }
+  if (!env.REVALIDATE_SECRET) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["REVALIDATE_SECRET"],
+      message: "Required in production",
+    });
+  }
+});
+
 export function validateEnv(raw: Record<string, unknown>): Env {
-  const result = envSchema.safeParse(raw);
+  // `KEY=` in .env means "not set" (that is how .env.example lists optional
+  // values), so empty strings must not fail validation as too short.
+  const cleaned = Object.fromEntries(
+    Object.entries(raw).filter(([, value]) => value !== ""),
+  );
+  const result = productionRules.safeParse(cleaned);
   if (!result.success) {
     throw new Error(
       `Invalid environment variables:\n${z.prettifyError(result.error)}`,

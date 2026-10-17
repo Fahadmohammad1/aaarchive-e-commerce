@@ -23,6 +23,7 @@ Breaking any of these is a bug, however good the rest of the change is.
 7. **Free tiers only.** No paid service, plan upgrade or paid add-on without the user's explicit approval. **Never deploy on Vercel Hobby** (non-commercial licence).
 8. **Secrets live only in `.env` files**, which are git-ignored. Never in code, docs, `memory.md`, commit messages, logs or chat output.
 9. **The six docs stay current.** Every task ends with `memory.md` updated (see `AGENTS.md`).
+10. **Everything customer-facing is editable from the dashboard** (PRD §6.7). Never hard-code copy, images, links, prices, contact numbers or menu items in storefront code — they come from the API (catalog tables, `ContentBlock`, `Page`, `FaqItem`, `Setting`). Only interface wording lives in `lib/i18n/`. A new storefront section ships with its dashboard form and its schema in `@aaarchive/shared/content`.
 
 ---
 
@@ -52,7 +53,7 @@ Breaking any of these is a bug, however good the rest of the change is.
 | UI components (storefront **and** admin) | **shadcn/ui** (`components/ui/`, Radix base, `radix-nova` style), themed by `globals.css`. Storefront pieces in `components/store/` are built **on** shadcn |
 | Class merging | `cn()` from `@/lib/utils` (shadcn's `cn` package) |
 | Icons | **Lucide** (`lucide-react`, shadcn's icon library), outline, 1.25–1.5px stroke |
-| Images | `next/image` with the Cloudinary loader |
+| Images | `next/image` with the media loader (`lib/media/`), stored WebP sizes |
 | Fonts | `next/font/google`, self-hosted: Alfa Slab One, JetBrains Mono, Inter, Hind Siliguri |
 | HTTP | The project's fetch client in `lib/api/` |
 | Bot protection | Cloudflare Turnstile widget |
@@ -68,10 +69,11 @@ Breaking any of these is a bug, however good the rest of the change is.
 | Request / env validation | Zod via `ZodValidationPipe` and `src/config/env.schema.ts` |
 | Config | `@nestjs/config` |
 | API docs | `@nestjs/swagger` |
-| Auth | `@nestjs/jwt` + Passport, **argon2** for password hashing *(install in Phase 1)* |
-| Rate limiting | `@nestjs/throttler` *(Phase 1/4)* |
-| Images | Cloudinary SDK, signed uploads only *(Phase 2)* |
+| Auth | `@nestjs/jwt` (HS256, own guards — no Passport), **`@node-rs/argon2`** (argon2id, prebuilt binaries; no install scripts), `cookie-parser` |
+| Rate limiting | `@nestjs/throttler` (installed; global limit on, stricter per-route limits in Phase 1/4) |
+| Media | **Supabase Storage** via its S3 API (`@aws-sdk/client-s3`, storage-only access keys) + **`sharp`** for validation/resizing *(Phase 2, install after approval)* |
 | Email | Resend (or Brevo) free tier *(Phase 4)* |
+| Excel export | **exceljs** (MIT), server-side streaming writer *(Phase 2, first export)*. CSV is written by our own helper. Never use the npm `xlsx` package (stale 0.18.x with known advisories) |
 | Tests | Vitest + supertest |
 
 Install a listed-but-not-yet-installed library when its phase arrives. Anything **not** in these tables needs the user's approval first.
@@ -89,7 +91,7 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 | Server data copied into Zustand or React context | TanStack Query cache | Two copies of server data drift apart |
 | axios, SWR, Redux, Apollo | `lib/api/` fetch client + TanStack Query | Already decided |
 | class-validator / class-transformer DTOs | Zod schemas + `ZodValidationPipe` | One validation library across the repo |
-| `supabase-js`, Supabase Auth, Supabase Storage, Edge Functions | NestJS + Prisma for data and auth, Cloudinary for images | Supabase is used **only as Postgres** |
+| `supabase-js`, Supabase Auth, Edge Functions, the `service_role` key | NestJS + Prisma for data and auth; Storage through the API with S3 keys | Supabase is used **only as Postgres** |
 | `prisma db push` against Supabase | `prisma migrate dev` locally, `prisma migrate deploy` in CI/prod | Keeps migration history honest |
 | `new PrismaClient()` | Inject `PrismaService` | One pooled client per process |
 | Raw SQL with string concatenation | Prisma queries, or `$queryRaw` tagged templates when unavoidable | SQL injection |
@@ -103,6 +105,7 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 | `index.ts` barrel files | Import from the concrete file | Tree-shaking, clear ownership |
 | `import type` for anything Nest injects | Normal import | Nest DI needs the runtime class |
 | Paid SaaS, paid tiers, gateway SDKs, SMS providers | — | Out of MVP scope / budget |
+| Building exports in the browser from what the table shows | `GET /admin/<resource>/export` (architecture §4.8) | The page only holds one page of rows; the API applies filters, permissions and streaming |
 
 ---
 
@@ -188,12 +191,13 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 
 ## 6. Database (Supabase) rules
 
-- Supabase is used **only as a hosted PostgreSQL database.** No Supabase client SDK, Auth, Storage, Realtime or Edge Functions.
+- Supabase is used as **hosted PostgreSQL and Storage (media)**. No Supabase client SDK, Auth, Realtime or Edge Functions. Storage is reached only by the API, through the S3 API with storage-only access keys — never the `service_role` key.
 - Two connection strings, both from Supabase → *Connect*:
   - `DATABASE_URL`: the **transaction pooler** (port `6543`), used by the running API.
   - `DIRECT_URL`: the **session pooler** (port `5432` on the pooler host), used by Prisma migrations. The plain `db.<ref>.supabase.co` direct host is IPv6-only on the free tier.
 - Credentials go only into `apps/api/.env` (git-ignored). Never paste them into code, docs, `memory.md` or commits. If a credential leaks, rotate the database password in Supabase immediately.
 - **Disable Supabase's Data API** (Project Settings → Data API), or at minimum enable RLS with no policies on every table. Prisma creates tables in `public`, which Supabase's REST API would otherwise expose to anyone holding the project's anon key.
+- Storage bucket `media`: public read, `image/webp` only, 2 MB per object; writes only by the API.
 - The free tier has **no automatic backups**: the GitHub Actions `pg_dump` job (Phase 7) is mandatory before launch, and a restore must be tested.
 - Free projects **pause after ~7 days without activity**. During development, expect a paused project, not a bug. In production, the uptime monitor hitting `/api/v1/health` (which queries the DB) keeps it active.
 - Use a separate Supabase project (or a local Postgres) for development once real orders exist. Never run `migrate dev` against production.
@@ -215,12 +219,83 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 
 ## 8. Security
 
-- HTTPS everywhere. `helmet` on the API. CORS limited to `FRONTEND_ORIGIN`.
-- Passwords: argon2. Access tokens live in memory on the client. Refresh tokens are httpOnly + Secure + SameSite=Lax cookies.
-- Rate limits on login, checkout, coupon apply and track order (PRD §5.8, §9.3). Turnstile on checkout, login and contact.
-- Uploads only via signed Cloudinary uploads: jpg/png/webp, ≤ 5 MB.
-- Customer data (phones, addresses) appears only in admin endpoints. Tracking responses mask the phone.
-- New env vars go into `.env.example` (with an empty or dummy value) and the Zod env schema in the same change.
+*Owner requirement (18 Oct 2026): the store handles real customers' names, phones, addresses and money, so it must be secure and resistant to attackers.* Every change is checked against this section. A feature is not done if it weakens any item here.
+
+### 8.1 Built today (keep it working)
+
+| Protection | Where |
+|---|---|
+| Database reachable only by the API: RLS on every table; Supabase's `anon` / `authenticated` roles have **no privileges** on any table, sequence or function (now and for future objects) | migrations `…_init`, `…_lock_down_supabase_roles` |
+| API refuses requests that did not come through the website (shared secret header `x-aaarchive-proxy`, constant-time compare); visitor-forged values are stripped by `proxy.ts` | `ProxySecretMiddleware`, `apps/web/proxy.ts` |
+| Global rate limit per client IP (120/min default), `trust proxy` set per deployment so the IP is the visitor's | `ThrottlerModule`, `TRUST_PROXY` |
+| Request bodies ≤ 100 KB; Zod validation on every input; one error shape with no stack traces or SQL | `main.ts`, `ZodValidationPipe`, `AllExceptionsFilter` |
+| `helmet` headers on the API; CORS limited to `FRONTEND_ORIGIN`; Swagger off in production | `main.ts` |
+| Web security headers: CSP (self-only scripts/styles, no framing, no plugins), HSTS (prod), `nosniff`, `X-Frame-Options: DENY`, strict referrer, Permissions-Policy, COOP; no `X-Powered-By` | `next.config.ts` |
+| Production refuses to start without `API_PROXY_SECRET`, `REVALIDATE_SECRET` and `TURNSTILE_SECRET_KEY` | `env.schema.ts` |
+| Every route requires OWNER/STAFF unless `@Public()` / `@Roles(...)`; user re-read from the DB on each request (deactivation, logout-everywhere and role changes apply instantly) | `JwtAuthGuard`, `RolesGuard` |
+| Login: argon2id, generic errors, constant-time-ish (dummy hash), per-account lockout (5 → 15 min) + per-IP limit (10 / 15 min), Turnstile; rotating hashed refresh tokens with theft detection; Origin check on state-changing auth calls; open-redirect-safe `?next=` | `modules/auth/`, `common/auth/`, `apps/web/lib/auth/` |
+| Dependency audit fails CI on high/critical advisories; Dependabot weekly PRs | `ci.yml`, `dependabot.yml` |
+| Secrets only in git-ignored `.env` files | `.gitignore` |
+
+### 8.2 Authentication & sessions (Phase 1)
+
+- Passwords hashed with **argon2id**; minimum 10 characters, checked against a common-password list. Never log or return a password or hash.
+- Access token: short-lived JWT (≤ 15 min), in memory only. Refresh token: random, stored **hashed** in the DB, httpOnly + Secure + SameSite=Lax cookie scoped to `/api/v1/auth`, **rotated on every use**; reuse of an old refresh token revokes the whole session family (token theft detection).
+- Login: rate-limited per IP **and** per account (e.g. 5 attempts / 15 min), Turnstile, generic error ("Email or password is incorrect") so accounts cannot be enumerated.
+- Logout and password change revoke all refresh tokens of that user. Deactivating a staff user ends their sessions immediately.
+- `/auth/refresh` and every state-changing cookie-authenticated request check the `Origin` header against the site origin (CSRF defence on top of SameSite).
+- Owner accounts: two-factor authentication (TOTP) — **deferred** by the owner (2026-10-18); re-decide before launch (Phase 7).
+
+### 8.3 Authorization
+
+- Every `/admin/**` route has `JwtAuthGuard` + `RolesGuard` by default (opt-out is impossible without code review). Staff cannot reach settings, staff management or Owner-only exports.
+- Access is checked against the **record**, not just the route: no endpoint returns another customer's order or address because an id was guessed (IDOR). Public order tracking requires phone **and** order number, and masks the phone.
+- The UI hiding a button is never the protection.
+
+### 8.4 Input, output and data
+
+- Validate every body, query and param with Zod; reject unknown fields (`.strict()` on write schemas). Normalise phones, trim strings, cap lengths.
+- Prisma only — no string-built SQL. `$queryRaw` only as a tagged template.
+- React escapes output by default. **Never** use `dangerouslySetInnerHTML` except for rich text that was sanitised **on the server when saved** (allow-list HTML sanitiser, Phase 6).
+- Links saved by admins go through `hrefSchema` (only `/…` or `https://…`; no `javascript:`).
+- The API never fetches a URL supplied by a user (no SSRF). Images are uploaded to the API (`POST /admin/media`), which validates and re-encodes them before storing in Supabase Storage. Short-lived upload — the API only signs.
+- Uploads: jpg/png/webp only (checked by decoding with `sharp`, not by name or MIME header), ≤ 8 MB in, ≤ 40 megapixels, all metadata stripped, re-encoded to WebP; the bucket accepts only `image/webp` ≤ 2 MB; storage keys are random ids, never user file names.
+- Money and stock are computed on the server; stock numbers never leave admin routes.
+- Exports: CSV-injection guard; same role checks as the screen.
+
+### 8.5 Abuse of the shop
+
+- Checkout: Turnstile, 3 orders/phone/hour, 10/IP/hour, COD blocklist, unique TrxID, server-side prices, quantity caps.
+- Coupon apply, order tracking, login, contact form: their own stricter rate limits.
+- Every money-moving or status change is written to `OrderEvent` with the user who did it.
+
+### 8.6 Secrets
+
+- Only in `.env` files (git-ignored) and the hosts' secret stores. Never in code, docs, `memory.md`, logs, screenshots or chat.
+- Generate with `openssl rand -hex 32`. Different values per environment.
+- If a secret may have leaked: rotate it immediately (DB password and S3 access keys in Supabase, `API_PROXY_SECRET`, JWT secrets, Resend key), then redeploy.
+
+### 8.7 Logging & monitoring
+
+- Log security events (failed logins, lockouts, 403s on admin routes, rate-limit hits, refresh-token reuse) without personal data (no full phones, no tokens).
+- Sentry for errors; uptime monitor on `/api/v1/health`; alert the owner by email.
+
+### 8.8 Deployment (Phase 7)
+
+- HTTPS only. API reachable **only** through the website in production (`API_PROXY_SECRET` set; ideally the API host also restricts inbound traffic to the web host).
+- `TRUST_PROXY` set to the real number of proxies, verified by checking that rate limits see distinct visitor IPs.
+- Supabase: Data API disabled, strong DB password, SSL enforced, Security Advisor clean, daily backups + tested restore.
+- Before launch: OWASP ZAP baseline scan (free) against staging, securityheaders.com grade A, `bun audit` clean, all secrets rotated from development values.
+
+### 8.9 Dependencies
+
+- `bun audit --audit-level=high` must pass in CI. Prefer well-maintained libraries; check before adding (rules §10 "ask first").
+
+### 8.10 Accepted exceptions (review monthly)
+
+| Advisory | Package | Why it is accepted | Reviewed |
+|---|---|---|---|
+| GHSA-vfj7-8cjw-p6xm (braces ≤ 3.0.3, DoS via nested patterns) | `braces` via `shadcn` CLI → `fast-glob` | No fixed version exists; only reached by the shadcn CLI a developer runs locally with our own patterns; never shipped to the site or API | 2026-10-18 |
 
 ---
 

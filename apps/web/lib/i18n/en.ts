@@ -63,6 +63,53 @@ export const en = {
     social: "Follow Aaarchive",
     rights: "© {year} Aaarchive. All rights reserved.",
   },
+  admin: {
+    dashboard: "Dashboard",
+    signInTitle: "Dashboard sign in",
+    signInIntro: "For the Aaarchive owner and staff.",
+    email: "Email",
+    password: "Password",
+    signIn: "Sign in",
+    signingIn: "Signing in…",
+    signOut: "Sign out",
+    signOutEverywhere: "Sign out on all devices",
+    signOutEverywhereHint:
+      "Ends every session, including on other phones and computers.",
+    account: "Account",
+    changePassword: "Change password",
+    currentPassword: "Current password",
+    newPassword: "New password",
+    newPasswordHint:
+      "At least 10 characters. A short phrase is easier to remember and harder to guess.",
+    save: "Save",
+    saving: "Saving…",
+    passwordChanged:
+      "Password changed. You were signed out on your other devices.",
+    welcome: "Welcome, {name}",
+    dashboardSoon:
+      "Products, stock, orders and content screens arrive in the next phases.",
+    checkingSession: "Checking your session…",
+    noAccess: "This account cannot use the dashboard.",
+    backToStore: "Back to the store",
+    roles: { OWNER: "Owner", STAFF: "Staff", CUSTOMER: "Customer" },
+    errors: {
+      INVALID_CREDENTIALS: "Email or password is incorrect.",
+      TURNSTILE_FAILED: "Please complete the security check.",
+      RATE_LIMITED:
+        "Too many attempts. Please wait a few minutes and try again.",
+      INVALID_CURRENT_PASSWORD: "Your current password is incorrect.",
+      PASSWORD_TOO_SHORT: "Use at least 10 characters.",
+      PASSWORD_TOO_LONG: "Use 128 characters or fewer.",
+      PASSWORD_TOO_COMMON: "That password is too common. Try a longer phrase.",
+      PASSWORD_CONTAINS_EMAIL: "Do not use your email name in the password.",
+      PASSWORD_UNCHANGED: "Choose a password different from the current one.",
+      INVALID_EMAIL: "Enter a valid email address.",
+      REQUIRED: "This field is required.",
+      NETWORK_ERROR: "Cannot reach the server. Check your connection.",
+      TIMEOUT: "The server took too long to answer. Please try again.",
+      DEFAULT: "Something went wrong. Please try again.",
+    },
+  },
 } as const;
 
 export type Messages = typeof en;

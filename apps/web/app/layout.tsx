@@ -5,6 +5,7 @@ import {
   Inter,
   JetBrains_Mono,
 } from "next/font/google";
+import { QueryProvider } from "@/components/providers/query-provider";
 import "./globals.css";
 
 // Self-hosted by next/font. The variables feed the font stacks in globals.css.
@@ -51,7 +52,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`dark ${alfaSlab.variable} ${jetbrains.variable} ${inter.variable} ${hind.variable}`}
     >
-      <body className="flex min-h-dvh flex-col">{children}</body>
+      <body className="flex min-h-dvh flex-col">
+        <QueryProvider>{children}</QueryProvider>
+      </body>
     </html>
   );
 }

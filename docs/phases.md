@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Last updated** | 17 October 2026 |
-| **Current phase** | **Phase 0 — Foundation** (in progress) |
+| **Current phase** | **Phase 2 — Admin dashboard & catalog management** (Phase 0: only API hosting left; Phase 1 done) |
 | **Related docs** | `PRD.md` (requirements) · `architecture.md` · `rules.md` · `design.md` · `memory.md` (day-to-day progress) |
 
 The build is split into **Phases 0–7**, which together deliver the MVP (PRD "Release 1"). Work after launch is grouped as **Release 2** and **Release 3** (PRD §4). "Phase" always means a build phase in this file. "Release" means a post-launch scope tier.
@@ -18,8 +18,8 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 
 | Phase | Name | Estimate | Status |
 |---|---|---|---|
-| 0 | Foundation | 1 week | in progress |
-| 1 | Authentication | 0.5 week | not started |
+| 0 | Foundation | 1 week | done except API hosting |
+| 1 | Authentication | 0.5 week | done |
 | 2 | Admin dashboard & catalog management | 1.5 weeks | not started |
 | 3 | Storefront catalog | 1.5 weeks | not started |
 | 4 | Cart, checkout & order placement | 1.5 weeks | not started |
@@ -38,26 +38,30 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 - [x] [repo] Monorepo: Bun workspaces (`apps/web`, `apps/api`, `packages/shared`), root scripts
 - [x] [repo] Biome for lint + format, ESLint/oxlint/Prettier removed
 - [x] [docs] The six docs written: PRD, architecture, rules, phases, design, memory, plus `AGENTS.md`
-- [ ] [repo] GitHub repo created and the initial commit pushed
-- [ ] [repo] GitHub Actions CI: `bun install --frozen-lockfile`, `check`, `typecheck`, `test`, `build`
+- [x] [repo] GitHub repo created and the initial commit pushed (`Fahadmohammad1/aaarchive-e-commerce`)
+- [x] [repo] GitHub Actions CI (`.github/workflows/ci.yml`): `bun install --frozen-lockfile`, `check`, `typecheck`, `test`, API e2e, `build`, and migrations applied to a disposable Postgres + drift check *(first run happens on the next push)*
 
 **Shared**
 - [x] [shared] `money`, `phone`, `stock`, `order` helpers + enums, with tests
 
 **Database and API**
 - [x] [api] NestJS scaffold: `/api/v1`, helmet, CORS, Swagger, Zod env validation, `ZodValidationPipe`, `AllExceptionsFilter`, `PrismaService`, `/health`
-- [ ] [api] Supabase connected: `DATABASE_URL` (transaction pooler) and `DIRECT_URL` (session pooler) in `apps/api/.env`; `/health` reports `database: up` *(waiting for credentials from the user)*
-- [ ] [api] Supabase Data API disabled (or RLS on every table) — `rules.md` §6
-- [ ] [api] Prisma schema for every PRD §7 model (enums match `@aaarchive/shared`, money as `Int`, indexes, `createdAt`/`updatedAt`) + first migration
-- [ ] [api] Order-number sequence (`AAR-` + number) decided and implemented
-- [ ] [api] `prisma/seed.ts`: sizes, colours, delivery zones, default settings (low-stock 3, max qty 5), first Owner account from env
+- [x] [api] Supabase connected: `DATABASE_URL` (transaction pooler) and `DIRECT_URL` (session pooler) in `apps/api/.env`; `/health` reports `database: up` (2026-10-18)
+- [x] [api] Migrations + seed applied to Supabase (`db:deploy`, `db:seed`) — 3 migrations, 23 tables (2026-10-18)
+- [x] [api] Security baseline (rules.md §8.1): Supabase `anon`/`authenticated` stripped of all privileges + RLS on `_prisma_migrations` (migration `…_lock_down_supabase_roles`, verified on Supabase), proxy-secret middleware, global rate limit, body limits, `TRUST_PROXY`, production env requirements — 10 API tests
+- [x] [web] `proxy.ts` (adds the API secret, strips forged ones — verified), security headers + CSP (no violations in dev or prod build)
+- [x] [repo] `bun audit` in CI (high+), Dependabot; removed unused `@nestjs/mau`, moved `shadcn` to dev dependencies
+- [ ] [api] Supabase Data API disabled (or RLS on every table) — `rules.md` §6 *(RLS is enabled on all 21 tables by the init migration; disabling the Data API in the dashboard is still recommended)*
+- [x] [api] Prisma schema for every PRD §7 model (enums match `@aaarchive/shared`, money as `Int`, indexes, `createdAt`/`updatedAt`) + first migration (`20261018000000_init`, verified on a local Postgres: applies cleanly, no drift) *(apply to Supabase with `db:deploy` once credentials arrive)*
+- [x] [api] Order-number sequence: Postgres `order_number_seq` starting at 24101, created in the init migration (`AAR-` prefix added by the orders service in Phase 4)
+- [x] [api] `prisma/seed.ts`: sizes, colours, delivery zones (placeholder charges, PRD Q3), default settings (low-stock 3, max qty 5) — idempotent, verified twice *(first Owner account moves to Phase 1: it needs password hashing)*
 
 **Web**
 - [x] [web] Folder skeleton for every route in PRD §12
 - [x] [web] Design tokens from `design.md` §12 in `app/globals.css` (`@theme`), fonts via `next/font` (replace Geist), film-grain overlay
 - [x] [web] `lib/i18n/` with `en.ts` + `getMessages()` / `format()`
-- [ ] [web] `lib/api/` client (`api-client.ts`, `api-error.ts`, `api-config.ts`, `session.ts`) + `/api/v1` rewrite in `next.config.ts`
-- [ ] [web] TanStack Query installed, `QueryProvider` with the global defaults from `rules.md` §4.2, mounted in the root layout
+- [x] [web] `lib/api/` client (`api-client.ts`, `api-error.ts`, `api-config.ts`, `session.ts`, incl. `api.download` for exports) + `/api/v1` rewrite in `next.config.ts` (verified: `/api/v1/health` through the web app reached the API and DB)
+- [x] [web] TanStack Query installed, `QueryProvider` with the global defaults from `rules.md` §4.2, mounted in the root layout
 - [x] [web] shadcn/ui initialised (Radix, `radix-nova`) for storefront and admin, themed with our tokens
 - [x] [web] Icon set chosen: Lucide (shadcn)
 
@@ -72,16 +76,22 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 
 **Goal:** Owner and Staff can sign in to `/admin`, and every admin endpoint is protected by role. (Customer accounts are optional and come in Phase 6 if PRD open question 6 says so.)
 
-- [ ] [api] Install `@nestjs/jwt`, Passport, argon2, `@nestjs/throttler` (approved in `rules.md` §2.3)
-- [ ] [api] `auth` module: `POST /auth/login`, `POST /auth/refresh` (rotating refresh token in an httpOnly cookie scoped to `/api/v1/auth`), `POST /auth/logout`, `GET /auth/me`
-- [ ] [api] `users` module: `User` with role `OWNER | STAFF | CUSTOMER`, argon2 hashes
-- [ ] [api] `JwtAuthGuard`, `RolesGuard` + `@Roles()`, `@CurrentUser()` decorator, applied globally to `/admin/**`
-- [ ] [api] Login rate limit + Turnstile verification on login
-- [ ] [api] Tests: login, wrong password, refresh rotation, expired token, Staff blocked from Owner-only routes
-- [ ] [web] `/admin/login` page (shadcn form, React Hook Form + Zod, Turnstile)
-- [ ] [web] Session layer: in-memory access token, single-flight refresh on 401 in `lib/api/`, `useAuth()` hook (TanStack Query for `/auth/me`)
-- [ ] [web] `proxy.ts` optimistic redirect using the session-hint cookie, plus a `RequireAdmin` guard in `app/admin/(panel)/layout.tsx`, with `?next=` round-trip
-- [ ] [web] Logout (also across tabs)
+- [x] [api] Install `@nestjs/jwt`, `@node-rs/argon2`, `cookie-parser` (`@nestjs/throttler` already in; Passport not needed — a small custom guard is simpler)
+- [x] [api] Seed the first Owner account from env (`SEED_OWNER_EMAIL`, `SEED_OWNER_PASSWORD`), hashed with argon2
+- [x] [api] `auth` module: `POST /auth/login`, `POST /auth/refresh` (rotating refresh token in an httpOnly cookie scoped to `/api/v1/auth`), `POST /auth/logout`, `POST /auth/logout-all`, `GET /auth/me`, `POST /auth/change-password`
+- [x] [api] `User` with role `OWNER | STAFF | CUSTOMER`, argon2id hashes, lockout + `tokenVersion` fields; `RefreshToken` table (migration `20261018140000_auth_sessions`) *(staff management screens: Phase 6)*
+- [x] [api] `JwtAuthGuard`, `RolesGuard` + `@Roles()`, `@CurrentUser()` decorator, applied globally to `/admin/**`
+- [x] [api] Login rate limit per IP **and** per account + Turnstile; generic error message (no account enumeration)
+- [x] [api] Refresh tokens stored hashed, rotated on every use, reuse → revoke the session family; logout / password change / staff deactivation revoke all sessions
+- [x] [api] `Origin` check on `/auth/refresh` and cookie-authenticated writes (CSRF)
+- [x] [api] Password policy (≥ 10 chars, common-password check), argon2id
+- [x] [api] Security event logging (failed logins, lockouts, admin 403s, token reuse) without personal data
+- [x] Decide: TOTP two-factor for Owner accounts — **not now** (user, 2026-10-18); revisit before launch (Phase 7)
+- [x] [api] Tests: login, wrong password, refresh rotation, expired token, Staff blocked from Owner-only routes
+- [x] [web] `/admin/login` page (shadcn form, React Hook Form + Zod, Turnstile)
+- [x] [web] Session layer: in-memory access token, single-flight refresh (401s, proactive timer, initial restore), `AuthProvider` + `useAuth()`; `/admin/account` (change password, sign out everywhere)
+- [x] [web] `proxy.ts` optimistic redirect using the session-hint cookie, plus a `RequireAdmin` guard in `app/admin/(panel)/layout.tsx`, with `?next=` round-trip
+- [x] [web] Logout (also across tabs)
 
 **Exit criteria:** an Owner signs in, refreshes the page and stays signed in, and signs out. Staff cannot open Owner-only routes (UI and API both refuse). Every `/admin/**` API call without a valid token returns 401.
 
@@ -94,14 +104,20 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 - [ ] [web] Admin shell: collapsible sidebar (240px), top bar with search + user menu, mobile layout (`design.md` §8)
 - [ ] [web] Dashboard home placeholder (real stats arrive in Phase 5)
 - [ ] [api] `categories`, `collections`: CRUD, slug generation, sort order, show-on-home flag
-- [ ] [api] Colours and sizes: CRUD (or seed-managed), `size-charts`: templates + custom tables
+- [ ] [api] Colours and sizes: CRUD (`/admin/colors`, `/admin/sizes`), `size-charts`: templates + custom tables — all editable in the dashboard (PRD §6.7)
 - [ ] [api] `products`: CRUD with draft/published/archived status, featured flag, SEO fields, sale price + window, low-stock override, duplicate product
 - [ ] [api] Variants: generate from sizes × colours, SKU, stock, price override, active flag. Quick stock edit endpoint
-- [ ] [api] `uploads`: signed Cloudinary upload params (jpg/png/webp, ≤ 5 MB); product images with order, main image and per-colour images
+- [ ] [repo] Supabase: create bucket `media` (public, `image/webp`, 2 MB) + S3 access keys → `apps/api/.env`
+- [ ] [api] `media` module: `POST /admin/media` (sharp pipeline: content check, 40 MP cap, metadata strip, WebP 400/800/1200/1600 + blur), S3 upload, `MediaAsset`; `DELETE /admin/media/:id` when unreferenced — install `sharp`, `@aws-sdk/client-s3`
+- [ ] [api] Product images reference media (order, main image, per-colour images)
+- [ ] [web] `lib/media/media-loader.ts` for `next/image`; image picker/uploader component in the dashboard
 - [ ] [api] `revalidation` service calling the web's `/api/revalidate` after catalog writes
-- [ ] [web] Admin screens: categories, collections, products list (search, filters, sort by stock), product editor (tabs: details, pricing, images, variants, size chart, SEO), inline variant stock table
+- [ ] [web] Admin screens: categories (incl. photo, order, show on home), collections, sizes, colours, size charts, products list (search, filters, sort by stock), product editor (tabs: details, pricing, images, variants, size chart, SEO), inline variant stock table
 - [ ] [web] `app/api/revalidate` route (secret-checked `revalidateTag`)
 - [ ] [web] TanStack Query hooks + key factories for each module, with mutations invalidating the right keys
+- [ ] [api] Export building blocks (`common/export/`: columns, CSV writer with BOM + injection guard, exceljs XLSX writer, streaming `ExportService`) + tests — install `exceljs`
+- [ ] [api] `GET /admin/products/export` (variants with stock) — Owner only
+- [ ] [web] `components/admin/export-menu.tsx` (CSV / Excel) on the products list
 - [ ] [api] Tests: slug uniqueness, variant generation, sale-price window, Staff read-only on products
 
 **Exit criteria:** the Owner creates a product with 2 colours × 4 sizes, uploads images, sets stock and publishes it. Staff can view but not edit products. Editing a product triggers revalidation.
@@ -139,7 +155,7 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 - [ ] [api] Confirmation email via Resend after commit (if an email was given)
 - [ ] [api] `POST /orders/track` with a masked phone in the response
 - [ ] [api] Tests: price recomputation ignores client prices; concurrent orders cannot oversell; coupon edge cases; rate limit; blocklist; duplicate TrxID
-- [ ] [web] Admin screens: delivery zones, coupons
+- [ ] [web] Admin screens: delivery zones, coupons (with CSV/Excel export, Owner only)
 - [ ] [web] Cart store (Zustand, persisted) + cart drawer + `/cart`, re-validated on open
 - [ ] [web] `/checkout`: contact → delivery → payment sections, zone and payment radio cards, bKash/Nagad instructions with copy, Turnstile, sticky Place Order on mobile, summary panel
 - [ ] [web] `/order/success/[number]` and `/track-order` (timeline)
@@ -160,10 +176,12 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 - [ ] [api] Edit order before shipping (items, quantities, address, delivery charge) with stock adjustment
 - [ ] [api] `customers`: list by phone (incl. guests) with totals and success rate, plus the phone blocklist CRUD
 - [ ] [api] `GET /admin/reports/summary`: today/month orders and revenue, orders by status, payments awaiting verification, low-stock top 10, best sellers
+- [ ] [api] Exports: orders, order items, customers, payments (PRD §6.9), each sharing the list endpoint's filter schema
 - [ ] [api] Tests: every allowed and forbidden status transition, stock restore, payment verification
 - [ ] [web] Orders list (cards on mobile) and order detail with status actions, payment panel, event timeline, notes, big tap targets for call outcomes
 - [ ] [web] Print-friendly invoice / packing slip and bulk actions (status change, print)
 - [ ] [web] Customers list/detail and blocklist screens
+- [ ] [web] Export menu on orders, customers and payments lists
 - [ ] [web] Dashboard home with real stats (replaces the Phase 2 placeholder)
 
 **Exit criteria:** a test order goes Pending → Confirmed → Processing → Shipped → Delivered, and another is cancelled with its stock restored. A bKash payment is verified. The dashboard numbers match the orders. A staff member can do all of this on a phone.
@@ -174,12 +192,15 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 
 **Goal:** the full editorial home page and content pages, all editable from the admin, and the store settings (PRD §5.2, §5.11, §6.7, §6.8).
 
-- [ ] [api] `content`: home sections (hero, featured look, why-us, social posts), pages, FAQ, announcement bar
-- [ ] [api] `settings`: store info, delivery/payment toggles and numbers, advance delivery charge for COD, stock defaults, tracking IDs
+- [x] [shared] `@aaarchive/shared/content`: schemas for every editable section (`contentSchemas`) + tests
+- [x] [api] `ContentBlock` + `FaqItem` tables (migration `20261018120000_content_blocks_faq`), seed for text-only blocks
+- [ ] [api] `content`: `GET /content/home` (resolved, missing sections = null), `GET /content/site`, `GET|PUT /admin/content/:key` (validated with `contentSchemas`, records `updatedById`, revalidates), `/admin/social-posts`, `/admin/pages`, `/admin/faq`, public `GET /pages/:slug`, `GET /faq`
+- [ ] [api] `settings`: store info + logo, delivery/payment toggles and numbers, advance delivery charge for COD, stock defaults, SEO defaults, tracking IDs; public `GET /settings/public`
 - [ ] [api] Staff management (Owner only): invite/create, role, deactivate
 - [ ] [web] Home sections H1–H6 per `design.md` §6 (hero, browse by category, featured look, exclusive collections, why us, social journey) *(UI built 2026-10-17 on fixture data in `lib/content/home-fixtures.ts`; awaiting design review, then wire to the API)*
 - [ ] [web] Content pages: about, contact (form + Turnstile), FAQ, size guide, policies
-- [ ] [web] Admin screens: content editor (images via Cloudinary), pages (rich text), FAQ, announcement, settings tabs, staff
+- [ ] [web] Admin screens: **one form per home section** (hero, archive index, look file with a click-to-place hotspot picker, latest entries + campaign, made to be kept, social), site content (announcement, menu links, footer), social posts, pages (rich text), FAQ, settings tabs (store + logo, payments, stock, SEO, tracking), staff
+- [ ] [web] Storefront reads `GET /content/home` + `GET /content/site` + public settings (logo, contact links, SEO); sections without content are left out; delete `lib/content/home-fixtures.ts` and the hard-coded header/footer/menu data
 - [ ] [web] 404 and error pages per `design.md` §7.8
 - [ ] [api][web] *(Only if PRD open question 6 = yes)* Customer accounts: email/password + Google, My Orders, saved addresses, linking guest orders by phone
 
@@ -198,8 +219,12 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 - [ ] [web] Performance pass: LCP < 2.5s, CLS < 0.1, storefront JS < 150 KB gzipped, Lighthouse mobile ≥ 85 on home/category/product
 - [ ] [web] Accessibility pass (WCAG 2.1 AA, keyboard, reduced motion)
 - [ ] [repo] Sentry free tier on both apps, and an uptime monitor on `/api/v1/health`
+- [ ] Re-decide TOTP two-factor for Owner accounts (deferred in Phase 1)
+- [ ] [repo] Security review before launch (rules.md §8.8): OWASP ZAP baseline scan on staging, securityheaders.com grade A, `bun audit` clean, Supabase Security Advisor clean + Data API off + SSL enforced, `TRUST_PROXY` verified, API unreachable without the proxy secret, every secret rotated from dev values
+- [ ] [web] Revisit CSP: nonce-based `script-src` (drop `'unsafe-inline'`) if it can be done without losing static caching; add Turnstile/analytics domains
 - [ ] [repo] Scheduled `pg_dump` backup (GitHub Actions → private storage) and a tested restore
 - [ ] [repo] Production deploy: web on Cloudflare (OpenNext), API on the chosen host, domain + HTTPS, Search Console
+- [ ] [repo] Serve media from our domain (`/media/*` → Supabase Storage, cached by Cloudflare) to stay within Supabase's free egress; scheduled clean-up of unreferenced media
 - [ ] [web] *(Needs approval)* Playwright test for the checkout flow
 - [ ] PRD §13.1 launch checklist completed
 - [ ] Soft launch to friends/followers → public launch
@@ -210,7 +235,7 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 
 ## Backlog — Release 2 (after launch)
 
-From PRD §4: product reviews · "notify me" when back in stock · saved addresses and reorder (if accounts were skipped) · courier API (Steadfast / Pathao) · Bangla UI (`bn.ts`) · staff activity log · CSV import/export · abandoned-cart email · newsletter.
+From PRD §4: product reviews · "notify me" when back in stock · saved addresses and reorder (if accounts were skipped) · courier API (Steadfast / Pathao) · Bangla UI (`bn.ts`) · staff activity log · CSV import · abandoned-cart email · newsletter.
 
 ## Backlog — Release 3 (when growing, may be paid)
 

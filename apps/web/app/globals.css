@@ -86,9 +86,14 @@
   --chart-5: #a89c92;
 }
 
-/* Admin is denser and slightly rounded (design §8). */
+/* Admin is denser, slightly rounded and Inter throughout (design §8).
+   --font-display / --font-heading are re-declared here (not --font-alfa-slab):
+   a custom property that references another is resolved where it is defined,
+   so the :root versions have already locked in the slab face. */
 .admin {
   --radius: 0.25rem;
+  --font-display: var(--font-inter), var(--font-hind), system-ui, sans-serif;
+  --font-heading: var(--font-display);
 }
 
 @theme inline {

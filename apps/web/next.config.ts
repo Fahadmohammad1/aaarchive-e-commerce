@@ -1,6 +1,59 @@
 import type { NextConfig } from "next";
 
+const isDev = process.env.NODE_ENV !== "production";
+
+// Origin of the Supabase Storage bucket that serves product and content images.
+const mediaBase = process.env.NEXT_PUBLIC_MEDIA_BASE_URL
+  ? new URL(process.env.NEXT_PUBLIC_MEDIA_BASE_URL)
+  : null;
+
+// Content-Security-Policy (docs/rules.md §8). Scripts and styles only from this
+// site; images also from Supabase Storage (and Unsplash placeholders until launch).
+// 'unsafe-inline' scripts are needed by Next's inline bootstrap unless every
+// page uses a per-request nonce, which would turn the cached storefront into
+// dynamic pages — revisit in Phase 7. Cloudflare Turnstile (bot check on the
+// dashboard login) is the only third party so far; analytics come in Phase 7.
+const TURNSTILE = "https://challenges.cloudflare.com";
+const csp = [
+  "default-src 'self'",
+  `script-src 'self' 'unsafe-inline' ${TURNSTILE}${isDev ? " 'unsafe-eval'" : ""}`,
+  "style-src 'self' 'unsafe-inline'",
+  `img-src 'self' data: blob:${mediaBase ? ` ${mediaBase.origin}` : ""} https://images.unsplash.com`,
+  "font-src 'self'",
+  `connect-src 'self' ${TURNSTILE}${isDev ? " ws: wss:" : ""}`,
+  "frame-ancestors 'none'",
+  `frame-src ${TURNSTILE}`,
+  "base-uri 'self'",
+  "form-action 'self'",
+  "object-src 'none'",
+  ...(isDev ? [] : ["upgrade-insecure-requests"]),
+].join("; ");
+
+const securityHeaders = [
+  { key: "Content-Security-Policy", value: csp },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Permissions-Policy",
+    value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+  },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+  ...(isDev
+    ? []
+    : [
+        {
+          key: "Strict-Transport-Security",
+          value: "max-age=63072000; includeSubDomains; preload",
+        },
+      ]),
+];
+
 const nextConfig: NextConfig = {
+  poweredByHeader: false,
+  async headers() {
+    return [{ source: "/:path*", headers: securityHeaders }];
+  },
   experimental: {
     agentFeedback: true,
   },
@@ -12,10 +65,26 @@ const nextConfig: NextConfig = {
     qualities: [60, 75],
     remotePatterns: [
       // Product and content images (production).
-      { protocol: "https", hostname: "res.cloudinary.com", pathname: "/**" },
+      ...(mediaBase
+        ? [
+            {
+              protocol: "https" as const,
+              hostname: mediaBase.hostname,
+              pathname: `${mediaBase.pathname}/**`,
+            },
+          ]
+        : []),
       // Development placeholders only (design.md §9) — remove before launch.
       { protocol: "https", hostname: "images.unsplash.com", pathname: "/**" },
     ],
+  },
+  // Same-origin API proxy (docs/architecture.md §3.4): the browser calls
+  // /api/v1/*, Next forwards it to the NestJS API. Keeps the refresh cookie
+  // first-party and the storefront free of CORS.
+  async rewrites() {
+    const target =
+      process.env.API_PROXY_TARGET ?? "http://localhost:4000/api/v1";
+    return [{ source: "/api/v1/:path*", destination: `${target}/:path*` }];
   },
   turbopack: {
     rules: {

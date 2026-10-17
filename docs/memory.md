@@ -4,11 +4,45 @@ Living log of where the project stands. **Every agent updates this at the end of
 
 ## Current status
 
-- **Phase:** 0 — Foundation (see `phases.md`)
-- **In progress:** [web] Home page design review by the user, round 3 (out of phase order: home sections belong to Phase 6, built early on request)
-- **File currently being worked on:** `apps/web/app/(store)/page.tsx` and `apps/web/app/(store)/_components/*`
+- **Phase:** 2 — Admin dashboard & catalog management (see `phases.md`)
+- **In progress:** Phase 2 — Admin dashboard & catalog management (not started).
+- **File currently being worked on:** —
 
 ## Completed
+
+- **2026-10-18** [repo] — Media moves to **Supabase Storage** (user decision; Cloudinary dropped). Design: uploads go through the API (`POST /admin/media`): `sharp` content check, 40 MP cap, EXIF/GPS strip, WebP 400/800/1200/1600 + blur, stored via Supabase's S3 API with storage-only keys in a public `media` bucket (webp only, 2 MB); `MediaAsset` table referenced by `ProductImage.mediaId` and content `{ mediaId, alt }`; production serves `/media/*` through Cloudflare cache to protect free egress.
+  - Docs: PRD §6.7/§8.1/§8.3/§9.3, architecture §4.7a (new) + diagram/stack, rules (stack, avoid-table, §6 Supabase, §8.4 uploads, §8.6), phases (Phase 2 media tasks, Phase 7 media CDN + clean-up).
+  - Code: shared `imageSchema` → `{ mediaId, alt }`; Prisma `MediaAsset` + `ProductImage.mediaId` (Restrict); migration `20261018150000_media_assets` generated offline from a schema diff (ProductImage verified empty on Supabase; `prisma dev` kept hanging, so not applied locally — CI applies it on its Postgres); `next.config.ts` image allowlist + CSP from `NEXT_PUBLIC_MEDIA_BASE_URL`; `.env.example` (API `MEDIA_S3_*`, `MEDIA_BUCKET`, `MEDIA_PUBLIC_BASE_URL`; web `NEXT_PUBLIC_MEDIA_BASE_URL`).
+
+- **2026-10-18** [api] — Phase 1 live on Supabase: migration `20261018140000_auth_sessions` applied (4 migrations total); first Owner created by `db:seed` from `SEED_OWNER_*` (argon2id, active). Verified against Supabase: login 200, `/auth/me` 200, logout 204, same access token afterwards 401. User asked to remove `SEED_OWNER_PASSWORD` from `.env` after saving the password.
+
+- **2026-10-18** [api][web][shared] — Phase 1 authentication (rules.md §8.2–8.3).
+  - Shared `@aaarchive/shared/auth`: login/change-password/session schemas, roles, `isStaffRole` (3 tests).
+  - API: migration `20261018140000_auth_sessions` (User lockout/`tokenVersion`/`lastLoginAt`, `RefreshToken` + RLS); `modules/auth` (login, refresh with rotation + reuse detection + 10 s grace, logout, logout-all, me, change-password), `TurnstileService`, `password-policy.ts`; global `JwtAuthGuard` + `RolesGuard` (default OWNER/STAFF), `SameOriginGuard` (non-GET), `cookie-parser`; env: `JWT_ACCESS_SECRET` (required), TTLs, lockout, `TURNSTILE_SECRET_KEY` (required in prod); seed creates the first Owner from `SEED_OWNER_*`. Deps: `@nestjs/jwt`, `@node-rs/argon2`, `cookie-parser`.
+  - Tests: unit 14 (policy, Turnstile, env), e2e 15 against a real DB (generic errors, CSRF, cookie flags, rotation, theft → family revoked, logout immediate, default-deny 401/403/200, forged JWT, weak password + other sessions ended, lockout). CI runs them on its Postgres.
+  - Web: `/admin/login` (RHF + shared Zod, Turnstile widget, `?next=` via `safeNextPath`), `AuthProvider`/`useAuth`, `lib/auth/*`, `proxy.ts` admin redirect, `app/admin/layout.tsx` (noindex, `.admin` scope: 4px radius + Inter for display/heading), `(panel)` with `RequireAdmin`, top bar, placeholder dashboard, `/admin/account` (change password, sign out everywhere). shadcn `input`, `label`, `card`. CSP allows only `challenges.cloudflare.com` for Turnstile.
+  - Verified in a browser (Playwright) against a local DB with Turnstile test keys: guest redirect, wrong password message, sign-in, reload keeps session, refresh cookie invisible to JS, weak-password message, sign-out redirect, no CSP violations, per-IP login limit message. Found + fixed: Origin check wrongly applied to GETs; double session restore in React dev (now single-flight); admin titles in slab font (re-declared `--font-display`/`--font-heading` in `.admin`).
+  - Generated a dev `JWT_ACCESS_SECRET` into `apps/api/.env` (value not printed).
+
+- **2026-10-18** [api] — Supabase live: 3 migrations applied (`init`, `content_blocks_faq`, `lock_down_supabase_roles`) + seed (11 sizes, 8 colours, 3 zones, 6 settings, 5 content blocks). Verified: 24 tables incl. `_prisma_migrations` have RLS; `anon`/`authenticated` can touch 0 tables / 0 sequences; order numbers start at 24101.
+- **2026-10-18** [repo] — Security baseline (user requirement: real customers, must resist attackers):
+  - API: `ProxySecretMiddleware` (`x-aaarchive-proxy`, constant-time, /health exempt), global `@nestjs/throttler` (120/min/IP), JSON/urlencoded body ≤ 100 KB, `trust proxy` from `TRUST_PROXY`, production refuses to boot without `API_PROXY_SECRET`/`REVALIDATE_SECRET`. Tests: `test/security.e2e-spec.ts` (5), env spec (4).
+  - Web: `proxy.ts` strips visitor-sent secret and adds the real one (verified with an echo server: forged → replaced, X-Forwarded-For forwarded); security headers + CSP in `next.config.ts`, `poweredByHeader: false` (no CSP violations in dev or prod build).
+  - Deps: removed unused `@nestjs/mau` (pulled vulnerable `tmp`/`undici`), `shadcn` → devDependencies; `bun audit` 20 → 1 (braces, dev-only CLI, no fix; documented exception). CI audit step + `.github/dependabot.yml`.
+  - Docs: rules.md §8 rewritten (built-today table, auth/session, authz/IDOR, input/output, abuse, secrets, logging, deployment, exceptions), architecture §4.11, PRD §9.3, phases (Phase 1 + 7 security tasks), `.env.example` files.
+
+- **2026-10-18** [api] — Supabase credentials checked (values never printed). `DATABASE_URL` (transaction pooler :6543) worked; `DIRECT_URL` (session pooler :5432) still had Supabase's password placeholder → replaced with the user's `DB_PASS` and verified. Supabase is Postgres 17.11, `public` schema empty. API boots against it and `/health` = `database: up`. Fixed `validateEnv` so empty `KEY=` values count as unset (`src/config/env.schema.ts` + `env.schema.spec.ts`, 3 tests). Migrations **not yet applied** — waiting for the user's go-ahead (rules.md §10: migrations on a non-local DB need approval).
+
+- **2026-10-18** [repo] — "Admin can update everything from the dashboard" (user requirement) made concrete.
+  - PRD §6.7 rewritten as an inventory of everything customer-facing and where it is edited; §7 adds `FaqItem`, `ContentBlock`. Only interface wording (buttons, errors) stays in `lib/i18n/`.
+  - `packages/shared/src/content.ts`: `contentSchemas` for 9 sections (site.announcement / navigation / footer, home.hero / categories / lookFile / latest / promises / social) + `imageSchema`, `linkSchema`, `hrefSchema`; 10 new tests (22 total).
+  - Prisma: `FaqItem`, `ContentBlock` + migration `20261018120000_content_blocks_faq` (with RLS). Seed: text-only content blocks (validated with the shared schemas), settings `seo` + store `logo`/`messenger`; `announcement` moved from settings to content. Verified on a throwaway Postgres: both migrations apply, no drift, seed idempotent.
+  - Docs: rules golden rule 10, architecture §4.7 (editable content; later sections renumbered), phases (Phase 2 sizes/colours/size-chart screens; Phase 6 per-section forms + storefront switch), apps AGENTS.
+
+- **2026-10-18** [repo] — Home page approved by the user. CSV/Excel export added to the MVP (user request): PRD §4 + new §6.9, architecture §4.7 (API-generated, streaming, `exceljs`), rules (exceljs approved, npm `xlsx` banned), phases (Phase 2 building blocks + products export; Phase 4 coupons; Phase 5 orders/items/customers/payments).
+- **2026-10-18** [api] — Phase 0 database work, done offline: full Prisma schema (21 tables, PRD §7), init migration `20261018000000_init` (+ `order_number_seq` from 24101, RLS on every table), `prisma/seed.ts` (sizes, colours, placeholder zones, settings), scripts `db:seed`/`db:deploy`/`db:status`. Verified on a throwaway `prisma dev` Postgres: migration applies, no drift, seed idempotent, `/health` = up.
+- **2026-10-18** [web] — `lib/api/` (typed fetch client, `ApiError`, in-memory token + single-flight refresh hook, `api.download` for exports), `QueryProvider` (TanStack Query defaults), `/api/v1` rewrite. Verified `/api/v1/health` through the web app.
+- **2026-10-18** [repo] — `.github/workflows/ci.yml`: Bun install, Biome, typecheck, tests, API e2e, build, migrations on a disposable Postgres + drift check.
 
 - **2026-10-17** [web] — Home sections, round 3 (user feedback: round 2 changed too much and lost the fashion feel).
   - Restored the previous `social-section.tsx` ("Follow our style journey" slider) and `site-footer.tsx` (logo, wide image, policy chips, cream bar) with their fixture data.
@@ -59,9 +93,7 @@ Living log of where the project stands. **Every agent updates this at the end of
 
 ## Next up
 
-0. [web] Apply the user's feedback on the home page design.
-1. [api] Receive Supabase credentials from the user → `apps/api/.env`, confirm `/health` reports `database: up`, disable the Data API.
-2. [api] Prisma models from PRD §7 + first migration + seed.
+2. Phase 2 — Admin dashboard & catalog management (after Phase 1 is live on Supabase).
 3. [web] Design tokens + fonts in `app/globals.css` / `app/layout.tsx` (replace Geist), shadcn init, `lib/api/` client, `/api/v1` rewrite.
 4. [repo] GitHub Actions CI: `bun install --frozen-lockfile`, `check`, `typecheck`, `test`, `build`.
 
@@ -75,13 +107,22 @@ Living log of where the project stands. **Every agent updates this at the end of
 - **2026-10-17** — Web forms use React Hook Form + Zod (per the PRD).
 - **2026-10-17** [web] — shadcn/ui is the component base for storefront **and** admin (user decision), with its Lucide icons. Supersedes "storefront never imports components/ui". Social links use text chips (Lucide has no brand logos).
 - **2026-10-17** [web] — Dev placeholder images from Unsplash (user decision), never shipped.
+- **2026-10-18** — CSV/Excel export is MVP scope (user request). Generated by the API (`GET /admin/<resource>/export?format=csv|xlsx`), `exceljs` for xlsx.
+- **2026-10-18** — Media: Supabase Storage via the API (S3 keys, sharp re-encoding), not Cloudinary (user).
+- **2026-10-18** — Owner TOTP two-factor: not now (user); revisit in Phase 7.
+- **2026-10-18** — Security is a first-class requirement (user): rules.md §8 is the enforced checklist; API reachable only through the website in production (shared proxy secret).
+- **2026-10-18** — Everything customer-facing is editable from the dashboard (user requirement). Home/site sections are `ContentBlock` rows validated by `@aaarchive/shared/content`; no drafts in the MVP; interface wording stays in code (i18n).
+- **2026-10-18** [api] — Order numbers come from a Postgres sequence (not a counter table). RLS enabled on every table as Supabase Data API protection.
 - **2026-10-17** — Naming: "Phase 0–7" = build phases (`phases.md`); "Release 2/3" = post-launch scope tiers (PRD §4).
 - **2026-10-17** [api] — Prisma pinned to 7.x (npm `latest` was 8.0.0-rc). Generated client in `src/generated/prisma`, git-ignored.
 
 ## Blockers / open questions
 
+- Media: waiting for the user to create bucket `media` (public, `image/webp`, 2 MB) + S3 access keys, approve deps `sharp` + `@aws-sdk/client-s3`, and approve applying migration `20261018150000_media_assets` to Supabase.
+- Local `bunx prisma dev` became unreliable (daemons hang in starting_up / grab port 4000). Use CI's Postgres or a disposable Postgres for migration tests.
+
 - [web] `next.config.ts` has `experimental.agentFeedback: true` (from create-next-app). It makes `next dev` add a block to `apps/web/AGENTS.md` asking agents to send feedback to the Next.js team. Agents must not send anything without the user's approval. Ask whether to turn it off.
 - [web] Logo is a raster PNG cut-out; an SVG (or transparent PNG) from the designer would be sharper. No favicon/monogram yet. No real product/campaign photos yet; men's panjabi placeholder is a white-tee photo.
 
 - API hosting (free + commercial use) not chosen.
-- Waiting for Supabase credentials from the user (`DATABASE_URL` transaction pooler :6543, `DIRECT_URL` session pooler :5432).
+- User to disable Supabase Data API in the dashboard (tables are already inaccessible to its roles).
