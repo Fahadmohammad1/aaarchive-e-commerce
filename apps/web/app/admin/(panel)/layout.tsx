@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getMessages } from "@/lib/i18n/i18n";
+import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 import { AdminShell } from "./_components/admin-shell";
 import { RequireAdmin } from "./_components/require-admin";
 
@@ -14,7 +14,7 @@ export default function PanelLayout({ children }: LayoutProps<"/admin">) {
     <Suspense
       fallback={
         <p role="status" className="m-auto text-muted-foreground text-sm">
-          {getMessages().admin.checkingSession}
+          {getAdminMessages().checkingSession}
         </p>
       }
     >

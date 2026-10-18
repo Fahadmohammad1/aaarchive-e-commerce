@@ -21,10 +21,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import * as authApi from "@/lib/auth/auth-api";
 import { authErrorText } from "@/lib/auth/auth-errors";
-import { getMessages } from "@/lib/i18n/i18n";
+import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 
 export function AccountSettings() {
-  const t = getMessages().admin;
+  const t = getAdminMessages();
   const { applySession, logoutEverywhere } = useAuth();
   const router = useRouter();
   const [result, setResult] = React.useState<

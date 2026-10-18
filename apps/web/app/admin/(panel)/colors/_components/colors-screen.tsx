@@ -21,11 +21,11 @@ import {
 } from "@/components/ui/table";
 import type { AdminColor } from "@/lib/color/color-schemas";
 import { useColors, useDeleteColor } from "@/lib/color/use-colors";
-import { getMessages } from "@/lib/i18n/i18n";
+import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 import { ColorFormDialog } from "./color-form-dialog";
 
 export function ColorsScreen() {
-  const t = getMessages().admin;
+  const t = getAdminMessages();
   const { user } = useAuth();
   const canEdit = user?.role === "OWNER";
   const colors = useColors();

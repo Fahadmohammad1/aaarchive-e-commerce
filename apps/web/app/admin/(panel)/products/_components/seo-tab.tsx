@@ -3,11 +3,12 @@
 import { FormField } from "@/components/admin/form-field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { format, getMessages } from "@/lib/i18n/i18n";
+import { format } from "@/lib/i18n/i18n";
+import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 import type { ProductForm } from "./product-form-types";
 
 export function SeoTab({ form }: { form: ProductForm }) {
-  const tf = getMessages().admin.products.fields;
+  const tf = getAdminMessages().products.fields;
   const { errors } = form.formState;
   const [title, desc] = form.watch(["seoTitle", "seoDesc"]);
 

@@ -1,4 +1,5 @@
 import type { StockStatus } from "@aaarchive/shared/stock";
+import type { CardProduct } from "@/components/store/product-card";
 
 // Development fixtures for the home page. In Phase 6 these come from
 // GET /api/v1/content/home and the catalog endpoints; keep the shapes close
@@ -410,3 +411,18 @@ export const contactLinks = {
   whatsapp: "https://wa.me/8801700000000",
   messenger: "https://m.me/aaarchive",
 };
+
+/** A fixture product in the card shape the API returns (until Phase 6). */
+export function toCardProduct(p: HomeProduct): CardProduct {
+  const alt = `${p.name} — ${p.colors[0]?.name ?? ""}`;
+  return {
+    slug: p.slug,
+    name: p.name,
+    category: { name: p.category },
+    price: p.salePrice ?? p.price,
+    compareAt: p.salePrice !== undefined ? p.price : null,
+    image: { src: p.image, alt },
+    hoverImage: p.hoverImage ? { src: p.hoverImage, alt: "" } : null,
+    stockStatus: p.status === "out_of_stock" ? "out_of_stock" : "in_stock",
+  };
+}

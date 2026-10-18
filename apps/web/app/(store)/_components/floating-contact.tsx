@@ -20,7 +20,7 @@ export function FloatingContact() {
     },
   ];
   return (
-    <div className="fixed right-4 bottom-4 z-30 flex flex-col gap-1">
+    <div className="fixed right-4 bottom-[calc(1rem+var(--buy-bar-h,0px))] z-30 flex flex-col gap-1 transition-[bottom] duration-250">
       {items.map(({ href, label, Icon, accent }) => (
         <a
           key={href}

@@ -24,7 +24,8 @@ import {
 import { ApiError } from "@/lib/api/api-error";
 import { useColors } from "@/lib/color/use-colors";
 import { errorText, fieldErrorText } from "@/lib/i18n/error-text";
-import { format, getMessages } from "@/lib/i18n/i18n";
+import { format } from "@/lib/i18n/i18n";
+import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 import type { AdminProduct, AdminVariant } from "@/lib/product/product-schemas";
 import {
   useDeleteVariant,
@@ -49,7 +50,7 @@ export function VariantsPanel({
   product: AdminProduct;
   canEdit: boolean;
 }) {
-  const tv = getMessages().admin.products.variants;
+  const tv = getAdminMessages().products.variants;
   const [generateOpen, setGenerateOpen] = React.useState(
     product.variants.length === 0,
   );
@@ -96,7 +97,7 @@ function GenerateVariants({
   product: AdminProduct;
   onDone: () => void;
 }) {
-  const t = getMessages().admin;
+  const t = getAdminMessages();
   const tv = t.products.variants;
   const sizes = useSizes();
   const colors = useColors();
@@ -262,7 +263,7 @@ function VariantTable({
   product: AdminProduct;
   canEdit: boolean;
 }) {
-  const t = getMessages().admin;
+  const t = getAdminMessages();
   const tv = t.products.variants;
   const update = useUpdateVariants(product.id);
   const remove = useDeleteVariant(product.id);
@@ -312,7 +313,7 @@ function VariantTable({
             </TableHead>
             <TableHead className="text-center">{tv.active}</TableHead>
             {canEdit && (
-              <TableHead>
+              <TableHead className="hidden sm:table-cell">
                 <span className="sr-only">{t.common.actions}</span>
               </TableHead>
             )}
@@ -346,14 +347,14 @@ function VariantTable({
                       className="size-4 shrink-0 rounded-full border"
                       style={{ backgroundColor: v.colorHex }}
                     />
-                    <span className="flex flex-col">
+                    <span className="flex min-w-0 flex-col">
                       <span>
                         {v.colorName}{" "}
                         <span className="font-medium font-mono">
                           {v.sizeName}
                         </span>
                       </span>
-                      <span className="font-mono text-muted-foreground text-xs sm:hidden">
+                      <span className="block max-w-[7.5rem] truncate font-mono text-muted-foreground text-xs sm:hidden">
                         {v.sku}
                       </span>
                     </span>
@@ -371,7 +372,7 @@ function VariantTable({
                           ? fieldErrorText(errors.get("sku"))
                           : undefined
                       }
-                      className="w-48 font-mono uppercase"
+                      className="w-full min-w-44 max-w-72 font-mono uppercase"
                       onChange={(e) => edit(v.id, { sku: e.target.value })}
                     />
                   ) : (
@@ -411,7 +412,8 @@ function VariantTable({
                         draft.priceOverride ??
                         (v.priceOverride == null ? "" : String(v.priceOverride))
                       }
-                      placeholder={tv.priceOverrideHint}
+                      placeholder={String(product.basePrice)}
+                      title={tv.priceOverrideHint}
                       aria-label={`${tv.priceOverride} ${name}`}
                       aria-invalid={errors.has("priceOverride")}
                       className="ml-auto w-32 text-right font-mono"
@@ -434,7 +436,8 @@ function VariantTable({
                   />
                 </TableCell>
                 {canEdit && (
-                  <TableCell className="text-right">
+                  // Phones keep stock + on/off; deleting waits for a bigger screen.
+                  <TableCell className="hidden text-right sm:table-cell">
                     <Button
                       type="button"
                       variant="ghost"

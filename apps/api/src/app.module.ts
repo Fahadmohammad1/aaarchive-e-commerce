@@ -11,7 +11,10 @@ import cookieParser from "cookie-parser";
 import { JwtAuthGuard } from "./common/auth/jwt-auth.guard.js";
 import { RolesGuard } from "./common/auth/roles.guard.js";
 import { ExportModule } from "./common/export/export.module.js";
-import { ProxySecretMiddleware } from "./common/security/proxy-secret.middleware.js";
+import {
+  isServerRender,
+  ProxySecretMiddleware,
+} from "./common/security/proxy-secret.middleware.js";
 import { type Env, validateEnv } from "./config/env.schema.js";
 import { HealthModule } from "./health/health.module.js";
 import { AuthModule } from "./modules/auth/auth.module.js";
@@ -36,12 +39,22 @@ import { PrismaModule } from "./prisma/prisma.module.js";
     // @Throttle() limits of their own (docs/rules.md §8).
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService<Env, true>) => [
-        {
-          ttl: config.get("THROTTLE_TTL_SECONDS", { infer: true }) * 1000,
-          limit: config.get("THROTTLE_LIMIT", { infer: true }),
-        },
-      ],
+      useFactory: (config: ConfigService<Env, true>) => {
+        const value = config.get("API_PROXY_SECRET", { infer: true });
+        const secret = value ? Buffer.from(value) : null;
+        return {
+          throttlers: [
+            {
+              ttl: config.get("THROTTLE_TTL_SECONDS", { infer: true }) * 1000,
+              limit: config.get("THROTTLE_LIMIT", { infer: true }),
+            },
+          ],
+          // Page renders all come from the web server's one IP: skip them
+          // (secret + server header, GET only); visitors stay limited.
+          skipIf: (context) =>
+            isServerRender(context.switchToHttp().getRequest(), secret),
+        };
+      },
     }),
     PrismaModule,
     HealthModule,

@@ -12,7 +12,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { errorText } from "@/lib/i18n/error-text";
-import { format, getMessages } from "@/lib/i18n/i18n";
+import { format } from "@/lib/i18n/i18n";
+import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 
 type ConfirmDeleteDialogProps = {
   /** The item to delete; null closes the dialog. */
@@ -27,7 +28,7 @@ export function ConfirmDeleteDialog({
   onCancel,
   onConfirm,
 }: ConfirmDeleteDialogProps) {
-  const t = getMessages().admin.common;
+  const t = getAdminMessages().common;
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<unknown>(null);
 

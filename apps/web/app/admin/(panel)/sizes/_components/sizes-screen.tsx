@@ -19,13 +19,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getMessages } from "@/lib/i18n/i18n";
+import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 import type { AdminSize } from "@/lib/size/size-schemas";
 import { useDeleteSize, useSizes } from "@/lib/size/use-sizes";
 import { SizeFormDialog } from "./size-form-dialog";
 
 export function SizesScreen() {
-  const t = getMessages().admin;
+  const t = getAdminMessages();
   const { user } = useAuth();
   const canEdit = user?.role === "OWNER";
   const sizes = useSizes();

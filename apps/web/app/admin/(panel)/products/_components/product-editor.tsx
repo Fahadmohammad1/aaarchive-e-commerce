@@ -31,7 +31,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ApiError } from "@/lib/api/api-error";
 import { errorText } from "@/lib/i18n/error-text";
-import { getMessages } from "@/lib/i18n/i18n";
+import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 import type { AdminProduct } from "@/lib/product/product-schemas";
 import {
   useCreateProduct,
@@ -58,7 +58,7 @@ import { VariantsPanel } from "./variants-panel";
 
 /** `/admin/products/new` (id null) and `/admin/products/[id]`. */
 export function ProductEditor({ id }: { id: string | null }) {
-  const t = getMessages().admin.products;
+  const t = getAdminMessages().products;
   const product = useProduct(id);
   if (!id) return <ProductForm product={null} />;
   if (product.isPending) return <ListSkeleton rows={8} />;
@@ -80,7 +80,7 @@ function BackLink() {
     <Button variant="ghost" size="sm" asChild className="mb-3 -ml-2">
       <Link href="/admin/products">
         <ArrowLeft />
-        {getMessages().admin.products.back}
+        {getAdminMessages().products.back}
       </Link>
     </Button>
   );
@@ -92,7 +92,7 @@ function firstTabWithError(errors: FieldErrors): ProductTab | undefined {
 }
 
 function ProductForm({ product }: { product: AdminProduct | null }) {
-  const t = getMessages().admin;
+  const t = getAdminMessages();
   const tp = t.products;
   const router = useRouter();
   const params = useSearchParams();

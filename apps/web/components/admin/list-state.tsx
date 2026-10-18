@@ -4,7 +4,7 @@ import type * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { errorText } from "@/lib/i18n/error-text";
-import { getMessages } from "@/lib/i18n/i18n";
+import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 
 /** Table-shaped placeholder while a list loads (no layout shift). */
 export function ListSkeleton({ rows = 5 }: { rows?: number }) {
@@ -26,7 +26,7 @@ export function ListError({
   error: unknown;
   onRetry: () => void;
 }) {
-  const t = getMessages().admin;
+  const t = getAdminMessages();
   return (
     <div
       role="alert"
@@ -43,7 +43,7 @@ export function ListError({
 }
 
 export function ListEmpty({ children }: { children?: React.ReactNode }) {
-  const t = getMessages().admin;
+  const t = getAdminMessages();
   return (
     <div className="rounded-md border border-dashed p-8 text-center text-muted-foreground text-sm">
       {children ?? t.common.empty}

@@ -4,7 +4,7 @@ import type { Role } from "@aaarchive/shared/auth";
 import { cn } from "cn";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { getMessages } from "@/lib/i18n/i18n";
+import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 import { ADMIN_NAV, isActivePath } from "./admin-nav";
 
 type AdminNavListProps = {
@@ -19,7 +19,7 @@ export function AdminNavList({
   collapsed = false,
   onNavigate,
 }: AdminNavListProps) {
-  const t = getMessages().admin;
+  const t = getAdminMessages();
   const pathname = usePathname();
 
   return (

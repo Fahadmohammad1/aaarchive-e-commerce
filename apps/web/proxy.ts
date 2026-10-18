@@ -10,6 +10,9 @@ import { type NextRequest, NextResponse } from "next/server";
 // to the login page before any dashboard HTML renders. The hint grants
 // nothing; the API checks the real token on every request.
 const PROXY_SECRET_HEADER = "x-aaarchive-proxy";
+// Marks the website server's own page-render reads (lib/api); a visitor must
+// never be able to send it, or they could skip the API's rate limit.
+const SERVER_RENDER_HEADER = "x-aaarchive-ssr";
 const SESSION_HINT_COOKIE = "aar_session";
 
 export function proxy(request: NextRequest) {
@@ -27,6 +30,7 @@ export function proxy(request: NextRequest) {
 
   const headers = new Headers(request.headers);
   headers.delete(PROXY_SECRET_HEADER);
+  headers.delete(SERVER_RENDER_HEADER);
   const secret = process.env.API_PROXY_SECRET;
   if (secret) headers.set(PROXY_SECRET_HEADER, secret);
   return NextResponse.next({ request: { headers } });

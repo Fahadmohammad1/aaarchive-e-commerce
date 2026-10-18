@@ -120,7 +120,7 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 - [x] [api] Export building blocks (`common/export/`: columns, CSV writer with BOM + injection guard, exceljs XLSX writer, streaming `ExportService`) + tests — `exceljs` 4.4 installed (2026-10-19)
 - [x] [api] `GET /admin/products/export` (variants with stock) — Owner only (2026-10-19)
 - [x] [web] `components/admin/export-menu.tsx` (CSV / Excel) on the products list (2026-10-19)
-- [ ] [api] Tests: slug uniqueness, variant generation, sale-price window, Staff read-only on products *(written 2026-10-19: unit `product.test.ts`, `sku.spec.ts`; e2e `test/products.e2e-spec.ts` (+ export) — **the DB e2e suites have not run yet**, no test database here)*
+- [x] [api] Tests: slug uniqueness, variant generation, sale-price window, Staff read-only on products (2026-10-19: unit + e2e `catalog`, `products` — e2e ran green against a local Postgres)
 
 **Exit criteria:** the Owner creates a product with 2 colours × 4 sizes, uploads images, sets stock and publishes it. Staff can view but not edit products. Editing a product triggers revalidation.
 
@@ -131,17 +131,19 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 **Goal:** customers can browse, filter, search and view products on a fast, SEO-ready storefront that never reveals stock numbers (PRD §5.1–5.6).
 
 - [x] [web] Store layout: header (Menu / logo / Cart chip, sticky), menu overlay, footer, floating WhatsApp/Messenger buttons, announcement bar slot *(built early with the home page; cart count and announcement still fixture data)*
-- [ ] [web] Storefront components in `components/store/`: Tag, ArrowButton, IndexMarker, KanthaDivider, Wordmark, ProductCard, CategoryCard, skeletons *(all done except skeletons)*
-- [ ] [api] Public `GET /products` (filters: category, collection, size, colour, price, in-stock; sort; 12 per page) and `GET /products/:slug` with variants' `stockStatus` only
-- [ ] [api] Public `GET /categories`, `GET /collections` (with product counts)
-- [ ] [api] `GET /search` with Postgres full-text + `pg_trgm` (migration enables the extension)
-- [ ] [api] e2e test: public product responses contain no `stock` field anywhere
-- [ ] [web] `/shop`, `/category/[slug]`, `/collection/[slug]`: filters + sort in the URL, "Load more", empty state, cached with `cacheTag`
-- [ ] [web] `/product/[slug]`: gallery (swipe/thumbnails/zoom), colour + size selectors (OOS sizes crossed out), uncached stock status in Suspense, quantity cap, size-chart modal, details accordion, delivery info, share, related products, sticky mobile add-to-cart bar
-- [ ] [web] Search overlay (debounced 300ms, 6 instant results via TanStack Query) + `/search`
-- [ ] [web] Per-page metadata, Open Graph, `Product` + `BreadcrumbList` JSON-LD
+- [x] [web] Storefront components in `components/store/`: Tag, ArrowButton, IndexMarker, KanthaDivider, Wordmark, ProductCard, CategoryCard, skeletons (2026-10-19: + ProductGrid, Breadcrumbs, JsonLd, search overlay, listing/*)
+- [x] [api] Public `GET /products` (filters: category, collection, size, colour, price, in-stock; sort; 12 per page) and `GET /products/:slug` with variants' `stockStatus` only (2026-10-19; status from `GET /products/:slug/stock`, uncached; + `GET /products/filters`)
+- [x] [api] Public `GET /categories`, `GET /collections` (with product counts) (2026-10-19)
+- [x] [api] `GET /search` with Postgres full-text + `pg_trgm` (migration enables the extension) (2026-10-19: `20261019030000_search_trgm`)
+- [x] [api] e2e test: public product responses contain no `stock` field anywhere (2026-10-19: `test/store.e2e-spec.ts` + `store-products.mapper.spec.ts`)
+- [x] [web] `/shop`, `/category/[slug]`, `/collection/[slug]`: filters + sort in the URL, "Load more", empty state, cached with `cacheTag` (2026-10-19)
+- [ ] [web] `/product/[slug]`: gallery (swipe/thumbnails/zoom), colour + size selectors (OOS sizes crossed out), uncached stock status in Suspense, quantity cap, size-chart modal, details accordion, delivery info, share, related products, sticky mobile add-to-cart bar *(2026-10-19: all built except **delivery info** (needs delivery zones, Phase 4) and the Delivery & Exchange row (content, Phase 6); Add to cart / Buy now are disabled until the cart exists in Phase 4)*
+- [x] [web] Search overlay (debounced 300ms, 6 instant results via TanStack Query) + `/search` (2026-10-19)
+- [x] [web] Per-page metadata, Open Graph, `Product` + `BreadcrumbList` JSON-LD (2026-10-19)
 
 **Exit criteria:** a published product is browsable from shop → category → product on a phone. Stock status is correct and the page source contains no stock numbers. Mobile Lighthouse ≥ 85 on shop and product pages.
+
+*Status 2026-10-19:* browsable shop → category → product at 375px and 1440px (Playwright, local data); stock status correct and no stock number in any page source or public response. Measured on a production build (375px, 4× CPU): LCP 0.3–0.7 s, CLS ≤ 0.001, TBT ≈ 160 ms — Lighthouse itself not run (not installed). **Open:** initial JS is 169–179 KB gzipped against the 150 KB budget.
 
 ---
 

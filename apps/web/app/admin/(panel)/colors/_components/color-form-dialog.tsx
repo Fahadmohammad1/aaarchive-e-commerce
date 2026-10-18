@@ -19,7 +19,7 @@ import { ApiError } from "@/lib/api/api-error";
 import type { AdminColor } from "@/lib/color/color-schemas";
 import { useSaveColor } from "@/lib/color/use-colors";
 import { errorText } from "@/lib/i18n/error-text";
-import { getMessages } from "@/lib/i18n/i18n";
+import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 
 type Values = z.output<typeof colorInputSchema>;
 
@@ -32,7 +32,7 @@ export function ColorFormDialog({
   onOpenChange: (open: boolean) => void;
   item: AdminColor | null;
 }) {
-  const t = getMessages().admin;
+  const t = getAdminMessages();
   const save = useSaveColor();
   const [formError, setFormError] = React.useState<string | null>(null);
   const form = useForm<ColorInput, unknown, Values>({

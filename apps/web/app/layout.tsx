@@ -33,6 +33,11 @@ const hind = Hind_Siliguri({
 });
 
 export const metadata: Metadata = {
+  // Absolute URLs for canonical links and Open Graph images.
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+  ),
+  openGraph: { siteName: "Aaarchive", locale: "en_BD", type: "website" },
   title: {
     default: "Aaarchive — Hoodies, Panjabi & Streetwear",
     template: "%s — Aaarchive",

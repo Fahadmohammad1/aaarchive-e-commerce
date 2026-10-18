@@ -21,7 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { errorText } from "@/lib/i18n/error-text";
-import { getMessages } from "@/lib/i18n/i18n";
+import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 import { useMediaLibrary, useUploadMedia } from "@/lib/upload/use-media";
 import { FormField } from "./form-field";
 
@@ -54,7 +54,7 @@ export function ImagePicker({
   defaultAlt = "",
   altError,
 }: ImagePickerProps) {
-  const t = getMessages().admin;
+  const t = getAdminMessages();
   const fileInput = React.useRef<HTMLInputElement>(null);
   const upload = useUploadMedia(purpose);
   const [problem, setProblem] = React.useState<string | null>(null);
@@ -200,7 +200,7 @@ export function MediaLibraryDialog({
   selectedId: string | undefined;
   onSelect: (asset: MediaAsset) => void;
 }) {
-  const t = getMessages().admin;
+  const t = getAdminMessages();
   const library = useMediaLibrary(purpose, open);
   const assets = library.data?.pages.flatMap((page) => page.data) ?? [];
 

@@ -5,6 +5,32 @@ import type { NextFunction, Request, Response } from "express";
 import type { Env } from "../../config/env.schema.js";
 
 export const PROXY_SECRET_HEADER = "x-aaarchive-proxy";
+/**
+ * Set by the website's own server (Server Components), never by a browser:
+ * proxy.ts strips it from visitor requests. Only trusted together with a
+ * valid secret.
+ */
+export const SERVER_RENDER_HEADER = "x-aaarchive-ssr";
+
+/** Constant-time check of the shared secret header. */
+export function hasProxySecret(req: Request, secret: Buffer | null): boolean {
+  if (!secret) return false;
+  const given = Buffer.from(req.header(PROXY_SECRET_HEADER) ?? "");
+  return given.length === secret.length && timingSafeEqual(given, secret);
+}
+
+/**
+ * A read made by the website's server while rendering a page. Its IP is the
+ * web server's, so per-IP limits would throttle every visitor at once; these
+ * reads are skipped by the rate limiter instead (they are mostly cached).
+ */
+export function isServerRender(req: Request, secret: Buffer | null): boolean {
+  return (
+    (req.method === "GET" || req.method === "HEAD") &&
+    req.header(SERVER_RENDER_HEADER) === "1" &&
+    hasProxySecret(req, secret)
+  );
+}
 
 /**
  * Refuses requests that did not come through the web app's proxy.ts (which
@@ -23,12 +49,7 @@ export class ProxySecretMiddleware implements NestMiddleware {
 
   use(req: Request, _res: Response, next: NextFunction) {
     if (!this.secret) return next();
-    const header = req.header(PROXY_SECRET_HEADER);
-    const given = Buffer.from(header ?? "");
-    const ok =
-      given.length === this.secret.length &&
-      timingSafeEqual(given, this.secret);
-    if (!ok) {
+    if (!hasProxySecret(req, this.secret)) {
       throw new ForbiddenException({ message: "Forbidden", code: "FORBIDDEN" });
     }
     next();

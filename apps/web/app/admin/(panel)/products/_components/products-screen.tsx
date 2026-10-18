@@ -34,7 +34,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useCategories } from "@/lib/category/use-categories";
-import { format, getMessages } from "@/lib/i18n/i18n";
+import { format } from "@/lib/i18n/i18n";
+import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 import { exportProducts } from "@/lib/product/product-api";
 import type { AdminProductListItem } from "@/lib/product/product-schemas";
 import { useProducts } from "@/lib/product/use-products";
@@ -84,7 +85,7 @@ function useListQuery() {
 }
 
 export function ProductsScreen() {
-  const t = getMessages().admin;
+  const t = getAdminMessages();
   const tp = t.products;
   const { user } = useAuth();
   const canEdit = user?.role === "OWNER";
@@ -285,7 +286,7 @@ export function ProductsScreen() {
 }
 
 function ProductRow({ product: p }: { product: AdminProductListItem }) {
-  const tp = getMessages().admin.products;
+  const tp = getAdminMessages().products;
   const href = `/admin/products/${p.id}`;
   const stockTone =
     p.variantCount === 0

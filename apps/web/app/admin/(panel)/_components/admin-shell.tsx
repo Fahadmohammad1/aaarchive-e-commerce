@@ -8,6 +8,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { Logo } from "@/components/store/logo";
 import { Button } from "@/components/ui/button";
 import { getMessages } from "@/lib/i18n/i18n";
+import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 import { AdminNavList } from "./admin-nav-list";
 import { AdminTopBar } from "./admin-top-bar";
 
@@ -18,7 +19,7 @@ const COLLAPSED_KEY = "aar_admin_sidebar_collapsed";
  * rail on desktop, a slide-in menu on phones, top bar, content up to 1400px.
  */
 export function AdminShell({ children }: { children: React.ReactNode }) {
-  const t = getMessages().admin;
+  const t = getAdminMessages();
   const { user } = useAuth();
   const [collapsed, setCollapsed] = React.useState(false);
 

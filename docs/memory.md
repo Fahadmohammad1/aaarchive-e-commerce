@@ -4,11 +4,18 @@ Living log of where the project stands. **Every agent updates this at the end of
 
 ## Current status
 
-- **Phase:** 2 — Admin dashboard & catalog management (see `phases.md`)
-- **In progress:** Phase 2 — catalog admin built (shell + search, categories, collections, sizes, colours, size charts, products + variants + gallery). Products export done. Left before closing Phase 2: run the DB e2e suites and the browser check (exit criteria).
-- **File currently being worked on:** — (Phase 2 code complete; next is verification, then Phase 3 `apps/api/src/modules/products/products.controller.ts`)
+- **Phase:** 3 — Storefront catalog (see `phases.md`). Phase 2 is done apart from real photo uploads, which can only be tried against Supabase Storage.
+- **In progress:** Phase 3 — public catalog API, listings, product page, search and SEO built and browser-checked on local data. Open: storefront JS budget (169–179 KB vs 150 KB gzipped); delivery info on the PDP waits for delivery zones (Phase 4).
+- **File currently being worked on:** — (next: JS budget, then Phase 4 `apps/web/lib/cart/cart-store.ts`)
 
 ## Completed
+
+- **2026-10-19** [shared][api][web] — Phase 3: storefront catalog.
+  - Shared: `@aaarchive/shared/storefront` (public list/search query schemas, `variantPrice()` — user decision: during a sale the sale price wins over a variant's own price). 67 shared tests.
+  - API: migration `20261019030000_search_trgm` (`pg_trgm` + GIN trigram index on `Product.name`, also declared in `schema.prisma`) — **not applied to Supabase yet**. Public `ProductsController` (`/products`, `/products/filters`, `/products/:slug`, `/products/:slug/stock` no-store) + `SearchController` (`/search`) on `StoreProductsService` (raw SQL for filters, current-price sort, best selling, ranked search); `store-products.mapper.ts` (no stock in public shapes); public `CategoriesController` / `CollectionsController` via `common/catalog/store-groups.ts`. Security: Server Components now send the proxy secret + `x-aaarchive-ssr`; GET page renders with both skip the per-IP limit (`isServerRender()`, spec); `proxy.ts` strips the header from visitors — without this, production SSR would have been refused (403). Tests: `store-products.mapper.spec.ts`, `proxy-secret.spec.ts`, `test/store.e2e-spec.ts` (no stock number in any public response). 43 unit tests; **all 31 e2e tests pass** against a local Postgres (first time the catalog/products/store suites ran).
+  - Web: `/shop`, `/category/[slug]`, `/collection/[slug]` (shared `components/store/listing/*`: URL filters, sort, active-filter tags, desktop sidebar / phone sheet, "Load more" via TanStack), `/product/[slug]` (cached shell; stock status + picker + Product JSON-LD in a request-time Suspense hole; gallery with swipe/thumbs/zoom, colour switches photos, sold-out sizes struck, qty cap, size chart, details, share, related, sticky phone bar), search overlay + `/search` (noindex), breadcrumbs + BreadcrumbList JSON-LD, metadata/OG, storefront `not-found` and `error`, `skeleton` utility, `cacheLife("catalog")`, `metadataBase`. `ProductCard` now takes the API shape (home fixtures adapted via `toCardProduct`). Bundle work: dashboard strings moved to `lib/i18n/en-admin.ts` + `getAdminMessages()` (34 files), Zod kept out of storefront client code, menu/search/filter-sheet/size-chart/zoom dialogs lazy-loaded — initial JS 191–230 → 169–179 KB.
+  - Verified with Playwright (Chromium 1243) at 375px and 1440px on seeded local data (prisma dev + generated WebP images): no stock number in raw HTML of shop/category/product/search; no horizontal overflow; load more 12 → 18; size/stock filter; sold-out size disabled; "Only a few left"; colour switches gallery; zoom, size chart, filter sheet open; instant search finds "hodie" → hoodies; no console errors. Fixed on the way: the gallery arrow row blocked tap-to-zoom on desktop; floating chat buttons covered the sticky bar; phone variants table overflowed. Production build, 375px, 4× CPU: LCP 0.3–0.7 s, CLS ≤ 0.001, TBT ≈ 160 ms.
+  - Also browser-checked Phase 2 for the first time: Owner sign-in, products list + low-stock filter, editor tabs at 375px, quick stock save, sale < price error, CSV export (BOM, file name), Staff read-only.
 
 - **2026-10-19** [shared][api][web] — CSV/Excel export (Phase 2 last item). User approved installing `exceljs` (4.4.0, `apps/api`).
   - Shared: `@aaarchive/shared/export` (`exportFormatSchema`, `EXPORT_MAX_ROWS`), `productExportQuerySchema` (+ `export.test.ts`, 62 shared tests).
@@ -128,12 +135,15 @@ Living log of where the project stands. **Every agent updates this at the end of
 
 ## Next up
 
-1. [api] **User:** `bun run --filter @aaarchive/api db:deploy` (applies `20261019020000_size_chart_is_template`), then on your machine try `/admin/products` end to end at 375px and desktop: create → add variants → upload photos → publish → Export CSV and Excel; a category photo upload; `/admin/size-charts`.
-2. [api] Run the DB e2e suites against a disposable Postgres (`TEST_DATABASE_URL=… bun run --filter @aaarchive/api test:e2e`) — `catalog` and `products` suites are written but have never run.
-3. Phase 2 exit check passed → start Phase 3 (public catalog API, then `/shop` and `/product/[slug]`).
+1. [api] **User:** `bun run --filter @aaarchive/api db:deploy` — applies `20261019020000_size_chart_is_template` and `20261019030000_search_trgm` (enables `pg_trgm`, available on Supabase free tier). Then try a real photo upload in a product and a category.
+2. [web] Storefront JS budget: 169–179 KB gzipped vs 150 KB (React DOM + Next router are ~113 KB of it). Candidates: TanStack Query only where the storefront needs it, a smaller i18n slice, lucide icon count, header client code. Run Lighthouse mobile on shop + product (exit criterion ≥ 85) once available.
+3. Phase 4: cart store, cart drawer/page, wire Add to cart / Buy now on the PDP, delivery zones (then the PDP delivery info), checkout, order placement.
 
 ## Decisions
 
+- **2026-10-19** [shared] — Price when a variant has its own price and the product is on sale (user): **the sale price wins** for every variant; outside the sale the variant's own price, else the product price (`variantPrice()`, shared with checkout).
+- **2026-10-19** [web] — Storefront client code skips Zod parsing and never imports dashboard strings; tap-to-open dialogs load lazily (`rules.md` §4.2). Missing product/category pages are 200 + `noindex` (streamed not-found), not a hard 404 — a hard 404 would need the API at build time.
+- **2026-10-19** [api] — Server-rendered reads authenticate with the proxy secret + `x-aaarchive-ssr` and are exempt from the per-IP rate limit (`rules.md` §8.1).
 - **2026-10-19** [shared][web] — Product descriptions are Markdown-lite (user): no rich-text editor or HTML sanitiser; `rules.md` §8.4.
 - **2026-10-19** [api] — Custom size tables per product (user approved the migration): `SizeChart.isTemplate = false`, owned by the product. Publishing needs a photo and an active variant; new products start as drafts. Stock edits carry `expectedStock` so an admin save never overwrites stock an order took. Low-stock threshold uses the product override or the default 3 until Settings → Stock exists (Phase 5).
 - **2026-10-19** [api] — Size charts: cells are strings (allow ranges like `38-40`), the API always takes the whole chart. Custom per-product tables (PRD §6.2) are `SizeChart` rows flagged `isTemplate = false`, so the templates list stays clean.
@@ -156,10 +166,12 @@ Living log of where the project stands. **Every agent updates this at the end of
 
 ## Blockers / open questions
 
+- **2026-10-19** [web] Storefront JS over budget (169–179 KB vs 150 KB gzipped). Lighthouse not installed here; metrics measured by hand look good.
+- **2026-10-19** [web] Menu links (collections → `archive-01-winter-drop`, categories → `/shop#categories`) are still fixture values until the menu becomes content (Phase 6).
 - **2026-10-19** `ui.shadcn.com` is blocked by this cloud environment's network policy, so `bunx shadcn add` fails here; allow the host in the environment settings or re-add the hand-written primitives later (`design.md` §12.1).
 
 - `SEED_OWNER_PASSWORD` is still in `apps/api/.env`; user to remove it once the password is saved elsewhere.
-- Local `bunx prisma dev` became unreliable (daemons hang in starting_up / grab port 4000). Use CI's Postgres or a disposable Postgres for migration tests.
+- Local `bunx prisma dev`: `--detach` hangs in starting_up, but running it as a normal (background) process works with fixed ports — recipe in `rules.md` §7 (2026-10-19).
 
 - [web] `next.config.ts` has `experimental.agentFeedback: true` (from create-next-app). It makes `next dev` add a block to `apps/web/AGENTS.md` asking agents to send feedback to the Next.js team. Agents must not send anything without the user's approval. Ask whether to turn it off.
 - [web] Logo is a raster PNG cut-out; an SVG (or transparent PNG) from the designer would be sharper. No favicon/monogram yet. No real product/campaign photos yet; men's panjabi placeholder is a white-tee photo.

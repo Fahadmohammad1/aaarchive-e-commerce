@@ -11,12 +11,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useCategories } from "@/lib/category/use-categories";
 import { useCollections } from "@/lib/collection/use-collections";
-import { getMessages } from "@/lib/i18n/i18n";
+import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 import type { ProductForm } from "./product-form-types";
 import { numberOrNull } from "./product-form-values";
 
 export function DetailsTab({ form }: { form: ProductForm }) {
-  const t = getMessages().admin;
+  const t = getAdminMessages();
   const tf = t.products.fields;
   const { errors } = form.formState;
   const categories = useCategories();
@@ -234,7 +234,7 @@ function TagsInput({
   onChange: (tags: string[]) => void;
   error?: string;
 }) {
-  const tf = getMessages().admin.products.fields;
+  const tf = getAdminMessages().products.fields;
   const [text, setText] = React.useState(value.join(", "));
   const joined = value.join(", ");
   // Follow outside resets (e.g. after save) without fighting the typing.
@@ -266,7 +266,7 @@ function TagsInput({
 
 /** How the storefront will lay out the Markdown-lite description. */
 function RichTextPreview({ source }: { source: string }) {
-  const tf = getMessages().admin.products.fields;
+  const tf = getAdminMessages().products.fields;
   return (
     <details className="rounded-md border px-3 py-2 text-sm">
       <summary className="cursor-pointer select-none font-medium text-muted-foreground text-xs">

@@ -5,14 +5,14 @@ import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
-import { getMessages } from "@/lib/i18n/i18n";
+import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 
 /**
  * Client guard for every dashboard page (rules.md §8.3). UX only: the API
  * enforces roles on every request whatever the browser shows.
  */
 export function RequireAdmin({ children }: { children: React.ReactNode }) {
-  const t = getMessages().admin;
+  const t = getAdminMessages();
   const { status, user, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();

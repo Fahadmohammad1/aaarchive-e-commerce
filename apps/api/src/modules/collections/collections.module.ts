@@ -1,11 +1,12 @@
 import { Module } from "@nestjs/common";
 import { MediaModule } from "../media/media.module.js";
 import { AdminCollectionsController } from "./admin-collections.controller.js";
+import { CollectionsController } from "./collections.controller.js";
 import { CollectionsService } from "./collections.service.js";
 
 @Module({
   imports: [MediaModule],
-  controllers: [AdminCollectionsController],
+  controllers: [CollectionsController, AdminCollectionsController],
   providers: [CollectionsService],
   exports: [CollectionsService],
 })

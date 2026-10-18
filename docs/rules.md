@@ -127,6 +127,7 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 - **Public, SEO-relevant pages** (home, shop, category, collection, product, content) fetch on the server through `lib/<module>/<module>-api.ts`, cached with `"use cache"` + `cacheLife` + `cacheTag`. Product **stock status** is fetched uncached inside `<Suspense>`.
 - **Everything client-side uses TanStack Query**: admin screens, account pages, cart validation, coupon apply, checkout submit, order tracking, search-as-you-type.
 - When a server-rendered page also needs the data in a Client Component, prefetch on the server with `queryClient.prefetchQuery` and pass it down with `<HydrationBoundary>`. Do not fetch twice.
+- **Storefront JS budget (2026-10-19).** Storefront client code never imports Zod at runtime: browser-side public reads (`lib/product/product-search-api.ts`) use `import type` and skip parsing (the server fetchers validate the same responses); URL helpers used by Client Components live in Zod-free files (`listing-query.ts`, not `listing-params.ts`). Storefront code never imports `lib/i18n/i18n-admin.ts`, `en-admin.ts` or `error-text.ts`. Dialogs, sheets and overlays that open on a tap (menu, search, filters, size chart, zoom) load with `next/dynamic({ ssr: false })` on first use.
 
 **TanStack Query**
 
@@ -215,6 +216,7 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 
 - A bug fix in business logic comes with a test that fails before the fix.
 - Tests never hit the real Supabase database.
+- **Local DB e2e (2026-10-19):** run `bunx prisma dev -n <name> -p <port> -P <dbPort> --shadow-db-port <port>` in the **foreground or as a background job** (`--detach` hangs in `starting_up`), apply migrations with `DIRECT_URL=<its URL> bunx prisma migrate deploy`, then `TEST_DATABASE_URL=<its URL> bunx vitest run --config ./vitest.config.e2e.ts --no-file-parallelism` (that server is single-connection PGlite: parallel files mix up prepared statements). CI uses a real Postgres and may run in parallel.
 
 ---
 
@@ -229,6 +231,7 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 | Database reachable only by the API: RLS on every table; Supabase's `anon` / `authenticated` roles have **no privileges** on any table, sequence or function (now and for future objects) | migrations `…_init`, `…_lock_down_supabase_roles` |
 | API refuses requests that did not come through the website (shared secret header `x-aaarchive-proxy`, constant-time compare); visitor-forged values are stripped by `proxy.ts` | `ProxySecretMiddleware`, `apps/web/proxy.ts` |
 | Global rate limit per client IP (120/min default), `trust proxy` set per deployment so the IP is the visitor's | `ThrottlerModule`, `TRUST_PROXY` |
+| Server Components call the API directly with the shared secret plus `x-aaarchive-ssr: 1`; only GET/HEAD reads carrying **both** skip the per-IP limit (they all come from the web server's one IP). `proxy.ts` strips `x-aaarchive-ssr` from visitor requests | `lib/api/api-client.ts`, `isServerRender()` in `proxy-secret.middleware.ts`, `apps/web/proxy.ts` |
 | Request bodies ≤ 100 KB; Zod validation on every input; one error shape with no stack traces or SQL | `main.ts`, `ZodValidationPipe`, `AllExceptionsFilter` |
 | `helmet` headers on the API; CORS limited to `FRONTEND_ORIGIN`; Swagger off in production | `main.ts` |
 | Web security headers: CSP (self-only scripts/styles, no framing, no plugins), HSTS (prod), `nosniff`, `X-Frame-Options: DENY`, strict referrer, Permissions-Policy, COOP; no `X-Powered-By` | `next.config.ts` |

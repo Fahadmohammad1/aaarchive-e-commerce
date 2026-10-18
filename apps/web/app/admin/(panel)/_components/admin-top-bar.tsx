@@ -22,11 +22,11 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { getMessages } from "@/lib/i18n/i18n";
+import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 import { AdminNavList } from "./admin-nav-list";
 
 export function AdminTopBar() {
-  const t = getMessages().admin;
+  const t = getAdminMessages();
   const { user, logout } = useAuth();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = React.useState(false);

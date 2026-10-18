@@ -28,10 +28,10 @@ import {
   useDeleteCollection,
   useSaveCollection,
 } from "@/lib/collection/use-collections";
-import { getMessages } from "@/lib/i18n/i18n";
+import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 
 export function CollectionsScreen() {
-  const t = getMessages().admin;
+  const t = getAdminMessages();
   const { user } = useAuth();
   const canEdit = user?.role === "OWNER";
   const collections = useCollections();

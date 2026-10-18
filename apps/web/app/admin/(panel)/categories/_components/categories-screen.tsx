@@ -28,10 +28,10 @@ import {
   useDeleteCategory,
   useSaveCategory,
 } from "@/lib/category/use-categories";
-import { getMessages } from "@/lib/i18n/i18n";
+import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 
 export function CategoriesScreen() {
-  const t = getMessages().admin;
+  const t = getAdminMessages();
   const { user } = useAuth();
   const canEdit = user?.role === "OWNER";
   const categories = useCategories();

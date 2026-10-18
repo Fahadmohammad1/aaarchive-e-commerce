@@ -320,6 +320,8 @@ Small dot + mono-label: `● In Stock` (`--success`), `● Low Stock` (`--accent
 
 - Cart drawer: slides from right, width 420px (100% on mobile), bg `--bg-raised`, left 1px `--line` border, backdrop `rgba(0,0,0,0.6)`.
 - Modal (size chart, search): centred, max 720px, bg `--bg-raised`, 1px `--line` border, close `✕` chip top-right.
+- Search overlay (built 2026-10-19): full-width panel from the top on `--bg`, big display-sm input on a strong hairline, `✕` chip; results as rows (56px 4:5 thumb, name in display-sm, `Category · ৳price` mono-micro) in 1/2/3 columns, "See all results (n) ↗" link. The header shows a search icon (+ "Search" on desktop).
+- Phone filters: bottom sheet (max 85dvh, radius 0) with the same groups as the sidebar and a full-width `Show results` button.
 - Menu overlay: full-screen `--bg`, big display-lg links stacked with `// 01` markers, giant wordmark at the bottom.
 
 ### 5.16 Giant wordmark
@@ -499,6 +501,7 @@ All pages share the header, footer, grain, colours and components above.
 - Active filters shown as accent tags with `✕`.
 - Grid: 4 columns desktop / 3 tablet / 2 mobile, regular (non-masonry) for scanning. Card = §5.5.
 - "Load More" secondary button centred.
+- *Built (2026-10-19):* result count `18 PRODUCTS` (mono-label) above the toolbar; the toolbar's `Filter (n)` is phone-only (the desktop sidebar is always shown); filter groups are `<details>` rows (Size as 44px square toggles, Colour as swatch + name rows, Price min/max inputs + Apply, "In stock only" checkbox); filters apply at once by navigating (shareable URL). Active filters are accent tags with `✕` plus a "Clear all" text link. Empty state: dashed box, one mono line, `Back to all products ↗`.
 
 ### 7.2 Product details page
 
@@ -527,6 +530,7 @@ YOU MAY ALSO LIKE                       [‹][›]
 - Desktop: gallery 7 columns, info 5 columns, info column sticky.
 - Mobile: swipe gallery with dot/count indicator (`1/5` mono-micro), info below, **sticky bottom bar** with price + "Add to Cart" when the main button is off-screen.
 - Size chart modal: table with mono numbers, alternate row bg `--bg-sunken`, "How to measure" small illustration.
+- *Built (2026-10-19):* the price block (price, crossed-out compare price, `-20%` sale tag, "Sale ends …") is in the cached shell; the purchase block (status line, colour radios as 24px swatches in 44px targets, size squares with the diagonal strike for sold-out sizes, quantity stepper with "Up to 5 per order", buttons) streams in with a skeleton of the same shape. A variant whose price differs shows its own price under the sizes. Details are `<details>` rows on hairlines (`+` turns into `×`); Description is open by default. Share: `Copy link` / `FB` / `WA` square text chips. Gallery: scroll-snap track with a `1/5` counter, square prev (outline) / next (accent) arrows and a thumbnail column on desktop; tap opens a full-screen zoom (tap again for 2× at that point). While the phone sticky bar shows, the floating chat buttons move up above it (`--buy-bar-h`). "You may also like" is a 4-up grid (2-up on phones).
 
 ### 7.3 Cart drawer and cart page
 
@@ -565,7 +569,7 @@ YOU MAY ALSO LIKE                       [‹][›]
 
 ### 7.8 Empty, loading and error states
 
-- **Loading:** skeleton blocks in `--bg-raised` with a slow shimmer (disabled for reduced motion). Same aspect ratios as final images to avoid layout shift.
+- **Loading:** skeleton blocks in `--bg-raised` with a slow shimmer (disabled for reduced motion). Same aspect ratios as final images to avoid layout shift. Utility: `skeleton` in `globals.css` (2.4 s shimmer); `ProductCardSkeleton`, `ProductGridSkeleton`, listing and PDP skeletons reuse it.
 - **404:** giant outlined "404", short mono line, `Back to Shop ↗`.
 - **Error:** inline notice with `--danger` border and a retry button.
 

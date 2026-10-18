@@ -1,14 +1,14 @@
 import { ApiError } from "@/lib/api/api-error";
-import { getMessages } from "./i18n";
+import { getAdminMessages } from "./i18n-admin";
 
-type ErrorCode = keyof ReturnType<typeof getMessages>["admin"]["errors"];
+type ErrorCode = keyof ReturnType<typeof getAdminMessages>["errors"];
 
 /**
  * Text for an API error, or for an error code from a shared Zod schema
  * (rules.md §5.2: branch on the code, never on the message).
  */
 export function errorText(error: unknown): string {
-  const errors = getMessages().admin.errors;
+  const errors = getAdminMessages().errors;
   const code = ApiError.isApiError(error)
     ? error.status === 429
       ? "RATE_LIMITED"
@@ -21,7 +21,7 @@ export function errorText(error: unknown): string {
 
 /** Field message from a Zod issue: known codes are translated, others are generic. */
 export function fieldErrorText(message: string | undefined): string {
-  const errors = getMessages().admin.errors;
+  const errors = getAdminMessages().errors;
   if (!message) return errors.INVALID;
   return message in errors ? errors[message as ErrorCode] : errors.INVALID;
 }

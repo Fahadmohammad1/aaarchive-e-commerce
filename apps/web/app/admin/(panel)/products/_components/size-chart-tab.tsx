@@ -8,14 +8,14 @@ import {
   SizeChartGrid,
   toSizeChartTable,
 } from "@/components/admin/size-chart-grid";
-import { getMessages } from "@/lib/i18n/i18n";
+import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 import { useSizeCharts } from "@/lib/size-chart/use-size-charts";
 import type { ProductForm } from "./product-form-types";
 
 const KINDS = ["none", "template", "custom"] as const;
 
 export function SizeChartTab({ form }: { form: ProductForm }) {
-  const t = getMessages().admin;
+  const t = getAdminMessages();
   const ts = t.products.sizeChart;
   const templates = useSizeCharts();
   const list = templates.data?.data ?? [];

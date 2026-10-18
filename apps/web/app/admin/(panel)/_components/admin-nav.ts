@@ -15,9 +15,9 @@ import {
   Type,
   Users,
 } from "lucide-react";
-import type { getMessages } from "@/lib/i18n/i18n";
+import type { getAdminMessages } from "@/lib/i18n/i18n-admin";
 
-type NavKey = keyof ReturnType<typeof getMessages>["admin"]["nav"];
+type NavKey = keyof ReturnType<typeof getAdminMessages>["nav"];
 
 export type AdminNavItem = {
   label: NavKey;

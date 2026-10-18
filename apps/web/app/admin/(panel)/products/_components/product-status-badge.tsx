@@ -1,7 +1,7 @@
 import type { ProductStatus } from "@aaarchive/shared/product";
 import { cn } from "cn";
 import { Badge } from "@/components/ui/badge";
-import { getMessages } from "@/lib/i18n/i18n";
+import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 
 const tone: Record<ProductStatus, string> = {
   PUBLISHED: "border-success text-success",
@@ -12,7 +12,7 @@ const tone: Record<ProductStatus, string> = {
 export function ProductStatusBadge({ status }: { status: ProductStatus }) {
   return (
     <Badge variant="outline" className={cn(tone[status])}>
-      {getMessages().admin.products.status[status]}
+      {getAdminMessages().products.status[status]}
     </Badge>
   );
 }

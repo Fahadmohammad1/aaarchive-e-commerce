@@ -10,7 +10,8 @@ import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { fieldErrorText } from "@/lib/i18n/error-text";
-import { format, getMessages } from "@/lib/i18n/i18n";
+import { format } from "@/lib/i18n/i18n";
+import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 
 type Row = SizeChartTable["rows"][number];
 
@@ -20,7 +21,7 @@ function emptyRow(columns: number): Row {
 
 /** A new table: the PRD's usual measurements and one empty size row. */
 export function blankSizeChartTable(): SizeChartTable {
-  const columns = [...getMessages().admin.catalog.sizeChartDefaultColumns];
+  const columns = [...getAdminMessages().catalog.sizeChartDefaultColumns];
   return { columns, rows: [emptyRow(columns.length)] };
 }
 
@@ -79,7 +80,7 @@ export function SizeChartGrid({
   errors,
   disabled,
 }: SizeChartGridProps) {
-  const t = getMessages().admin;
+  const t = getAdminMessages();
   const set = (next: SizeChartTable) => onChange(next);
   const setHeader = (index: number, v: string) =>
     set({ columns: columns.with(index, v), rows });

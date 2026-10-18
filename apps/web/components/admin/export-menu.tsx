@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { errorText } from "@/lib/i18n/error-text";
-import { getMessages } from "@/lib/i18n/i18n";
+import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 
 type ExportMenuProps = {
   /** Fetches the file (with the screen's current filters). */
@@ -38,7 +38,7 @@ function saveFile({ blob, filename }: { blob: Blob; filename: string }) {
  * <a href>.
  */
 export function ExportMenu({ onExport }: ExportMenuProps) {
-  const t = getMessages().admin.export;
+  const t = getAdminMessages().export;
   const [problem, setProblem] = React.useState<string | null>(null);
   const run = useMutation({
     mutationFn: onExport,

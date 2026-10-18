@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getMessages } from "@/lib/i18n/i18n";
+import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 import type { AdminSizeChart } from "@/lib/size-chart/size-chart-schemas";
 import {
   useDeleteSizeChart,
@@ -28,7 +28,7 @@ import {
 import { SizeChartFormDialog } from "./size-chart-form-dialog";
 
 export function SizeChartsScreen() {
-  const t = getMessages().admin;
+  const t = getAdminMessages();
   const { user } = useAuth();
   const canEdit = user?.role === "OWNER";
   const charts = useSizeCharts();

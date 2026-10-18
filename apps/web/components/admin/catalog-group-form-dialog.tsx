@@ -22,7 +22,7 @@ import {
   collectionFormSchema,
 } from "@/lib/collection/collection-schemas";
 import { errorText } from "@/lib/i18n/error-text";
-import { getMessages } from "@/lib/i18n/i18n";
+import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 import { FormField } from "./form-field";
 import { ImagePicker } from "./image-picker";
 import { SwitchField } from "./switch-field";
@@ -69,7 +69,7 @@ export function CatalogGroupFormDialog({
   withActive,
   onSave,
 }: CatalogGroupFormDialogProps) {
-  const t = getMessages().admin;
+  const t = getAdminMessages();
   const [preview, setPreview] = React.useState<MediaAsset | null>(null);
   const [formError, setFormError] = React.useState<string | null>(null);
 

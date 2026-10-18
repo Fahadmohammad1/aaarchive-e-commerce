@@ -4,11 +4,12 @@ import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
-import { format, getMessages } from "@/lib/i18n/i18n";
+import { format } from "@/lib/i18n/i18n";
+import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 
 // Placeholder until Phase 5 adds the stats (PRD §6.1).
 export function DashboardWelcome() {
-  const t = getMessages().admin;
+  const t = getAdminMessages();
   const { user } = useAuth();
   return (
     <div className="flex flex-col items-start gap-3">

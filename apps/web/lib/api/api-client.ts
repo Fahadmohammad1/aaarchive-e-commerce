@@ -68,6 +68,16 @@ async function send(
   headers.set("Accept", accept);
   const token = isServer ? null : getAccessToken();
   if (token) headers.set("Authorization", `Bearer ${token}`);
+  // Server Components call the API directly (not through proxy.ts), so they
+  // add the shared secret themselves. API_PROXY_SECRET is a server-only env
+  // var: it is never inlined into browser bundles.
+  if (isServer) {
+    const secret = process.env.API_PROXY_SECRET;
+    if (secret) {
+      headers.set("x-aaarchive-proxy", secret);
+      headers.set("x-aaarchive-ssr", "1");
+    }
+  }
   const seenGeneration = getTokenGeneration();
 
   const timeout = AbortSignal.timeout(options.timeoutMs ?? DEFAULT_TIMEOUT_MS);

@@ -17,7 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { ApiError } from "@/lib/api/api-error";
 import { errorText } from "@/lib/i18n/error-text";
-import { getMessages } from "@/lib/i18n/i18n";
+import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 import type { AdminSize } from "@/lib/size/size-schemas";
 import { useSaveSize } from "@/lib/size/use-sizes";
 
@@ -32,7 +32,7 @@ export function SizeFormDialog({
   onOpenChange: (open: boolean) => void;
   item: AdminSize | null;
 }) {
-  const t = getMessages().admin;
+  const t = getAdminMessages();
   const save = useSaveSize();
   const [formError, setFormError] = React.useState<string | null>(null);
   const form = useForm<SizeInput, unknown, Values>({

@@ -10,6 +10,7 @@ import {
   type HomeProduct,
   latestCampaign,
   products,
+  toCardProduct,
 } from "@/lib/content/home-fixtures";
 import { getMessages } from "@/lib/i18n/i18n";
 
@@ -65,7 +66,7 @@ function EntryGrid({ items }: { items: HomeProduct[] }) {
       {items.map((product) => (
         <li key={product.slug}>
           <ProductCard
-            product={product}
+            product={toCardProduct(product)}
             sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
           />
         </li>

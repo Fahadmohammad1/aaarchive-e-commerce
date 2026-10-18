@@ -27,7 +27,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useColors } from "@/lib/color/use-colors";
 import { errorText, fieldErrorText } from "@/lib/i18n/error-text";
-import { format, getMessages } from "@/lib/i18n/i18n";
+import { format } from "@/lib/i18n/i18n";
+import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 import { useUploadMedia } from "@/lib/upload/use-media";
 import type { ProductForm } from "./product-form-types";
 
@@ -76,7 +77,7 @@ function Gallery({
   previews: Previews;
   onPreview: (asset: MediaAsset) => void;
 }) {
-  const t = getMessages().admin;
+  const t = getAdminMessages();
   const ti = t.products.images;
   const colors = useColors();
   const upload = useUploadMedia("product");

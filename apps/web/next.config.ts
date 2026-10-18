@@ -58,6 +58,12 @@ const nextConfig: NextConfig = {
     agentFeedback: true,
   },
   cacheComponents: true,
+  // Storefront catalog reads (lib/<module>/*-store-api.ts). Admin edits
+  // refresh them at once through cache tags; the short revalidate covers what
+  // no webhook announces, such as a sale window opening or closing.
+  cacheLife: {
+    catalog: { stale: 60, revalidate: 300, expire: 86_400 },
+  },
   partialPrefetching: true,
   images: {
     // Next 16 requires an explicit allowlist of qualities. Patterns omit
