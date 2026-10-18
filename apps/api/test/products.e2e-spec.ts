@@ -258,6 +258,41 @@ describe.skipIf(!TEST_DB)("products admin (e2e, real database)", () => {
     ).toBe(204);
   });
 
+  it("exports the filtered products as CSV, one row per variant (Owner only)", async () => {
+    const q = encodeURIComponent(`E2E ${run} Hoodie`);
+    const csv = await call(
+      "get",
+      `/admin/products/export?format=csv&q=${q}`,
+    ).buffer(true);
+    expect(csv.status).toBe(200);
+    expect(csv.headers["content-type"]).toContain("text/csv");
+    expect(csv.headers["content-disposition"]).toMatch(
+      /aaarchive-products-\d{4}-\d{2}-\d{2}\.csv/,
+    );
+    const lines = csv.text
+      .replace(/^\uFEFF/, "")
+      .trim()
+      .split("\r\n");
+    expect(lines[0]).toBe(
+      "Product,Category,SKU,Size,Colour,Stock,Price,Sale price,Status,Variant on sale",
+    );
+    // The hoodie from the first test: 2 colours × 4 sizes.
+    expect(lines).toHaveLength(1 + 8);
+    expect(lines[1]).toContain(`E2E ${run} Hoodie`);
+
+    const xlsx = await call("get", `/admin/products/export?format=xlsx&q=${q}`);
+    expect(xlsx.status).toBe(200);
+    expect(xlsx.headers["content-type"]).toContain("spreadsheetml");
+
+    expect(
+      (await call("get", "/admin/products/export?format=csv", staffToken))
+        .status,
+    ).toBe(403);
+    expect(
+      (await call("get", "/admin/products/export?format=pdf")).status,
+    ).toBe(400);
+  });
+
   it("lets Staff read products but not change them", async () => {
     expect((await call("get", "/admin/products", staffToken)).status).toBe(200);
     const res = await call("post", "/admin/products", staffToken).send({

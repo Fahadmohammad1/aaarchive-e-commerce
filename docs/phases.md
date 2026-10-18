@@ -117,10 +117,10 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 - [x] [web] Admin screens: categories (incl. photo, order, show on home), collections, sizes, colours, size charts, products list (search, filters, sort by stock), product editor (tabs: details, pricing, images, variants, size chart, SEO), inline variant stock table (2026-10-19; not yet checked in a browser)
 - [x] [web] `app/api/revalidate` route (secret-checked `revalidateTag`) (2026-10-19)
 - [x] [web] TanStack Query hooks + key factories for each module, with mutations invalidating the right keys (2026-10-19)
-- [ ] [api] Export building blocks (`common/export/`: columns, CSV writer with BOM + injection guard, exceljs XLSX writer, streaming `ExportService`) + tests — install `exceljs`
-- [ ] [api] `GET /admin/products/export` (variants with stock) — Owner only
-- [ ] [web] `components/admin/export-menu.tsx` (CSV / Excel) on the products list
-- [ ] [api] Tests: slug uniqueness, variant generation, sale-price window, Staff read-only on products *(written 2026-10-19: unit `product.test.ts`, `sku.spec.ts`; e2e `test/products.e2e-spec.ts` — **the DB e2e suites have not run yet**, no test database here)*
+- [x] [api] Export building blocks (`common/export/`: columns, CSV writer with BOM + injection guard, exceljs XLSX writer, streaming `ExportService`) + tests — `exceljs` 4.4 installed (2026-10-19)
+- [x] [api] `GET /admin/products/export` (variants with stock) — Owner only (2026-10-19)
+- [x] [web] `components/admin/export-menu.tsx` (CSV / Excel) on the products list (2026-10-19)
+- [ ] [api] Tests: slug uniqueness, variant generation, sale-price window, Staff read-only on products *(written 2026-10-19: unit `product.test.ts`, `sku.spec.ts`; e2e `test/products.e2e-spec.ts` (+ export) — **the DB e2e suites have not run yet**, no test database here)*
 
 **Exit criteria:** the Owner creates a product with 2 colours × 4 sizes, uploads images, sets stock and publishes it. Staff can view but not edit products. Editing a product triggers revalidation.
 

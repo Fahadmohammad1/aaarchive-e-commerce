@@ -73,7 +73,7 @@ Breaking any of these is a bug, however good the rest of the change is.
 | Rate limiting | `@nestjs/throttler` (installed; global limit on, stricter per-route limits in Phase 1/4) |
 | Media | **Supabase Storage** via its S3 API (`@aws-sdk/client-s3`, storage-only access keys) + **`sharp`** for validation/resizing *(Phase 2, install after approval)* |
 | Email | Resend (or Brevo) free tier *(Phase 4)* |
-| Excel export | **exceljs** (MIT), server-side streaming writer *(Phase 2, first export)*. CSV is written by our own helper. Never use the npm `xlsx` package (stale 0.18.x with known advisories) |
+| Excel export | **exceljs** 4.4 (MIT), server-side streaming writer *(installed 2026-10-19)*. CSV is written by our own helper. Never use the npm `xlsx` package (stale 0.18.x with known advisories) |
 | Tests | Vitest + supertest |
 
 Install a listed-but-not-yet-installed library when its phase arrives. Anything **not** in these tables needs the user's approval first.
@@ -297,6 +297,7 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 
 | Advisory | Package | Why it is accepted | Reviewed |
 |---|---|---|---|
+| GHSA-w5hq-g745-h8pq (uuid < 11.1.1, missing buffer bounds check, moderate) | `uuid@8` via `exceljs` | Only `v3`/`v5`/`v6` called **with a caller-supplied buffer** are affected; exceljs uses `v4()` without a buffer. Below CI's `high` audit level. Re-check when exceljs ships a release on uuid ≥ 11 | 2026-10-19 |
 | GHSA-vfj7-8cjw-p6xm (braces ≤ 3.0.3, DoS via nested patterns) | `braces` via `shadcn` CLI → `fast-glob` | No fixed version exists; only reached by the shadcn CLI a developer runs locally with our own patterns; never shipped to the site or API | 2026-10-18 |
 
 ---

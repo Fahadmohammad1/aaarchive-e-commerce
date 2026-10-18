@@ -12,6 +12,7 @@ import { ImageOff, Plus, Search } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
+import { ExportMenu } from "@/components/admin/export-menu";
 import {
   ListEmpty,
   ListError,
@@ -34,6 +35,7 @@ import {
 } from "@/components/ui/table";
 import { useCategories } from "@/lib/category/use-categories";
 import { format, getMessages } from "@/lib/i18n/i18n";
+import { exportProducts } from "@/lib/product/product-api";
 import type { AdminProductListItem } from "@/lib/product/product-schemas";
 import { useProducts } from "@/lib/product/use-products";
 import { ProductStatusBadge } from "./product-status-badge";
@@ -106,13 +108,22 @@ export function ProductsScreen() {
         title={t.nav.products}
         description={canEdit ? tp.intro : t.common.readOnly}
         actions={
+          // Products & stock export is Owner only (PRD §6.9 rule 2).
           canEdit && (
-            <Button size="lg" asChild>
-              <Link href="/admin/products/new">
-                <Plus />
-                {tp.newProduct}
-              </Link>
-            </Button>
+            <>
+              <ExportMenu
+                onExport={(format) => {
+                  const { page: _page, limit: _limit, ...filters } = query;
+                  return exportProducts(filters, format);
+                }}
+              />
+              <Button size="lg" asChild>
+                <Link href="/admin/products/new">
+                  <Plus />
+                  {tp.newProduct}
+                </Link>
+              </Button>
+            </>
           )
         }
       />

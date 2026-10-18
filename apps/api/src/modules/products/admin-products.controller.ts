@@ -1,5 +1,6 @@
 import {
   adminProductListQuerySchema,
+  productExportQuerySchema,
   productInputSchema,
   productUpdateSchema,
   variantBulkUpdateSchema,
@@ -15,13 +16,17 @@ import {
   Patch,
   Post,
   Query,
+  Res,
   UseGuards,
 } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
+import type { Response } from "express";
 import type { z } from "zod";
 import { Roles } from "../../common/auth/auth.decorators.js";
 import { SameOriginGuard } from "../../common/auth/same-origin.guard.js";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe.js";
 import { ProductsService } from "./products.service.js";
+import { ProductsExportService } from "./products-export.service.js";
 import { VariantsService } from "./variants.service.js";
 
 /** Reads: OWNER/STAFF (global default). Writes: OWNER only (PRD §3). */
@@ -31,6 +36,7 @@ export class AdminProductsController {
   constructor(
     private readonly products: ProductsService,
     private readonly variants: VariantsService,
+    private readonly exports: ProductsExportService,
   ) {}
 
   @Get()
@@ -39,6 +45,21 @@ export class AdminProductsController {
     query: z.output<typeof adminProductListQuerySchema>,
   ) {
     return this.products.list(query);
+  }
+
+  /**
+   * Products & stock as CSV/Excel, same filters as the list. Owner only
+   * (PRD §6.9 rule 2). Declared before ":id" so "export" is not an id.
+   */
+  @Get("export")
+  @Roles("OWNER")
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  export(
+    @Query(new ZodValidationPipe(productExportQuerySchema))
+    query: z.output<typeof productExportQuerySchema>,
+    @Res() res: Response,
+  ) {
+    return this.exports.export(res, query);
   }
 
   @Get(":id")

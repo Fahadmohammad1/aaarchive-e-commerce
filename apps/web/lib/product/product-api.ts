@@ -1,3 +1,4 @@
+import type { ExportFormat } from "@aaarchive/shared/export";
 import type {
   AdminProductListQuery,
   ProductInput,
@@ -55,5 +56,17 @@ export function updateVariants(id: string, body: VariantBulkUpdate) {
 export function deleteVariant(id: string, variantId: string) {
   return api.delete(`${path(id)}/variants/${encodeURIComponent(variantId)}`, {
     schema: adminProductSchema,
+  });
+}
+
+/** Products & stock as CSV/Excel with the list's filters (Owner only). */
+export function exportProducts(
+  query: Omit<AdminProductListQuery, "page" | "limit">,
+  format: ExportFormat,
+) {
+  return api.download("/admin/products/export", {
+    query: { ...query, format },
+    // Large exports take a while to stream.
+    timeoutMs: 120_000,
   });
 }

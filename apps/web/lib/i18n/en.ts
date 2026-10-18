@@ -350,6 +350,12 @@ export const en = {
         noColors: "Add colours first under Colours.",
       },
     },
+    export: {
+      label: "Export",
+      preparing: "Preparing…",
+      csv: "CSV",
+      xlsx: "Excel (.xlsx)",
+    },
     media: {
       upload: "Upload photo",
       uploading: "Uploading…",
@@ -412,6 +418,8 @@ export const en = {
       COLOR_NOT_FOUND: "A chosen colour no longer exists.",
       SIZE_NOT_FOUND: "A chosen size no longer exists.",
       SIZE_CHART_NOT_FOUND: "The chosen size chart no longer exists.",
+      EXPORT_TOO_LARGE:
+        "Too many rows to export at once (over 50,000). Narrow the filters and try again.",
       SIZE_CHART_IN_USE:
         "Products still use this size chart. Pick another chart for them first.",
       INVALID_MEASUREMENT: "Use a number in inches, e.g. 40, 27.5 or 38-40.",

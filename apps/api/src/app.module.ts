@@ -10,6 +10,7 @@ import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import cookieParser from "cookie-parser";
 import { JwtAuthGuard } from "./common/auth/jwt-auth.guard.js";
 import { RolesGuard } from "./common/auth/roles.guard.js";
+import { ExportModule } from "./common/export/export.module.js";
 import { ProxySecretMiddleware } from "./common/security/proxy-secret.middleware.js";
 import { type Env, validateEnv } from "./config/env.schema.js";
 import { HealthModule } from "./health/health.module.js";
@@ -45,6 +46,7 @@ import { PrismaModule } from "./prisma/prisma.module.js";
     PrismaModule,
     HealthModule,
     RevalidationModule,
+    ExportModule,
     AuthModule,
     MediaModule,
     CategoriesModule,

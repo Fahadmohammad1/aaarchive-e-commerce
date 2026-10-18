@@ -7,7 +7,6 @@ import {
   type productUpdateSchema,
   skuFor,
 } from "@aaarchive/shared/product";
-import { DEFAULT_LOW_STOCK_THRESHOLD } from "@aaarchive/shared/stock";
 import {
   BadRequestException,
   ConflictException,
@@ -28,6 +27,7 @@ import {
   toAdminProduct,
   toAdminProductListItem,
 } from "./products.mapper.js";
+import { productIdsSql, whereSql } from "./products.query.js";
 import { uniqueSkus } from "./sku.js";
 
 type ListQuery = z.output<typeof adminProductListQuerySchema>;
@@ -48,20 +48,12 @@ export class ProductsService {
 
   async list(query: ListQuery) {
     const { page, limit } = query;
-    const where = whereSql(query);
-    // Sorting by stock needs the sum over variants, which Prisma cannot order
-    // by; one SQL query picks the page's ids, Prisma loads the rows.
     const [ids, [{ total }]] = await Promise.all([
-      this.prisma.$queryRaw<{ id: string }[]>`
-        SELECT p.id
-        FROM "Product" p
-        LEFT JOIN "Variant" v ON v."productId" = p.id AND v."isActive"
-        WHERE ${where}
-        GROUP BY p.id
-        ORDER BY ${orderSql(query.sort)}, p.id
-        LIMIT ${limit} OFFSET ${(page - 1) * limit}`,
+      this.prisma.$queryRaw<{ id: string }[]>(
+        productIdsSql(query, { limit, offset: (page - 1) * limit }),
+      ),
       this.prisma.$queryRaw<{ total: number }[]>`
-        SELECT count(*)::int AS total FROM "Product" p WHERE ${where}`,
+        SELECT count(*)::int AS total FROM "Product" p WHERE ${whereSql(query)}`,
     ]);
     const rows = await this.prisma.product.findMany({
       where: { id: { in: ids.map((r) => r.id) } },
@@ -479,57 +471,6 @@ async function saveSizeChart(
 function copyName(name: string): string {
   const suffix = " (copy)";
   return `${name.slice(0, 120 - suffix.length)}${suffix}`;
-}
-
-/** Escapes LIKE wildcards in a search term. */
-function likeTerm(q: string): string {
-  return `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
-}
-
-function whereSql(query: ListQuery): Prisma.Sql {
-  const parts: Prisma.Sql[] = [Prisma.sql`TRUE`];
-  if (query.q) {
-    const term = likeTerm(query.q);
-    parts.push(Prisma.sql`(
-      p.name ILIKE ${term} OR p.slug ILIKE ${term}
-      OR EXISTS (SELECT 1 FROM "Variant" s WHERE s."productId" = p.id AND s.sku ILIKE ${term})
-    )`);
-  }
-  if (query.categoryId) {
-    parts.push(Prisma.sql`p."categoryId" = ${query.categoryId}`);
-  }
-  if (query.status) {
-    parts.push(Prisma.sql`p.status = ${query.status}::"ProductStatus"`);
-  }
-  if (query.stock === "out") {
-    parts.push(Prisma.sql`EXISTS (
-      SELECT 1 FROM "Variant" s
-      WHERE s."productId" = p.id AND s."isActive" AND s.stock <= 0)`);
-  }
-  if (query.stock === "low") {
-    // TODO(Phase 5): store-wide threshold from Settings → Stock.
-    parts.push(Prisma.sql`EXISTS (
-      SELECT 1 FROM "Variant" s
-      WHERE s."productId" = p.id AND s."isActive" AND s.stock > 0
-        AND s.stock <= COALESCE(p."lowStockThreshold", ${DEFAULT_LOW_STOCK_THRESHOLD}))`);
-  }
-  return Prisma.join(parts, " AND ");
-}
-
-function orderSql(sort: ListQuery["sort"]): Prisma.Sql {
-  const stock = Prisma.sql`COALESCE(SUM(GREATEST(v.stock, 0)), 0)`;
-  switch (sort) {
-    case "newest":
-      return Prisma.sql`p."createdAt" DESC`;
-    case "name":
-      return Prisma.sql`lower(p.name) ASC`;
-    case "stock_asc":
-      return Prisma.sql`${stock} ASC, p."updatedAt" DESC`;
-    case "stock_desc":
-      return Prisma.sql`${stock} DESC, p."updatedAt" DESC`;
-    default:
-      return Prisma.sql`p."updatedAt" DESC`;
-  }
 }
 
 /** Product pages, listings and the home sections that show products. */

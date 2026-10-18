@@ -5,10 +5,16 @@ Living log of where the project stands. **Every agent updates this at the end of
 ## Current status
 
 - **Phase:** 2 — Admin dashboard & catalog management (see `phases.md`)
-- **In progress:** Phase 2 — catalog admin built (shell + search, categories, collections, sizes, colours, size charts, products + variants + gallery). Left: run the DB e2e suites, browser check, then export (CSV/Excel).
-- **File currently being worked on:** — (next: `apps/api/src/common/export/`, after asking to install `exceljs`)
+- **In progress:** Phase 2 — catalog admin built (shell + search, categories, collections, sizes, colours, size charts, products + variants + gallery). Products export done. Left before closing Phase 2: run the DB e2e suites and the browser check (exit criteria).
+- **File currently being worked on:** — (Phase 2 code complete; next is verification, then Phase 3 `apps/api/src/modules/products/products.controller.ts`)
 
 ## Completed
+
+- **2026-10-19** [shared][api][web] — CSV/Excel export (Phase 2 last item). User approved installing `exceljs` (4.4.0, `apps/api`).
+  - Shared: `@aaarchive/shared/export` (`exportFormatSchema`, `EXPORT_MAX_ROWS`), `productExportQuerySchema` (+ `export.test.ts`, 62 shared tests).
+  - API: `common/export/` (`export-columns.ts` with Dhaka-time dates, `csv-writer.ts` BOM + RFC 4180 + formula guard, `xlsx-writer.ts` streaming exceljs with bold frozen header/widths/`#,##0`, global `ExportService` with the 50,000-row cap and `paginate()`; `export.spec.ts` 7 tests incl. an .xlsx round trip). `modules/products/products.query.ts` (list SQL shared by list + export), `products-export.service.ts`, `GET /admin/products/export` (Owner, 10/min). CORS exposes `Content-Disposition`. Export e2e case added (not run: no DB). 39 API unit tests.
+  - Web: `components/admin/export-menu.tsx`, `exportProducts()` in `lib/product/product-api.ts`, Export button on `/admin/products` (Owner), i18n `admin.export` + `EXPORT_TOO_LARGE`.
+  - `bun audit`: no high/critical; one moderate (`uuid@8` via exceljs) accepted in `rules.md` §8.10.
 
 - **2026-10-19** [shared][api][web] — Products, variants and product images (Phase 2).
   - Migration `20261019020000_size_chart_is_template` (additive: `SizeChart.isTemplate` default true + index; SQL matches `prisma migrate diff`). **Not applied to Supabase yet**: the user runs `db:deploy`.
@@ -122,9 +128,9 @@ Living log of where the project stands. **Every agent updates this at the end of
 
 ## Next up
 
-1. [api] **User:** `bun run --filter @aaarchive/api db:deploy` (applies `20261019020000_size_chart_is_template`), then on your machine try `/admin/products` end to end at 375px and desktop: create → add variants → upload photos → publish; a category photo upload; `/admin/size-charts`.
+1. [api] **User:** `bun run --filter @aaarchive/api db:deploy` (applies `20261019020000_size_chart_is_template`), then on your machine try `/admin/products` end to end at 375px and desktop: create → add variants → upload photos → publish → Export CSV and Excel; a category photo upload; `/admin/size-charts`.
 2. [api] Run the DB e2e suites against a disposable Postgres (`TEST_DATABASE_URL=… bun run --filter @aaarchive/api test:e2e`) — `catalog` and `products` suites are written but have never run.
-3. [api][web] Export building blocks + products export (install `exceljs` after asking). Then Phase 2 is done.
+3. Phase 2 exit check passed → start Phase 3 (public catalog API, then `/shop` and `/product/[slug]`).
 
 ## Decisions
 

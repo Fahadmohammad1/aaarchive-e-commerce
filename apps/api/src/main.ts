@@ -25,6 +25,8 @@ async function bootstrap() {
   app.enableCors({
     origin: config.get("FRONTEND_ORIGIN", { infer: true }),
     credentials: true,
+    // Lets the web read the export's file name (docs/architecture.md §4.8).
+    exposedHeaders: ["Content-Disposition"],
   });
   app.useGlobalFilters(new AllExceptionsFilter());
   app.enableShutdownHooks();

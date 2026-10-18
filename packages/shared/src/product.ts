@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { sizeChartTableSchema, slugSchema } from "./catalog.js";
+import { exportFormatSchema } from "./export.js";
 
 // Products and variants edited in the dashboard (PRD §6.2). Request schemas
 // and pure helpers; the web keeps its response schemas in lib/product/.
@@ -323,4 +324,15 @@ export type AdminProductListQuery = {
   sort?: (typeof PRODUCT_SORTS)[number];
   page?: number;
   limit?: number;
+};
+
+/** GET /admin/products/export: the list's filters and sort, plus the format. */
+export const productExportQuerySchema = adminProductListQuerySchema
+  .omit({ page: true, limit: true })
+  .extend({ format: exportFormatSchema });
+export type ProductExportQuery = Omit<
+  AdminProductListQuery,
+  "page" | "limit"
+> & {
+  format: "csv" | "xlsx";
 };
