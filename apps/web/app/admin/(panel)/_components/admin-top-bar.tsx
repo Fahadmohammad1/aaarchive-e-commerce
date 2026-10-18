@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, LogOut, Menu, UserRound } from "lucide-react";
+import { ExternalLink, LogOut, Menu, Search, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
@@ -15,6 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -50,6 +51,34 @@ export function AdminTopBar() {
         >
           <Logo sizes="96px" eager className="h-6 w-auto" />
         </Link>
+
+        <search className="relative ml-auto hidden w-full max-w-xs sm:block md:ml-0">
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              const q = new FormData(event.currentTarget).get("q");
+              const term = typeof q === "string" ? q.trim() : "";
+              router.push(
+                term
+                  ? `/admin/products?q=${encodeURIComponent(term)}`
+                  : "/admin/products",
+              );
+            }}
+          >
+            <Search
+              aria-hidden
+              className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input
+              name="q"
+              type="search"
+              maxLength={80}
+              placeholder={t.products.searchPlaceholder}
+              aria-label={t.products.searchLabel}
+              className="h-9 pl-8"
+            />
+          </form>
+        </search>
 
         <div className="ml-auto flex items-center gap-2">
           <Button

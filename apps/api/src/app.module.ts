@@ -18,6 +18,7 @@ import { CategoriesModule } from "./modules/categories/categories.module.js";
 import { CollectionsModule } from "./modules/collections/collections.module.js";
 import { ColorsModule } from "./modules/colors/colors.module.js";
 import { MediaModule } from "./modules/media/media.module.js";
+import { ProductsModule } from "./modules/products/products.module.js";
 import { RevalidationModule } from "./modules/revalidation/revalidation.module.js";
 import { SizeChartsModule } from "./modules/size-charts/size-charts.module.js";
 import { SizesModule } from "./modules/sizes/sizes.module.js";
@@ -51,6 +52,7 @@ import { PrismaModule } from "./prisma/prisma.module.js";
     SizesModule,
     ColorsModule,
     SizeChartsModule,
+    ProductsModule,
   ],
   // Order matters: rate limit → authentication → role. Every route is
   // OWNER/STAFF-only unless it says @Public() or @Roles(...) (rules.md §8.3).

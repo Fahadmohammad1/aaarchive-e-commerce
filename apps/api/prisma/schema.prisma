@@ -336,16 +336,21 @@ model Variant {
 }
 
 model SizeChart {
-  id        String   @id @default(cuid())
-  name      String
+  id         String   @id @default(cuid())
+  name       String
   /// e.g. ["Size", "Chest", "Length", "Shoulder", "Sleeve"] (inches)
-  columns   Json
-  /// e.g. [["M", 40, 28, 18, 25], …]
-  rows      Json
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  columns    Json
+  /// e.g. [["M", "40", "28", "18", "25"], …] — strings, see sizeChartInputSchema
+  rows       Json
+  /// false = a product's own custom table (PRD §6.2): not listed as a
+  /// template, deleted with its product or when the product switches away.
+  isTemplate Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   products Product[]
+
+  @@index([isTemplate, name])
 }
 
 // ── Checkout ─────────────────────────────────────────────────────────────

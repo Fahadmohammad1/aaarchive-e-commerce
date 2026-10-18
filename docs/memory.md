@@ -5,10 +5,17 @@ Living log of where the project stands. **Every agent updates this at the end of
 ## Current status
 
 - **Phase:** 2 — Admin dashboard & catalog management (see `phases.md`)
-- **In progress:** Phase 2 — shell, categories, collections, sizes, colours, size charts, revalidation done. Next: products + variants.
-- **File currently being worked on:** — (next: `apps/api/src/modules/products/`)
+- **In progress:** Phase 2 — catalog admin built (shell + search, categories, collections, sizes, colours, size charts, products + variants + gallery). Left: run the DB e2e suites, browser check, then export (CSV/Excel).
+- **File currently being worked on:** — (next: `apps/api/src/common/export/`, after asking to install `exceljs`)
 
 ## Completed
+
+- **2026-10-19** [shared][api][web] — Products, variants and product images (Phase 2).
+  - Migration `20261019020000_size_chart_is_template` (additive: `SizeChart.isTemplate` default true + index; SQL matches `prisma migrate diff`). **Not applied to Supabase yet**: the user runs `db:deploy`.
+  - Shared: `@aaarchive/shared/product` (product input/update schemas, size-chart choice none/template/custom, `pricingIssues`, `isSaleActive`/`currentPrice`, `skuSchema`/`skuFor`, `missingVariantPairs`, variant generate + bulk-update schemas with `expectedStock`, admin list query), `@aaarchive/shared/rich-text` (Markdown-lite parser), `sizeChartTableSchema` split out of `catalog.ts`. 60 shared tests.
+  - API: `modules/products/` (`products.mapper.ts` admin-only shapes, `products.service.ts` list via raw SQL for stock filter/sort + CRUD + duplicate + delete, `variants.service.ts`, `sku.ts` + `sku.spec.ts`, `admin-products.controller.ts`, module), size-charts endpoints now templates-only. `test/products.e2e-spec.ts` (exit criteria: 2 colours × 4 sizes, stock edit + STOCK_CHANGED, publish rules, sale rules, custom chart, duplicate, Staff 403). 32 unit tests.
+  - Web: `lib/product/*`; `/admin/products` (search, category/status/stock filters, sort, paging in the URL), `/admin/products/new`, `/admin/products/[id]` (tabs Details · Pricing · Images · Variants · Size chart · SEO; Staff read-only); `components/admin/native-select.tsx`, `size-chart-grid.tsx` (shared with the size-chart dialog), `components/store/rich-text.tsx`; `MediaLibraryDialog` exported; top-bar search → products list; Products nav live; i18n strings + error codes. The panel layout is wrapped in `<Suspense>`: `usePathname` suspends while prerendering `[id]` routes (build failed without it).
+  - Verified: `check`, `typecheck`, unit tests, `build`; list SQL inspected. **Not run:** DB e2e suites (`prisma dev` hangs in starting_up again; no Docker), browser check at 375px/desktop, real uploads.
 
 - **2026-10-19** [shared][api][web] — Size chart templates.
   - Shared: `sizeChartInputSchema` in `@aaarchive/shared/catalog` (2–8 columns, 1–20 rows; row = `[size label, ...measurements]` as a Zod tuple; cells are strings: number, decimal or range in inches, or empty; ranges normalised to `38-40`; duplicate headers/size labels → `DUPLICATE`, mismatched row → `ROW_LENGTH`). 5 new tests (47 total).
@@ -115,13 +122,15 @@ Living log of where the project stands. **Every agent updates this at the end of
 
 ## Next up
 
-1. [web] On your machine: check a category photo upload end to end (all 7 migrations confirmed applied on Supabase 2026-10-19), and try `/admin/size-charts` at 375px and desktop.
-2. [api][web] Products: CRUD, status, sale window, duplicate; variants from sizes × colours, quick stock edit; product images (gallery picker); products list with search (also wire the top-bar search); product editor tabs.
-3. [api][web] Export building blocks + products export (install `exceljs` after asking).
+1. [api] **User:** `bun run --filter @aaarchive/api db:deploy` (applies `20261019020000_size_chart_is_template`), then on your machine try `/admin/products` end to end at 375px and desktop: create → add variants → upload photos → publish; a category photo upload; `/admin/size-charts`.
+2. [api] Run the DB e2e suites against a disposable Postgres (`TEST_DATABASE_URL=… bun run --filter @aaarchive/api test:e2e`) — `catalog` and `products` suites are written but have never run.
+3. [api][web] Export building blocks + products export (install `exceljs` after asking). Then Phase 2 is done.
 
 ## Decisions
 
-- **2026-10-19** [api] — Size charts: cells are strings (allow ranges like `38-40`), the API always takes the whole chart. Custom per-product tables (PRD §6.2) will be `SizeChart` rows flagged `isTemplate = false` (migration with the product editor) so the templates list stays clean.
+- **2026-10-19** [shared][web] — Product descriptions are Markdown-lite (user): no rich-text editor or HTML sanitiser; `rules.md` §8.4.
+- **2026-10-19** [api] — Custom size tables per product (user approved the migration): `SizeChart.isTemplate = false`, owned by the product. Publishing needs a photo and an active variant; new products start as drafts. Stock edits carry `expectedStock` so an admin save never overwrites stock an order took. Low-stock threshold uses the product override or the default 3 until Settings → Stock exists (Phase 5).
+- **2026-10-19** [api] — Size charts: cells are strings (allow ranges like `38-40`), the API always takes the whole chart. Custom per-product tables (PRD §6.2) are `SizeChart` rows flagged `isTemplate = false`, so the templates list stays clean.
 - **2026-10-17** — Backend is a separate NestJS app (supersedes PRD §8.1/§8.3, incl. Auth.js).
 - **2026-10-17** — Monorepo with Bun workspaces (`apps/web`, `apps/api`, `packages/shared`). Bun is the package manager; the apps still run on Node.
 - **2026-10-17** — Biome for lint + format across the repo (double quotes, semicolons, 2 spaces). `useImportType` off in `apps/api` (Nest DI).

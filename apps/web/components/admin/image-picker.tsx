@@ -187,7 +187,7 @@ export function ImagePicker({
   );
 }
 
-function MediaLibraryDialog({
+export function MediaLibraryDialog({
   open,
   onOpenChange,
   purpose,

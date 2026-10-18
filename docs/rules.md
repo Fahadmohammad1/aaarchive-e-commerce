@@ -258,6 +258,7 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 - Validate every body, query and param with Zod; reject unknown fields (`.strict()` on write schemas). Normalise phones, trim strings, cap lengths.
 - Prisma only — no string-built SQL. `$queryRaw` only as a tagged template.
 - React escapes output by default. **Never** use `dangerouslySetInnerHTML` except for rich text that was sanitised **on the server when saved** (allow-list HTML sanitiser, Phase 6).
+- **Product descriptions are Markdown-lite, never HTML** (user decision 2026-10-19): blank line = paragraph, `- ` = bullet, `**bold**`. Parse with `@aaarchive/shared/rich-text` and render with `components/store/rich-text.tsx` (React elements). No rich-text editor dependency and no HTML sanitiser are needed for descriptions.
 - Links saved by admins go through `hrefSchema` (only `/…` or `https://…`; no `javascript:`).
 - The API never fetches a URL supplied by a user (no SSRF). Images are uploaded to the API (`POST /admin/media`), which validates and re-encodes them before storing in Supabase Storage. Short-lived upload — the API only signs.
 - Uploads: jpg/png/webp only (checked by decoding with `sharp`, not by name or MIME header), ≤ 8 MB in, ≤ 40 megapixels, all metadata stripped, re-encoded to WebP; the bucket accepts only `image/webp` ≤ 2 MB; storage keys are random ids, never user file names.

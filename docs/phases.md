@@ -101,26 +101,26 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 
 **Goal:** the admin shell exists and the team can create the full catalog: categories, collections, products, variants with stock, images and size charts (PRD §6.2, §6.3).
 
-- [ ] [web] Admin shell: collapsible sidebar (240px), top bar with search + user menu, mobile layout (`design.md` §8) *(done 2026-10-19 except the top-bar search, which arrives with the products list)*
+- [x] [web] Admin shell: collapsible sidebar (240px), top bar with search + user menu, mobile layout (`design.md` §8) (2026-10-19; top-bar search opens the products list)
 - [x] [web] Dashboard home placeholder (real stats arrive in Phase 5) (2026-10-19)
 - [x] [api] `categories`, `collections`: CRUD, slug generation, sort order, show-on-home flag, photo from the media library (migration `20261019000000_catalog_images`) (2026-10-19)
 - [x] [api] Colours and sizes: CRUD (`/admin/colors`, `/admin/sizes`) (2026-10-19)
 - [x] [api] `size-charts`: templates — editable in the dashboard (PRD §6.7) (2026-10-19). *Custom per-product tables arrive with the product editor.*
-- [ ] [api] `products`: CRUD with draft/published/archived status, featured flag, SEO fields, sale price + window, low-stock override, duplicate product
-- [ ] [api] Variants: generate from sizes × colours, SKU, stock, price override, active flag. Quick stock edit endpoint
+- [x] [api] `products`: CRUD with draft/published/archived status, featured flag, SEO fields, sale price + window, low-stock override, duplicate product (2026-10-19)
+- [x] [api] Variants: generate from sizes × colours, SKU, stock, price override, active flag. Quick stock edit endpoint (2026-10-19; `expectedStock` guard)
 - [x] [repo] Supabase: bucket `media` (public, `image/webp`, 2 MB) + S3 access keys in `apps/api/.env` (2026-10-18)
 - [x] [api] `media` module: `POST /admin/media` (sharp pipeline: content check, 40 MP cap, metadata strip, WebP 400/800/1200/1600 + blur), S3 upload, `MediaAsset`, `GET /admin/media`, `DELETE /admin/media/:id` when unreferenced — verified end to end on Supabase
-- [ ] [api] Product images reference media (order, main image, per-colour images)
+- [x] [api] Product images reference media (order, main image, per-colour images) (2026-10-19)
 - [x] [web] `components/store/media-image.tsx` (srcset over stored renditions)
-- [ ] [web] Image picker/uploader component in the dashboard (with the product editor) *(single-photo `components/admin/image-picker.tsx` done and used by categories/collections; upload untested here — no storage keys in this environment; multi-image product gallery still to do)*
+- [x] [web] Image picker/uploader component in the dashboard (with the product editor) (2026-10-19: single-photo picker + product gallery; upload not yet tried against real storage)
 - [x] [api] `revalidation` service calling the web's `/api/revalidate` after catalog writes (verified end to end, 2026-10-19)
-- [ ] [web] Admin screens: categories (incl. photo, order, show on home), collections, sizes, colours, size charts, products list (search, filters, sort by stock), product editor (tabs: details, pricing, images, variants, size chart, SEO), inline variant stock table *(categories, collections, sizes, colours, size charts done 2026-10-19)*
+- [x] [web] Admin screens: categories (incl. photo, order, show on home), collections, sizes, colours, size charts, products list (search, filters, sort by stock), product editor (tabs: details, pricing, images, variants, size chart, SEO), inline variant stock table (2026-10-19; not yet checked in a browser)
 - [x] [web] `app/api/revalidate` route (secret-checked `revalidateTag`) (2026-10-19)
-- [ ] [web] TanStack Query hooks + key factories for each module, with mutations invalidating the right keys *(category, collection, size, color, size-chart, upload done)*
+- [x] [web] TanStack Query hooks + key factories for each module, with mutations invalidating the right keys (2026-10-19)
 - [ ] [api] Export building blocks (`common/export/`: columns, CSV writer with BOM + injection guard, exceljs XLSX writer, streaming `ExportService`) + tests — install `exceljs`
 - [ ] [api] `GET /admin/products/export` (variants with stock) — Owner only
 - [ ] [web] `components/admin/export-menu.tsx` (CSV / Excel) on the products list
-- [ ] [api] Tests: slug uniqueness, variant generation, sale-price window, Staff read-only on products *(slug uniqueness + Staff read-only on categories/collections/sizes/colours done: `test/catalog.e2e-spec.ts`, `unique-slug.spec.ts`)*
+- [ ] [api] Tests: slug uniqueness, variant generation, sale-price window, Staff read-only on products *(written 2026-10-19: unit `product.test.ts`, `sku.spec.ts`; e2e `test/products.e2e-spec.ts` — **the DB e2e suites have not run yet**, no test database here)*
 
 **Exit criteria:** the Owner creates a product with 2 colours × 4 sizes, uploads images, sets stock and publishes it. Staff can view but not edit products. Editing a product triggers revalidation.
 

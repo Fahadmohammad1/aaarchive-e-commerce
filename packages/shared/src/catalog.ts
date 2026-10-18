@@ -191,47 +191,59 @@ function duplicateIndexes(values: readonly string[]): number[] {
   return dupes;
 }
 
-/**
- * Create and update share one schema: a chart is always saved whole, because
- * columns and rows only make sense together.
- */
-export const sizeChartInputSchema = z
-  .strictObject({
-    name: nameSchema,
-    columns: z
-      .array(headerSchema)
-      .min(SIZE_CHART_MIN_COLUMNS, { message: "TOO_FEW_COLUMNS" })
-      .max(SIZE_CHART_MAX_COLUMNS, { message: "TOO_MANY_COLUMNS" }),
-    rows: z
-      // [size label, ...measurements]
-      .array(z.tuple([sizeLabelSchema], measurementSchema))
-      .min(1, { message: "TOO_FEW_ROWS" })
-      .max(SIZE_CHART_MAX_ROWS, { message: "TOO_MANY_ROWS" }),
-  })
-  .superRefine(({ columns, rows }, ctx) => {
-    for (const i of duplicateIndexes(columns)) {
-      ctx.addIssue({
-        code: "custom",
-        message: "DUPLICATE",
-        path: ["columns", i],
-      });
-    }
-    rows.forEach((row, i) => {
-      if (row.length !== columns.length) {
-        ctx.addIssue({
-          code: "custom",
-          message: "ROW_LENGTH",
-          path: ["rows", i],
-        });
-      }
+const sizeChartTableFields = {
+  columns: z
+    .array(headerSchema)
+    .min(SIZE_CHART_MIN_COLUMNS, { message: "TOO_FEW_COLUMNS" })
+    .max(SIZE_CHART_MAX_COLUMNS, { message: "TOO_MANY_COLUMNS" }),
+  rows: z
+    // [size label, ...measurements]
+    .array(z.tuple([sizeLabelSchema], measurementSchema))
+    .min(1, { message: "TOO_FEW_ROWS" })
+    .max(SIZE_CHART_MAX_ROWS, { message: "TOO_MANY_ROWS" }),
+};
+
+function checkTable(
+  { columns, rows }: { columns: string[]; rows: string[][] },
+  ctx: z.RefinementCtx,
+) {
+  for (const i of duplicateIndexes(columns)) {
+    ctx.addIssue({
+      code: "custom",
+      message: "DUPLICATE",
+      path: ["columns", i],
     });
-    for (const i of duplicateIndexes(rows.map((row) => row[0] ?? ""))) {
+  }
+  rows.forEach((row, i) => {
+    if (row.length !== columns.length) {
       ctx.addIssue({
         code: "custom",
-        message: "DUPLICATE",
-        path: ["rows", i, 0],
+        message: "ROW_LENGTH",
+        path: ["rows", i],
       });
     }
   });
+  for (const i of duplicateIndexes(rows.map((row) => row[0] ?? ""))) {
+    ctx.addIssue({
+      code: "custom",
+      message: "DUPLICATE",
+      path: ["rows", i, 0],
+    });
+  }
+}
+
+/** The table alone: a product's custom size chart (`@aaarchive/shared/product`). */
+export const sizeChartTableSchema = z
+  .strictObject(sizeChartTableFields)
+  .superRefine(checkTable);
+export type SizeChartTable = z.input<typeof sizeChartTableSchema>;
+
+/**
+ * A named template. Create and update share one schema: a chart is always
+ * saved whole, because columns and rows only make sense together.
+ */
+export const sizeChartInputSchema = z
+  .strictObject({ name: nameSchema, ...sizeChartTableFields })
+  .superRefine(checkTable);
 export type SizeChartInput = z.input<typeof sizeChartInputSchema>;
 export type SizeChartValues = z.output<typeof sizeChartInputSchema>;

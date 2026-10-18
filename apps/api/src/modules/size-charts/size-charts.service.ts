@@ -29,9 +29,11 @@ export class SizeChartsService {
   ) {}
 
   async list({ q, page, limit }: ListQuery) {
-    const where = q
-      ? { name: { contains: q, mode: "insensitive" as const } }
-      : {};
+    // Products' custom tables (isTemplate = false) are edited in the product.
+    const where = {
+      isTemplate: true,
+      ...(q && { name: { contains: q, mode: "insensitive" as const } }),
+    };
     const [rows, total] = await Promise.all([
       this.prisma.sizeChart.findMany({
         where,
@@ -46,8 +48,8 @@ export class SizeChartsService {
   }
 
   async get(id: string): Promise<AdminSizeChart> {
-    const row = await this.prisma.sizeChart.findUnique({
-      where: { id },
+    const row = await this.prisma.sizeChart.findFirst({
+      where: { id, isTemplate: true },
       include,
     });
     if (!row) throw notFound();
@@ -63,7 +65,7 @@ export class SizeChartsService {
   async update(id: string, input: SizeChartValues): Promise<AdminSizeChart> {
     await this.assertNameFree(input.name, id);
     const row = await this.prisma.sizeChart
-      .update({ where: { id }, data: input, include })
+      .update({ where: { id, isTemplate: true }, data: input, include })
       .catch(rethrow);
     // The chart shows in the size-chart modal of every product using it.
     if (row._count.products > 0) {
@@ -83,13 +85,16 @@ export class SizeChartsService {
         code: "SIZE_CHART_IN_USE",
       });
     }
-    await this.prisma.sizeChart.delete({ where: { id } }).catch(rethrow);
+    await this.prisma.sizeChart
+      .delete({ where: { id, isTemplate: true } })
+      .catch(rethrow);
   }
 
   /** Names pick a chart in the product editor, so two charts never share one. */
   private async assertNameFree(name: string, exceptId?: string) {
     const clash = await this.prisma.sizeChart.findFirst({
       where: {
+        isTemplate: true,
         name: { equals: name, mode: "insensitive" },
         ...(exceptId ? { id: { not: exceptId } } : {}),
       },

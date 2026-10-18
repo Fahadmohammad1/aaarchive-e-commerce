@@ -43,7 +43,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   {
     label: "catalog",
     items: [
-      { label: "products", href: "/admin/products", icon: Package, soon: true },
+      { label: "products", href: "/admin/products", icon: Package },
       { label: "categories", href: "/admin/categories", icon: FolderTree },
       { label: "collections", href: "/admin/collections", icon: Layers },
       { label: "sizes", href: "/admin/sizes", icon: Type },
