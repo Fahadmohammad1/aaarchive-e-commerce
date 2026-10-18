@@ -42,10 +42,12 @@ export async function createUser(
   app: INestApplication<App>,
   role: "OWNER" | "STAFF" | "CUSTOMER",
   password: string,
+  /** Suites running in parallel use their own domain so clean-ups never collide. */
+  emailDomain = "aaarchive.test",
 ) {
   const { PrismaService } = await import("../src/prisma/prisma.service.js");
   const prisma = app.get(PrismaService);
-  const email = `test-${randomUUID()}@aaarchive.test`;
+  const email = `test-${randomUUID()}@${emailDomain}`;
   const user = await prisma.user.create({
     data: {
       name: `Test ${role}`,

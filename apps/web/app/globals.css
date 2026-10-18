@@ -89,8 +89,11 @@
 /* Admin is denser, slightly rounded and Inter throughout (design §8).
    --font-display / --font-heading are re-declared here (not --font-alfa-slab):
    a custom property that references another is resolved where it is defined,
-   so the :root versions have already locked in the slab face. */
-.admin {
+   so the :root versions have already locked in the slab face.
+   html:has(.admin) carries the same values to dialogs, menus and sheets,
+   which Radix portals mount on <body>, outside the .admin wrapper. */
+.admin,
+html:has(.admin) {
   --radius: 0.25rem;
   --font-display: var(--font-inter), var(--font-hind), system-ui, sans-serif;
   --font-heading: var(--font-display);

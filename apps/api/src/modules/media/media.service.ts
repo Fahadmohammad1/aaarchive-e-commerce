@@ -23,6 +23,9 @@ type AssetRow = {
   createdAt: Date;
 };
 
+/** A stored image reference resolved for the dashboard. */
+export type ImageRef = { mediaId: string; alt: string; media: MediaAsset };
+
 const PREFIX: Record<MediaPurpose, string> = {
   product: "products",
   content: "content",
@@ -122,7 +125,7 @@ export class MediaService {
       });
     if (await this.isReferenced(id)) {
       throw new ConflictException({
-        message: "This image is still used by a product or page",
+        message: "This image is still used by a product, category or page",
         code: "MEDIA_IN_USE",
       });
     }
@@ -132,17 +135,45 @@ export class MediaService {
     await this.prisma.mediaAsset.delete({ where: { id } });
   }
 
+  /**
+   * Throws 400 MEDIA_NOT_FOUND unless the image exists. Used by catalog
+   * writes that store a `{ mediaId, alt }` reference.
+   */
+  async assertExists(id: string): Promise<void> {
+    const found = await this.prisma.mediaAsset.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!found) {
+      throw new BadRequestException({
+        message: "The chosen image no longer exists",
+        code: "MEDIA_NOT_FOUND",
+      });
+    }
+  }
+
+  /** `{ mediaId, alt, media }` for an admin response, or null. */
+  toImageRef(row: AssetRow | null, alt: string | null): ImageRef | null {
+    if (!row) return null;
+    return { mediaId: row.id, alt: alt ?? "", media: this.toDto(row) };
+  }
+
   private async isReferenced(id: string): Promise<boolean> {
-    const [products, content, settings] = await Promise.all([
-      this.prisma.productImage.count({ where: { mediaId: id } }),
-      // Content blocks and settings store { mediaId, alt } inside JSON.
-      this.prisma.$queryRaw<{ n: number }[]>`
+    const [products, categories, collections, content, settings] =
+      await Promise.all([
+        this.prisma.productImage.count({ where: { mediaId: id } }),
+        this.prisma.category.count({ where: { imageId: id } }),
+        this.prisma.collection.count({ where: { imageId: id } }),
+        // Content blocks and settings store { mediaId, alt } inside JSON.
+        this.prisma.$queryRaw<{ n: number }[]>`
         select count(*)::int as n from "ContentBlock" where data::text like ${`%"mediaId":"${id}"%`}`,
-      this.prisma.$queryRaw<{ n: number }[]>`
+        this.prisma.$queryRaw<{ n: number }[]>`
         select count(*)::int as n from "Setting" where value::text like ${`%"mediaId":"${id}"%`}`,
-    ]);
+      ]);
     return (
-      products > 0 || (content[0]?.n ?? 0) > 0 || (settings[0]?.n ?? 0) > 0
+      products + categories + collections > 0 ||
+      (content[0]?.n ?? 0) > 0 ||
+      (settings[0]?.n ?? 0) > 0
     );
   }
 

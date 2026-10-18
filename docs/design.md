@@ -578,7 +578,10 @@ The admin prioritises **speed and clarity** over editorial style.
 - Same colour tokens, but **no grain, no giant wordmark, no stitch dividers**.
 - Font: **Inter** for everything; JetBrains Mono for numbers, SKUs, order numbers, TrxIDs.
 - Radius: 4px (slight) for usability; components from **shadcn/ui** themed with our tokens.
-- Layout: left sidebar 240px (collapsible to icons), top bar with search + user menu, content max 1400px.
+- Layout: left sidebar 240px (collapsible to a 64px icon rail, remembered per device), top bar with search + user menu, content max 1400px. Sidebar groups: Dashboard/Orders · Catalog · Sales · Store; screens not built yet show greyed with a mono "SOON" tag. Active item: `--sidebar-accent` background + marigold text. On phones the same nav opens as a left Sheet from a menu button; nav rows are ≥ 44px tall there.
+- Screens: page header (title, one-line intro, primary action on the right; stacked on mobile), then a table. Create/edit happens in a dialog; delete asks in an alert dialog that shows the API error inline. On phones, tables keep name + actions and drop secondary columns (`hidden sm:table-cell`); a flag like "show on home" becomes a small badge under the name.
+- Photo fields (`components/admin/image-picker.tsx`): 4:5 thumbnail, "Upload photo" / "Choose from library" (grid dialog) / remove, and an alt-text field once a photo is chosen.
+- Portals: dialogs, menus and sheets mount on `<body>`, so the admin values (`--radius`, Inter headings) are also set on `html:has(.admin)`.
 - Tables: dense rows (44px), sticky header, row hover `--bg-raised`, status badges:
 
 | Status | Badge |
@@ -723,7 +726,7 @@ The admin prioritises **speed and clarity** over editorial style.
 - **Type scale:** utilities `type-display-xl|lg|md|sm`, `type-mono-body|label|micro`, `type-text-body` (they set the font, size, line height, tracking and uppercase from §3.2).
 - **Helpers:** `site-container` (§4.1 gutters + 1320px max), `grain-overlay`, `spotlight`, `wordmark-outline` / `wordmark-filled`, `kantha-stitch`, `scrollbar-none`.
 - **Radius:** `--radius: 0` (storefront). The admin wraps its layout in `.admin`, which sets `--radius: 0.25rem` (§8).
-- **Components:** shadcn/ui (`components/ui/`) is the base for **both** storefront and admin. Storefront pieces in `components/store/` wrap shadcn (Tag = Badge, ArrowButton = Button, menu = Sheet, tabs = Tabs) and apply this document's rules. Custom variants added to shadcn: Button `cream`; Badge `sale`, `stock-out`.
+- **Components:** shadcn/ui (`components/ui/`) is the base for **both** storefront and admin. Storefront pieces in `components/store/` wrap shadcn (Tag = Badge, ArrowButton = Button, menu = Sheet, tabs = Tabs) and apply this document's rules. Custom variants added to shadcn: Button `cream`; Badge `sale`, `stock-out`. Admin primitives in use: button, badge, card, input, label, textarea, switch, table, skeleton, dialog, alert-dialog, dropdown-menu, sheet, tabs. *(2026-10-19: dialog, alert-dialog, dropdown-menu, switch, textarea, table and skeleton were written by hand from shadcn's radix-nova source because the shadcn registry host was blocked in the build environment; re-run `bunx shadcn@latest add <name> --overwrite` when it is reachable and keep any theming.)*
 
 ---
 

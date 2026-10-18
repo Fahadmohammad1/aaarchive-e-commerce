@@ -230,24 +230,28 @@ apps/web/
 │   ├── admin/
 │   │   ├── login/                 # outside the guarded layout
 │   │   └── (panel)/               # guarded: sidebar + top bar + RequireAdmin
-│   │       ├── _components/
+│   │       ├── _components/       # admin-shell (sidebar 240px ↔ 64px rail, mobile Sheet), admin-nav(.ts, -list),
+│   │       │                      #   admin-top-bar (user menu), require-admin, dashboard-welcome
+│   │       ├── categories/ · collections/ · sizes/ · colors/   # list + dialog forms (_components/)
 │   │       ├── orders/[id]/ · products/new/ · products/[id]/
-│   │       ├── categories/ · collections/ · customers/[phone]/ · coupons/
+│   │       ├── customers/[phone]/ · coupons/
 │   │       ├── content/ · settings/
 │   └── api/revalidate/            # the ONLY route handler: cache-tag webhook from the API
 ├── components/
 │   ├── ui/                        # shadcn/ui primitives — the base for storefront and admin
 │   ├── store/                     # storefront pieces on shadcn: Logo, Tag, ArrowButton, ScrollSlider, ProductCard, CategoryCard,
 │   │                              #   SectionHeading, IndexMarkers, KanthaDivider, Wordmark, ColorSwatches
-│   ├── admin/                     # admin building blocks used by several screens: DataTable, StatusBadge…
+│   ├── admin/                     # admin building blocks: page-header, list-state, form-field, switch-field,
+│   │                              #   confirm-delete-dialog, image-picker (upload + library + alt), group-thumb,
+│   │                              #   catalog-group-form-dialog (categories + collections)
 │   └── providers/                 # QueryProvider, AuthProvider, AnalyticsProvider
 ├── lib/
-│   ├── api/                       # shared transport core — NOT a module
-│   ├── i18n/                      # en.ts (every UI string), i18n.ts (getMessages, format); bn.ts in Release 2
+│   ├── api/                       # shared transport core — NOT a module (+ paged.ts: `{ data, meta }` schema helper)
+│   ├── i18n/                      # en.ts (every UI string), i18n.ts (getMessages, format), error-text.ts (code → text); bn.ts in Release 2
 │   ├── analytics/                 # GA4 / Pixel / Clarity event helpers
 │   ├── utils.ts                   # cn() (shadcn)
 │   ├── content/home-fixtures.ts   # TEMPORARY home-page data (Unsplash placeholders) until Phase 6 wires GET /content/home
-│   ├── auth/ · product/ · category/ · collection/ · size-chart/ · cart/ · order/
+│   ├── auth/ · product/ · category/ · collection/ · size/ · color/ · size-chart/ · cart/ · order/
 │   └── payment/ · coupon/ · delivery-zone/ · customer/ · content/ · settings/ · upload/
 └── public/
     ├── logo.png · logo.jpeg       # logo originals as supplied (black background)
@@ -309,7 +313,8 @@ apps/api/
 ├── AGENTS.md · CLAUDE.md          # api-specific agent notes
 ├── prisma/
 │   ├── schema.prisma              # models from PRD §7 (Phase 0)
-│   ├── migrations/                # 20261018000000_init (+ order_number_seq, RLS), 20261018120000_content_blocks_faq
+│   ├── migrations/                # 20261018000000_init (+ order_number_seq, RLS), …_content_blocks_faq, …_lock_down_supabase_roles,
+│   │                              #   …_auth_sessions, …_media_assets, 20261019000000_catalog_images, 20261019010000_drop_legacy_catalog_image
 │   └── seed.ts                    # idempotent: sizes, colours, zones, settings, text-only content blocks
 ├── prisma.config.ts               # Prisma CLI config (schema, migrations, DIRECT_URL)
 ├── .env.example
@@ -322,13 +327,18 @@ apps/api/
 │   │   ├── pipes/zod-validation.pipe.ts
 │   │   ├── auth/                  # JwtAuthGuard, RolesGuard, SameOriginGuard, @Public/@Roles/@CurrentUser
 │   │   ├── security/              # ProxySecretMiddleware
+│   │   ├── prisma/prisma-errors.ts # isUniqueViolation / isForeignKeyViolation / isNotFound
+│   │   ├── slug/unique-slug.ts    # "hoodies" → "hoodies-2"… (+ spec)
 │   ├── prisma/                    # global PrismaService
 │   ├── health/                    # GET /api/v1/health
 │   ├── generated/prisma/          # generated client (git-ignored)
 │   └── modules/                   # one folder per domain (empty until its phase)
 │       ├── auth/                  # login, refresh, logout, change password, Turnstile, password policy
 │       ├── users/
-│       ├── products/ · categories/ · collections/ · size-charts/
+│       ├── categories/ · collections/ · sizes/ · colors/   # admin CRUD (Phase 2): admin-*.controller, service, mapper
+│       ├── media/                 # upload pipeline, library, delete-when-unreferenced
+│       ├── revalidation/          # RevalidationService (global): POST tags to the web's /api/revalidate
+│       ├── products/ · size-charts/
 │       ├── cart/ · orders/ · payments/ · coupons/ · delivery-zones/
 │       ├── customers/ · content/ · settings/ · uploads/ · reports/
 │       └── revalidation/ · mail/
@@ -376,10 +386,11 @@ request → helmet/CORS → body limit (100 KB) → ProxySecretMiddleware → /a
 ### 4.6 Endpoints (PRD §8.3, under `/api/v1`)
 
 - **Public:** `GET /products`, `GET /products/:slug`, `GET /search`, `POST /cart/validate`, `POST /coupons/apply`, `POST /orders`, `POST /orders/track`, `GET /categories`, `GET /collections`, `GET /content/home` (all home sections, resolved), `GET /content/site` (announcement, navigation, footer), `GET /pages/:slug`, `GET /faq`, `GET /settings/public` (logo, contact links, SEO defaults — never payment numbers' admin notes or secrets), `GET /feeds/facebook.xml`.
+- **Admin, built (Phase 2):** `GET|POST /admin/categories`, `GET|PATCH|DELETE /admin/categories/:id`; same for `/admin/collections`; `GET|POST /admin/sizes`, `PATCH|DELETE /admin/sizes/:id`; same for `/admin/colors`; `POST|GET /admin/media`, `DELETE /admin/media/:id`. Reads OWNER/STAFF, writes OWNER only. Lists take `q`, `page`, `limit` (≤ 100, default 100) and return `{ data, meta }`. Responses: category `{ id, name, slug, description, image: { mediaId, alt, media } | null, sortOrder, showOnHome, productCount, createdAt, updatedAt }` (collection adds `isActive`); size `{ id, name, sortOrder, variantCount }` (colour adds `hex`). Slugs are generated from the name when omitted (`hoodies`, `hoodies-2`…), kept on rename, `409 SLUG_TAKEN` when taken; deleting a category with products → `409 CATEGORY_IN_USE`, a size/colour used by variants → `409 SIZE_IN_USE` / `COLOR_IN_USE`; deleting a collection only unlinks its products.
 - **Admin** (auth + role on every route): CRUD `/admin/products`, `/admin/variants`, `/admin/categories`, `/admin/collections`, `/admin/sizes`, `/admin/colors`, `/admin/size-charts`, `/admin/coupons`, `/admin/zones`, `/admin/pages`, `/admin/faq`, `/admin/social-posts`, `/admin/blocked-phones`. Content: `GET /admin/content`, `GET|PUT /admin/content/:key`. Settings: `GET|PUT /admin/settings/:key`. Also `GET /admin/orders`, `PATCH /admin/orders/:id/status`, `POST /admin/orders/:id/notes`, `POST /admin/payments/:id/verify|reject`, `GET /admin/reports/summary`, `POST /admin/uploads/sign`.
 - **Infra:** `GET /health`.
 
-After an admin write that changes the storefront, the service calls `RevalidationService.revalidate(tags)`. That POSTs to `FRONTEND_REVALIDATE_URL` with `REVALIDATE_SECRET`. A failure is logged, not thrown.
+After an admin write that changes the storefront, the service calls `RevalidationService.revalidate(tags)` (global `modules/revalidation/`), without awaiting it. That POSTs `{ tags }` to `FRONTEND_REVALIDATE_URL` with the `x-revalidate-secret` header (5 s timeout, ≤ 50 tags, a no-op when the URL is unset). A failure is logged, not thrown. Tag names come from `@aaarchive/shared/cache-tags` so both apps use the same strings; the web's `app/api/revalidate/route.ts` checks the secret (constant-time), validates the body and calls `revalidateTag(tag, "max")`. Categories revalidate `categories`, `category:<slug>` (old and new), `home`, `products`; collections the same with `collection…`; sizes/colours `products` when used by variants.
 
 ### 4.7 Editable content (PRD §6.7)
 
@@ -500,6 +511,9 @@ Code both apps need, written once. Compiled with `tsc` to `dist/` (ESM + `.d.ts`
 | `@aaarchive/shared/phone` | `normalizeBdPhone()`, `maskBdPhone()`, `bdPhoneSchema` (error message is the code `INVALID_BD_PHONE`, which the web translates through `lib/i18n`) |
 | `@aaarchive/shared/stock` | `STOCK_STATUSES`, `stockStatusSchema`, `stockStatusFor()`, default threshold (3) and max qty (5) |
 | `@aaarchive/shared/order` | order status, payment status and payment method enums + schemas |
+| `@aaarchive/shared/catalog` | `slugSchema`, `slugify()`, create + update schemas for categories, collections, sizes, colours (update schemas have **no defaults**: Zod 4 applies defaults inside `.partial()`), `catalogListQuerySchema` |
+| `@aaarchive/shared/cache-tags` | `cacheTags` (storefront cache tag names), `REVALIDATE_SECRET_HEADER`, `REVALIDATE_MAX_TAGS` |
+| `@aaarchive/shared/media` | media purposes, widths, upload limits, `mediaAssetSchema`, `pickRendition()` |
 | `@aaarchive/shared/content` | `contentSchemas` registry for every editable section (PRD §6.7), plus `imageSchema`, `linkSchema`, `hrefSchema` (blocks `javascript:` and plain http), `PROMISE_ICONS` |
 
 Rules:

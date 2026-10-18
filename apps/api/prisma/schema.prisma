@@ -146,32 +146,43 @@ model Category {
   id          String   @id @default(cuid())
   name        String
   slug        String   @unique
-  image       String?
+  /// Photo from the media library (docs/architecture.md §4.7a).
+  imageId     String?
+  imageAlt    String?
   description String?
   sortOrder   Int      @default(0)
   showOnHome  Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  products Product[]
+  /// Restrict: a stored image cannot be deleted while a category uses it.
+  imageMedia MediaAsset? @relation("CategoryImage", fields: [imageId], references: [id], onDelete: Restrict)
+  products   Product[]
 
   @@index([sortOrder])
+  @@index([imageId])
 }
 
 model Collection {
   id          String   @id @default(cuid())
   name        String
   slug        String   @unique
-  image       String?
+  /// Photo from the media library (docs/architecture.md §4.7a).
+  imageId     String?
+  imageAlt    String?
   description String?
   sortOrder   Int      @default(0)
   isActive    Boolean  @default(true)
+  showOnHome  Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  products ProductCollection[]
+  /// Restrict: a stored image cannot be deleted while a collection uses it.
+  imageMedia MediaAsset?         @relation("CollectionImage", fields: [imageId], references: [id], onDelete: Restrict)
+  products   ProductCollection[]
 
   @@index([isActive, sortOrder])
+  @@index([imageId])
 }
 
 model Product {
@@ -257,6 +268,8 @@ model MediaAsset {
 
   uploadedBy    User?          @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
   productImages ProductImage[]
+  categories    Category[]     @relation("CategoryImage")
+  collections   Collection[]   @relation("CollectionImage")
 
   @@index([purpose, createdAt])
   @@index([uploadedById])
