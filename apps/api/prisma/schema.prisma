@@ -146,8 +146,6 @@ model Category {
   id          String   @id @default(cuid())
   name        String
   slug        String   @unique
-  /// Unused since 2026-10-19 (replaced by imageId); drop once the owner approves.
-  image       String?
   /// Photo from the media library (docs/architecture.md §4.7a).
   imageId     String?
   imageAlt    String?
@@ -169,8 +167,6 @@ model Collection {
   id          String   @id @default(cuid())
   name        String
   slug        String   @unique
-  /// Unused since 2026-10-19 (replaced by imageId); drop once the owner approves.
-  image       String?
   /// Photo from the media library (docs/architecture.md §4.7a).
   imageId     String?
   imageAlt    String?

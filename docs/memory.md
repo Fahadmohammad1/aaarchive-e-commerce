@@ -10,6 +10,8 @@ Living log of where the project stands. **Every agent updates this at the end of
 
 ## Completed
 
+- **2026-10-18** [api] — User approved applying the catalog migration to Supabase and dropping the unused `Category.image` / `Collection.image` columns. New migration `20261019010000_drop_legacy_catalog_image` (drops both columns), applied to the local Postgres with no drift; typecheck, 30 unit and 22 e2e tests pass. Not yet applied to Supabase: no credentials in this cloud session — the user runs `db:deploy`.
+
 - **2026-10-19** [api][web][shared] — Phase 2, first slice: admin shell + categories, collections, sizes, colours + storefront revalidation.
   - Shared: `@aaarchive/shared/catalog` (`slugSchema`, `slugify`, create/update schemas — update schemas carry no defaults because Zod 4 fills defaults inside `.partial()`), `@aaarchive/shared/cache-tags` (tag names + revalidate header). 15 new tests (42 total).
   - API: migration `20261019000000_catalog_images` (additive: `Category`/`Collection.imageId` → `MediaAsset` Restrict, `imageAlt`; `Collection.showOnHome`), applied to a local Postgres with no drift — **not applied to Supabase** (needs the user's go-ahead). Modules `categories`, `collections`, `sizes`, `colors` (admin controllers: reads OWNER/STAFF, writes OWNER; `409 SLUG_TAKEN / NAME_TAKEN / CATEGORY_IN_USE / SIZE_IN_USE / COLOR_IN_USE`, `400 MEDIA_NOT_FOUND`), global `revalidation` (`RevalidationService`), `common/slug/unique-slug.ts`, `common/prisma/prisma-errors.ts`; `MediaService.assertExists/toImageRef`, media delete also checks categories/collections. Tests: 7 new unit (30 total), `test/catalog.e2e-spec.ts` 7 cases (22 e2e total). `createUser()` test helper takes an email domain so parallel suites' clean-ups no longer delete each other's users.
@@ -106,7 +108,7 @@ Living log of where the project stands. **Every agent updates this at the end of
 
 ## Next up
 
-1. [api] Apply migration `20261019000000_catalog_images` to Supabase (`db:deploy`) once the user approves; check a category photo upload end to end there.
+1. [api] **User to run** `bun run --filter @aaarchive/api db:deploy` on their machine (this cloud session has no Supabase credentials): applies `20261019000000_catalog_images` + `20261019010000_drop_legacy_catalog_image`. Then check a category photo upload end to end.
 2. [api][web] Size charts: `/admin/size-charts` (templates + custom table) + screen.
 3. [api][web] Products: CRUD, status, sale window, duplicate; variants from sizes × colours, quick stock edit; product images (gallery picker); products list with search (also wire the top-bar search); product editor tabs.
 4. [api][web] Export building blocks + products export (install `exceljs` after asking).
@@ -132,7 +134,6 @@ Living log of where the project stands. **Every agent updates this at the end of
 
 ## Blockers / open questions
 
-- **2026-10-19** Old free-text `Category.image` / `Collection.image` columns are unused (replaced by `imageId` + `imageAlt`); dropping them is destructive → needs the user's approval (tables are empty).
 - **2026-10-19** `ui.shadcn.com` is blocked by this cloud environment's network policy, so `bunx shadcn add` fails here; allow the host in the environment settings or re-add the hand-written primitives later (`design.md` §12.1).
 
 - `SEED_OWNER_PASSWORD` is still in `apps/api/.env`; user to remove it once the password is saved elsewhere.

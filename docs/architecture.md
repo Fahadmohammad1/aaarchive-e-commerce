@@ -314,7 +314,7 @@ apps/api/
 ├── prisma/
 │   ├── schema.prisma              # models from PRD §7 (Phase 0)
 │   ├── migrations/                # 20261018000000_init (+ order_number_seq, RLS), …_content_blocks_faq, …_lock_down_supabase_roles,
-│   │                              #   …_auth_sessions, …_media_assets, 20261019000000_catalog_images
+│   │                              #   …_auth_sessions, …_media_assets, 20261019000000_catalog_images, 20261019010000_drop_legacy_catalog_image
 │   └── seed.ts                    # idempotent: sizes, colours, zones, settings, text-only content blocks
 ├── prisma.config.ts               # Prisma CLI config (schema, migrations, DIRECT_URL)
 ├── .env.example
