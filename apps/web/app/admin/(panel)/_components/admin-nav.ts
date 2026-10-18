@@ -48,12 +48,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { label: "collections", href: "/admin/collections", icon: Layers },
       { label: "sizes", href: "/admin/sizes", icon: Type },
       { label: "colors", href: "/admin/colors", icon: Palette },
-      {
-        label: "sizeCharts",
-        href: "/admin/size-charts",
-        icon: Ruler,
-        soon: true,
-      },
+      { label: "sizeCharts", href: "/admin/size-charts", icon: Ruler },
     ],
   },
   {

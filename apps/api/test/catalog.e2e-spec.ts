@@ -57,6 +57,9 @@ describe.skipIf(!TEST_DB)("catalog admin (e2e, real database)", () => {
       where: { name: `Z${run.slice(0, 5)}` },
     });
     await owner.prisma.color.deleteMany({ where: { name: `E2E ${run}` } });
+    await owner.prisma.sizeChart.deleteMany({
+      where: { name: { startsWith: `E2E ${run}` } },
+    });
     // Only this suite's users: other e2e files run in parallel.
     await owner.prisma.user.deleteMany({
       where: { id: { in: [owner.id, staffId] } },
@@ -160,6 +163,7 @@ describe.skipIf(!TEST_DB)("catalog admin (e2e, real database)", () => {
       "/admin/collections",
       "/admin/sizes",
       "/admin/colors",
+      "/admin/size-charts",
     ]) {
       const res = await call("post", path, staffToken).send({
         name: `E2E ${run} S`,
@@ -212,6 +216,69 @@ describe.skipIf(!TEST_DB)("catalog admin (e2e, real database)", () => {
       hex: "#e4ddc0",
     });
     expect(color.body).toMatchObject({ hex: "#E4DDC0", variantCount: 0 });
+  });
+
+  it("saves size charts whole and keeps charts in use", async () => {
+    const chart = {
+      name: `E2E ${run} Hoodie`,
+      columns: ["Size", "Chest", "Length"],
+      rows: [
+        ["M", "40", "27.5"],
+        ["L", "42 – 44", ""],
+      ],
+    };
+    const created = await call("post", "/admin/size-charts", ownerToken).send(
+      chart,
+    );
+    expect(created.status).toBe(201);
+    expect(created.body).toMatchObject({
+      columns: chart.columns,
+      rows: [
+        ["M", "40", "27.5"],
+        ["L", "42-44", ""],
+      ],
+      productCount: 0,
+    });
+
+    const clash = await call("post", "/admin/size-charts", ownerToken).send({
+      ...chart,
+      name: chart.name.toUpperCase(),
+    });
+    expect(clash.status).toBe(409);
+    expect(clash.body.code).toBe("NAME_TAKEN");
+
+    const bad = await call(
+      "patch",
+      `/admin/size-charts/${created.body.id}`,
+      ownerToken,
+    ).send({ ...chart, rows: [["M", "40"]] });
+    expect(bad.status).toBe(400);
+
+    const category = await call("post", "/admin/categories", ownerToken).send({
+      name: `E2E ${run} Charts`,
+    });
+    await owner.prisma.product.create({
+      data: {
+        name: "E2E hoodie",
+        slug: `e2e-${run}-hoodie`,
+        basePrice: 2490,
+        categoryId: category.body.id,
+        sizeChartId: created.body.id,
+      },
+    });
+    const staffRead = await call(
+      "get",
+      `/admin/size-charts/${created.body.id}`,
+      staffToken,
+    );
+    expect(staffRead.body.productCount).toBe(1);
+    const inUse = await call(
+      "delete",
+      `/admin/size-charts/${created.body.id}`,
+      ownerToken,
+    );
+    expect(inUse.status).toBe(409);
+    expect(inUse.body.code).toBe("SIZE_CHART_IN_USE");
   });
 
   it("returns 404 for a missing record", async () => {

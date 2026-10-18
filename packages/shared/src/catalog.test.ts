@@ -4,6 +4,7 @@ import {
   categoryUpdateSchema,
   collectionInputSchema,
   colorInputSchema,
+  sizeChartInputSchema,
   sizeInputSchema,
   slugify,
   slugSchema,
@@ -93,5 +94,76 @@ describe("size and colour schemas", () => {
     expect(
       colorInputSchema.safeParse({ name: "Sand", hex: "#fff" }).success,
     ).toBe(false);
+  });
+});
+
+describe("sizeChartInputSchema", () => {
+  const chart = {
+    name: "Hoodie (regular fit)",
+    columns: ["Size", "Chest", "Length"],
+    rows: [
+      ["M", "40", "27.5"],
+      ["L", "42 – 44", ""],
+    ],
+  };
+
+  test("accepts numbers, ranges and empty cells, and normalises ranges", () => {
+    const parsed = sizeChartInputSchema.parse(chart);
+    expect(parsed.rows).toEqual([
+      ["M", "40", "27.5"],
+      ["L", "42-44", ""],
+    ]);
+  });
+
+  test("rejects text in a measurement cell, with the cell's path", () => {
+    const result = sizeChartInputSchema.safeParse({
+      ...chart,
+      rows: [["M", "forty", "27"]],
+    });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]).toMatchObject({
+      path: ["rows", 0, 1],
+      message: "INVALID_MEASUREMENT",
+    });
+  });
+
+  test("requires a size label and at least one measurement column", () => {
+    const noLabel = sizeChartInputSchema.safeParse({
+      ...chart,
+      rows: [[" ", "40", "27"]],
+    });
+    expect(noLabel.error?.issues[0]?.path).toEqual(["rows", 0, 0]);
+    const oneColumn = sizeChartInputSchema.safeParse({
+      ...chart,
+      columns: ["Size"],
+      rows: [["M"]],
+    });
+    expect(oneColumn.error?.issues[0]?.message).toBe("TOO_FEW_COLUMNS");
+  });
+
+  test("rejects rows that do not match the columns", () => {
+    const result = sizeChartInputSchema.safeParse({
+      ...chart,
+      rows: [["M", "40"]],
+    });
+    expect(result.error?.issues[0]).toMatchObject({
+      path: ["rows", 0],
+      message: "ROW_LENGTH",
+    });
+  });
+
+  test("flags repeated headers and size labels (ignoring case)", () => {
+    const result = sizeChartInputSchema.safeParse({
+      ...chart,
+      columns: ["Size", "Chest", "chest"],
+      rows: [
+        ["M", "40", "40"],
+        ["m", "42", "42"],
+      ],
+    });
+    expect(result.error?.issues.map((i) => i.path)).toEqual([
+      ["columns", 2],
+      ["rows", 1, 0],
+    ]);
   });
 });

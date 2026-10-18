@@ -5,10 +5,17 @@ Living log of where the project stands. **Every agent updates this at the end of
 ## Current status
 
 - **Phase:** 2 — Admin dashboard & catalog management (see `phases.md`)
-- **In progress:** Phase 2 — first slice done (shell, categories, collections, sizes, colours, revalidation). Next: size charts, then products + variants.
-- **File currently being worked on:** — (next: `apps/api/src/modules/size-charts/`)
+- **In progress:** Phase 2 — shell, categories, collections, sizes, colours, size charts, revalidation done. Next: products + variants.
+- **File currently being worked on:** — (next: `apps/api/src/modules/products/`)
 
 ## Completed
+
+- **2026-10-19** [shared][api][web] — Size chart templates.
+  - Shared: `sizeChartInputSchema` in `@aaarchive/shared/catalog` (2–8 columns, 1–20 rows; row = `[size label, ...measurements]` as a Zod tuple; cells are strings: number, decimal or range in inches, or empty; ranges normalised to `38-40`; duplicate headers/size labels → `DUPLICATE`, mismatched row → `ROW_LENGTH`). 5 new tests (47 total).
+  - API: `modules/size-charts/` (mapper, service, admin controller, module), registered in `app.module.ts`. One schema for POST and PATCH (always the whole chart), names unique ignoring case (`409 NAME_TAKEN`, checked in the service, no DB constraint), delete refused while products use it (`409 SIZE_CHART_IN_USE`), edits of a used chart revalidate `products`. No migration (the `SizeChart` table already existed). e2e case added to `test/catalog.e2e-spec.ts` (+ Staff 403 on POST).
+  - Web: `lib/size-chart/*`, `/admin/size-charts` (list: name, sizes, measurements, product count; editor dialog with an editable grid), nav item no longer "Soon", i18n strings + error codes.
+  - Verified: `check`, `typecheck`, unit tests (shared 47, api 30), `build`. **Not run:** the DB e2e suites (no `TEST_DATABASE_URL`, no Docker on this machine) and the in-browser check at 375px/desktop (needs an owner sign-in).
+  - Regenerated the Prisma client locally: it predated the catalog migrations, which broke `typecheck` here.
 
 - **2026-10-18** [api] — User approved applying the catalog migration to Supabase and dropping the unused `Category.image` / `Collection.image` columns. New migration `20261019010000_drop_legacy_catalog_image` (drops both columns), applied to the local Postgres with no drift; typecheck, 30 unit and 22 e2e tests pass. Not yet applied to Supabase: no credentials in this cloud session — the user runs `db:deploy`.
 
@@ -108,13 +115,13 @@ Living log of where the project stands. **Every agent updates this at the end of
 
 ## Next up
 
-1. [api] **User to run** `bun run --filter @aaarchive/api db:deploy` on their machine (this cloud session has no Supabase credentials): applies `20261019000000_catalog_images` + `20261019010000_drop_legacy_catalog_image`. Then check a category photo upload end to end.
-2. [api][web] Size charts: `/admin/size-charts` (templates + custom table) + screen.
-3. [api][web] Products: CRUD, status, sale window, duplicate; variants from sizes × colours, quick stock edit; product images (gallery picker); products list with search (also wire the top-bar search); product editor tabs.
-4. [api][web] Export building blocks + products export (install `exceljs` after asking).
+1. [web] On your machine: check a category photo upload end to end (all 7 migrations confirmed applied on Supabase 2026-10-19), and try `/admin/size-charts` at 375px and desktop.
+2. [api][web] Products: CRUD, status, sale window, duplicate; variants from sizes × colours, quick stock edit; product images (gallery picker); products list with search (also wire the top-bar search); product editor tabs.
+3. [api][web] Export building blocks + products export (install `exceljs` after asking).
 
 ## Decisions
 
+- **2026-10-19** [api] — Size charts: cells are strings (allow ranges like `38-40`), the API always takes the whole chart. Custom per-product tables (PRD §6.2) will be `SizeChart` rows flagged `isTemplate = false` (migration with the product editor) so the templates list stays clean.
 - **2026-10-17** — Backend is a separate NestJS app (supersedes PRD §8.1/§8.3, incl. Auth.js).
 - **2026-10-17** — Monorepo with Bun workspaces (`apps/web`, `apps/api`, `packages/shared`). Bun is the package manager; the apps still run on Node.
 - **2026-10-17** — Biome for lint + format across the repo (double quotes, semicolons, 2 spaces). `useImportType` off in `apps/api` (Nest DI).

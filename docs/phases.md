@@ -105,7 +105,7 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 - [x] [web] Dashboard home placeholder (real stats arrive in Phase 5) (2026-10-19)
 - [x] [api] `categories`, `collections`: CRUD, slug generation, sort order, show-on-home flag, photo from the media library (migration `20261019000000_catalog_images`) (2026-10-19)
 - [x] [api] Colours and sizes: CRUD (`/admin/colors`, `/admin/sizes`) (2026-10-19)
-- [ ] [api] `size-charts`: templates + custom tables — editable in the dashboard (PRD §6.7)
+- [x] [api] `size-charts`: templates — editable in the dashboard (PRD §6.7) (2026-10-19). *Custom per-product tables arrive with the product editor.*
 - [ ] [api] `products`: CRUD with draft/published/archived status, featured flag, SEO fields, sale price + window, low-stock override, duplicate product
 - [ ] [api] Variants: generate from sizes × colours, SKU, stock, price override, active flag. Quick stock edit endpoint
 - [x] [repo] Supabase: bucket `media` (public, `image/webp`, 2 MB) + S3 access keys in `apps/api/.env` (2026-10-18)
@@ -114,9 +114,9 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 - [x] [web] `components/store/media-image.tsx` (srcset over stored renditions)
 - [ ] [web] Image picker/uploader component in the dashboard (with the product editor) *(single-photo `components/admin/image-picker.tsx` done and used by categories/collections; upload untested here — no storage keys in this environment; multi-image product gallery still to do)*
 - [x] [api] `revalidation` service calling the web's `/api/revalidate` after catalog writes (verified end to end, 2026-10-19)
-- [ ] [web] Admin screens: categories (incl. photo, order, show on home), collections, sizes, colours, size charts, products list (search, filters, sort by stock), product editor (tabs: details, pricing, images, variants, size chart, SEO), inline variant stock table *(categories, collections, sizes, colours done 2026-10-19)*
+- [ ] [web] Admin screens: categories (incl. photo, order, show on home), collections, sizes, colours, size charts, products list (search, filters, sort by stock), product editor (tabs: details, pricing, images, variants, size chart, SEO), inline variant stock table *(categories, collections, sizes, colours, size charts done 2026-10-19)*
 - [x] [web] `app/api/revalidate` route (secret-checked `revalidateTag`) (2026-10-19)
-- [ ] [web] TanStack Query hooks + key factories for each module, with mutations invalidating the right keys *(category, collection, size, color, upload done)*
+- [ ] [web] TanStack Query hooks + key factories for each module, with mutations invalidating the right keys *(category, collection, size, color, size-chart, upload done)*
 - [ ] [api] Export building blocks (`common/export/`: columns, CSV writer with BOM + injection guard, exceljs XLSX writer, streaming `ExportService`) + tests — install `exceljs`
 - [ ] [api] `GET /admin/products/export` (variants with stock) — Owner only
 - [ ] [web] `components/admin/export-menu.tsx` (CSV / Excel) on the products list

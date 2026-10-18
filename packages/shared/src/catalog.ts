@@ -143,3 +143,95 @@ export const catalogListQuerySchema = z.strictObject({
 });
 /** What a caller sends (query strings are coerced by the schema). */
 export type CatalogListQuery = { q?: string; page?: number; limit?: number };
+
+// ── Size charts (PRD §5.5, §6.2, §6.8) ─────────────────────────────────────
+// A table in inches: the first column holds the size label ("M", "40"), the
+// others one measurement each ("Chest", "Length"…). Products pick one chart;
+// the storefront shows it in the size-chart modal.
+
+export const SIZE_CHART_MIN_COLUMNS = 2;
+export const SIZE_CHART_MAX_COLUMNS = 8;
+export const SIZE_CHART_MAX_ROWS = 20;
+
+/** "40", "27.5" or a range such as "38-40"; empty means "not measured". */
+const MEASUREMENT =
+  /^\d{1,3}(?:\.\d{1,2})?(?:\s*[-–]\s*\d{1,3}(?:\.\d{1,2})?)?$/;
+
+const headerSchema = z
+  .string()
+  .trim()
+  .min(1, { message: "REQUIRED" })
+  .max(20, { message: "TOO_LONG" });
+
+const sizeLabelSchema = z
+  .string()
+  .trim()
+  .min(1, { message: "REQUIRED" })
+  .max(12, { message: "TOO_LONG" });
+
+const measurementSchema = z
+  .string()
+  .trim()
+  .max(15, { message: "TOO_LONG" })
+  .refine((v) => v === "" || MEASUREMENT.test(v), {
+    message: "INVALID_MEASUREMENT",
+  })
+  // "38 – 40" → "38-40": one spelling for the modal.
+  .transform((v) => v.replace(/\s*[-–]\s*/, "-"));
+
+/** Path of the second and later occurrences of a value (case-insensitive). */
+function duplicateIndexes(values: readonly string[]): number[] {
+  const seen = new Set<string>();
+  const dupes: number[] = [];
+  values.forEach((value, i) => {
+    const key = value.trim().toLowerCase();
+    if (key && seen.has(key)) dupes.push(i);
+    seen.add(key);
+  });
+  return dupes;
+}
+
+/**
+ * Create and update share one schema: a chart is always saved whole, because
+ * columns and rows only make sense together.
+ */
+export const sizeChartInputSchema = z
+  .strictObject({
+    name: nameSchema,
+    columns: z
+      .array(headerSchema)
+      .min(SIZE_CHART_MIN_COLUMNS, { message: "TOO_FEW_COLUMNS" })
+      .max(SIZE_CHART_MAX_COLUMNS, { message: "TOO_MANY_COLUMNS" }),
+    rows: z
+      // [size label, ...measurements]
+      .array(z.tuple([sizeLabelSchema], measurementSchema))
+      .min(1, { message: "TOO_FEW_ROWS" })
+      .max(SIZE_CHART_MAX_ROWS, { message: "TOO_MANY_ROWS" }),
+  })
+  .superRefine(({ columns, rows }, ctx) => {
+    for (const i of duplicateIndexes(columns)) {
+      ctx.addIssue({
+        code: "custom",
+        message: "DUPLICATE",
+        path: ["columns", i],
+      });
+    }
+    rows.forEach((row, i) => {
+      if (row.length !== columns.length) {
+        ctx.addIssue({
+          code: "custom",
+          message: "ROW_LENGTH",
+          path: ["rows", i],
+        });
+      }
+    });
+    for (const i of duplicateIndexes(rows.map((row) => row[0] ?? ""))) {
+      ctx.addIssue({
+        code: "custom",
+        message: "DUPLICATE",
+        path: ["rows", i, 0],
+      });
+    }
+  });
+export type SizeChartInput = z.input<typeof sizeChartInputSchema>;
+export type SizeChartValues = z.output<typeof sizeChartInputSchema>;
