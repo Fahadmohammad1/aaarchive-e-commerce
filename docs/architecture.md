@@ -28,6 +28,7 @@ aaarchive/
 ├── bun.lock                       # the only lockfile — never add package-lock.json / yarn.lock
 ├── biome.json                     # lint + format for every package
 ├── .gitignore · .gitattributes
+├── .vercelignore                 # keeps .env files and build output out of Vercel uploads (§8.1); apps/*/vercel.json: deploy only `main`
 ├── .github/workflows/            # ci.yml (check/test/build, API e2e, Playwright checkout) · backup.yml (daily pg_dump, §8.3)
 ```
 
@@ -370,6 +371,7 @@ apps/api/
 │   │   ├── pipes/zod-validation.pipe.ts
 │   │   ├── auth/                  # JwtAuthGuard, RolesGuard, SameOriginGuard, @Public/@Roles/@CurrentUser
 │   │   ├── security/              # ProxySecretMiddleware
+│   │   ├── throttle/              # ThrottleGuard (global per-IP, per-route fixed window, in memory) + @Throttle({ default: { limit, ttl } }) (+ spec)
 │   │   ├── prisma/prisma-errors.ts # isUniqueViolation / isForeignKeyViolation / isNotFound
 │   │   ├── slug/unique-slug.ts    # "hoodies" → "hoodies-2"… (+ spec)
 │   │   ├── export/                # ExportService (global), export-columns, csv-writer, xlsx-writer (+ spec)
@@ -637,11 +639,14 @@ CI (GitHub Actions) is a Phase 0 task in `phases.md`.
 
 The owner is **hosting the project for testing, not launching**. Vercel Hobby is allowed for that only: test data, no real customers or orders, no public announcement (rules.md golden rule 7). Before real orders, both apps move (VPS planned, §7).
 
+**Live since 2026-10-20:** https://aaarchive-web.vercel.app (API https://aaarchive-api.vercel.app) in the owner's Hobby team `fahadmohammad1s-projects`. **Both projects are connected to GitHub** (`Fahadmohammad1/aaarchive-e-commerce`, owner request 2026-10-20): every push to `main` builds and deploys both apps to production. Other branches do not deploy (`apps/api/vercel.json` and `apps/web/vercel.json`: `git.deploymentEnabled` = `"**": false, "main": true`), because previews would have no env vars and would share the database. Vercel never runs migrations: run `db:deploy` **before** pushing code that needs a new column. A manual deploy still works from the repo root with the CLI (`VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` pick the project; `.vercelignore` keeps `.env` files and build output out of the upload).
+
 Two Vercel projects from this repo, both with *Include files outside the Root Directory* on (they need `packages/shared` and the root `bun.lock`; Vercel installs with Bun when it sees `bun.lock`):
 
 | | `aaarchive-api` | `aaarchive-web` |
 |---|---|---|
 | Root Directory | `apps/api` | `apps/web` |
+| Install Command | `cd ../.. && bun install --frozen-lockfile` | same |
 | Framework | NestJS (zero-config, entry `src/main.ts`, one Vercel Function) | Next.js |
 | Deploy order | first: note its URL | second: needs the API URL at **build** time |
 
@@ -677,6 +682,12 @@ Two Vercel projects from this repo, both with *Include files outside the Root Di
 3. Upload a product photo (proves `sharp` and the S3 keys).
 4. Rate limits see the visitor's IP: trigger the login limit from one network and confirm another network can still sign in; adjust `TRUST_PROXY` if not.
 5. securityheaders.com against the web URL.
+
+**What NestJS 12 needs on Vercel** (found while deploying, 2026-10-20). The portfolio API runs NestJS 11, which is CommonJS; NestJS 12 is ESM-only, and Vercel's function loader cannot `require()` ESM:
+- No CommonJS package may `require()` a NestJS 12 package. `@nestjs/throttler` (CommonJS, no ESM release) did, so it was replaced by `common/throttle/` (same `@Throttle` shape, same limits, `429 RATE_LIMITED` + `Retry-After`). Check this before adding any `@nestjs/*` add-on.
+- `main.ts` must not `await bootstrap()` at the top level: Vercel takes over `listen`, so the import never finished and every request timed out.
+- Vercel's build reads helmet's CommonJS types, so `main.ts` picks helmet's function at runtime.
+- Fluid compute stays on (turning it off did not change the loader).
 
 **Known limits of the test setup** (not problems for testing; fixed by the move):
 - Vercel Functions accept request bodies up to **4.5 MB**, so photo uploads above that fail (the API allows 8 MB). Resize before uploading while testing.

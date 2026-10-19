@@ -17,12 +17,12 @@ import {
   Res,
   UseGuards,
 } from "@nestjs/common";
-import { Throttle } from "@nestjs/throttler";
 import type { Response } from "express";
 import type { z } from "zod";
 import { Roles } from "../../common/auth/auth.decorators.js";
 import { SameOriginGuard } from "../../common/auth/same-origin.guard.js";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe.js";
+import { Throttle } from "../../common/throttle/throttle.decorator.js";
 import { CouponsService } from "./coupons.service.js";
 import { CouponsExportService } from "./coupons-export.service.js";
 

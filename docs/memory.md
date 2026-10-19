@@ -5,11 +5,17 @@ Living log of where the project stands. **Every agent updates this at the end of
 ## Current status
 
 - **Phase:** 7 — Launch prep. Everything that can be done locally is built and verified (2026-10-20). The rest needs the Vercel **test** deployment (owner: testing only, not launching) and the owner's accounts/content.
+- **Test site live (2026-10-20):** https://aaarchive-web.vercel.app (API https://aaarchive-api.vercel.app), Vercel Hobby, testing only, noindex.
 - **In progress:** —
-- **File currently being worked on:** — (next: owner creates the two Vercel projects per `architecture.md` §8.1)
+- **File currently being worked on:** —
 
 ## Completed
 
+- **2026-10-20** [api][repo] — Vercel test deploy (owner's request, signed in with the owner's account; team `fahadmohammad1s-projects`).
+  - Projects `aaarchive-api` + `aaarchive-web` created, production env vars set (new random secrets, never printed; DB + Storage keys from `apps/api/.env`; Turnstile test keys; `SITE_NOINDEX=1`). Root `.vercelignore` keeps `.env` files out of uploads.
+  - NestJS 12 on Vercel: replaced `@nestjs/throttler` with `src/common/throttle/` (`throttle.guard.ts`, `throttle.decorator.ts`, spec with 6 tests; package removed; 11 controllers + `app.module.ts` switched); `main.ts` no longer top-level-awaits `bootstrap()`; helmet function picked at runtime.
+  - GitHub connected (owner request): every push to `main` redeploys both projects; other branches don't deploy (`apps/api/vercel.json`, `apps/web/vercel.json`).
+  - Verified live: health `database: up`, API refuses calls without the proxy secret, every storefront page + `/api/v1` proxy 200, robots `Disallow: /` + `X-Robots-Tag`, CSP/HSTS present, owner sign-in reaches the dashboard. Local: check, typecheck, test (shared 109, API unit 62), API e2e 56 + 2 skipped.
 - **2026-10-20** [shared][api][web][repo] — Phase 7 launch prep (local part).
   - SEO: `app/sitemap.ts` (from new `GET /content/sitemap`), `app/robots.ts`, Organization JSON-LD in the footer, og:image falls back to the logo, product meta description only when set. `SITE_NOINDEX=1` keeps a test deploy out of search (robots + `X-Robots-Tag`).
   - Analytics: `lib/analytics/analytics-tags.tsx` loads GA4 / Pixel / Clarity after idle with IDs from Settings → Tracking; `view_item` and `search` events added; CSP allows their domains; Unsplash removed from `next.config.ts`.
@@ -160,7 +166,7 @@ Living log of where the project stands. **Every agent updates this at the end of
 
 ## Next up
 
-1. [repo] **Owner:** create the Vercel projects `aaarchive-api` then `aaarchive-web` (`architecture.md` §8.1, with `SITE_NOINDEX=1`), then run the §8.1 post-deploy checks. Agent can help read logs and fix what breaks.
+1. [repo] **Owner:** add products and content on the test site, upload a photo (checks `sharp` + Storage on Vercel; keep photos under 4.5 MB), place a COD order from a phone and track it.
 2. [repo] **Owner:** add repo secrets `BACKUP_DATABASE_URL` + `BACKUP_PASSPHRASE` (keep a copy of the passphrase outside GitHub), run *Database backup* once by hand and check it passes.
 3. [repo] On the test deploy: Lighthouse mobile with real photos, securityheaders.com, OWASP ZAP baseline, `TRUST_PROXY` check, uptime monitor on `/api/v1/health`, Supabase Security Advisor + Data API off + SSL enforced.
 4. **Owner decision:** storefront JS budget (see Blockers).

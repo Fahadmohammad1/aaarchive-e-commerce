@@ -4,10 +4,20 @@ import { ConfigService } from "@nestjs/config";
 import { NestFactory } from "@nestjs/core";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
-import helmet from "helmet";
+import * as helmetModule from "helmet";
 import { AppModule } from "./app.module.js";
 import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter.js";
 import type { Env } from "./config/env.schema.js";
+
+// helmet ships ESM and CommonJS types. The Vercel build reads the CommonJS ones,
+// where the function sits one `.default` deeper (architecture §8.1), so pick it
+// at runtime: the same function either way.
+const helmetExport: unknown = helmetModule.default;
+const helmet = (
+  typeof helmetExport === "function"
+    ? helmetExport
+    : (helmetExport as { default: unknown }).default
+) as () => (req: unknown, res: unknown, next: () => void) => void;
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -44,4 +54,10 @@ async function bootstrap() {
 
   await app.listen(config.get("PORT", { infer: true }));
 }
-await bootstrap();
+// Not awaited at the top level: Vercel's NestJS runtime imports this file and
+// takes over `listen`, so a top-level await would never let the import finish
+// (architecture §8.1). A failed start still exits with an error.
+bootstrap().catch((error: unknown) => {
+  console.error(error);
+  process.exit(1);
+});

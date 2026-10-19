@@ -19,12 +19,12 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { Throttle } from "@nestjs/throttler";
 import { z } from "zod";
 import { CurrentUser } from "../../common/auth/auth.decorators.js";
 import type { RequestUser } from "../../common/auth/request-user.js";
 import { SameOriginGuard } from "../../common/auth/same-origin.guard.js";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe.js";
+import { Throttle } from "../../common/throttle/throttle.decorator.js";
 import { MediaService } from "./media.service.js";
 
 const listQuerySchema = z.strictObject({

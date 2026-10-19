@@ -1,10 +1,10 @@
 import { checkoutSchema, trackOrderSchema } from "@aaarchive/shared/checkout";
 import { Body, Controller, HttpCode, Post, Req } from "@nestjs/common";
-import { Throttle } from "@nestjs/throttler";
 import type { Request } from "express";
 import type { z } from "zod";
 import { Public } from "../../common/auth/auth.decorators.js";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe.js";
+import { Throttle } from "../../common/throttle/throttle.decorator.js";
 import { OrdersService } from "./orders.service.js";
 
 const HOUR = 3_600_000;

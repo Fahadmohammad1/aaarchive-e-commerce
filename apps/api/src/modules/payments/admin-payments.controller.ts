@@ -15,13 +15,13 @@ import {
   Res,
   UseGuards,
 } from "@nestjs/common";
-import { Throttle } from "@nestjs/throttler";
 import type { Response } from "express";
 import type { z } from "zod";
 import { CurrentUser } from "../../common/auth/auth.decorators.js";
 import type { RequestUser } from "../../common/auth/request-user.js";
 import { SameOriginGuard } from "../../common/auth/same-origin.guard.js";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe.js";
+import { Throttle } from "../../common/throttle/throttle.decorator.js";
 import { PaymentsService } from "./payments.service.js";
 import { PaymentsExportService } from "./payments-export.service.js";
 

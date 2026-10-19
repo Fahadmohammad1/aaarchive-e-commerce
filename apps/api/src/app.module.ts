@@ -4,18 +4,15 @@ import {
   type NestModule,
   RequestMethod,
 } from "@nestjs/common";
-import { ConfigModule, ConfigService } from "@nestjs/config";
+import { ConfigModule } from "@nestjs/config";
 import { APP_GUARD } from "@nestjs/core";
-import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import cookieParser from "cookie-parser";
 import { JwtAuthGuard } from "./common/auth/jwt-auth.guard.js";
 import { RolesGuard } from "./common/auth/roles.guard.js";
 import { ExportModule } from "./common/export/export.module.js";
-import {
-  isServerRender,
-  ProxySecretMiddleware,
-} from "./common/security/proxy-secret.middleware.js";
-import { type Env, validateEnv } from "./config/env.schema.js";
+import { ProxySecretMiddleware } from "./common/security/proxy-secret.middleware.js";
+import { ThrottleGuard } from "./common/throttle/throttle.guard.js";
+import { validateEnv } from "./config/env.schema.js";
 import { HealthModule } from "./health/health.module.js";
 import { AuthModule } from "./modules/auth/auth.module.js";
 import { CartModule } from "./modules/cart/cart.module.js";
@@ -47,27 +44,6 @@ import { PrismaModule } from "./prisma/prisma.module.js";
       cache: true,
       validate: validateEnv,
     }),
-    // Global per-IP rate limit; routes like login and checkout add stricter
-    // @Throttle() limits of their own (docs/rules.md §8).
-    ThrottlerModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (config: ConfigService<Env, true>) => {
-        const value = config.get("API_PROXY_SECRET", { infer: true });
-        const secret = value ? Buffer.from(value) : null;
-        return {
-          throttlers: [
-            {
-              ttl: config.get("THROTTLE_TTL_SECONDS", { infer: true }) * 1000,
-              limit: config.get("THROTTLE_LIMIT", { infer: true }),
-            },
-          ],
-          // Page renders all come from the web server's one IP: skip them
-          // (secret + server header, GET only); visitors stay limited.
-          skipIf: (context) =>
-            isServerRender(context.switchToHttp().getRequest(), secret),
-        };
-      },
-    }),
     PrismaModule,
     HealthModule,
     RevalidationModule,
@@ -96,7 +72,9 @@ import { PrismaModule } from "./prisma/prisma.module.js";
   // Order matters: rate limit → authentication → role. Every route is
   // OWNER/STAFF-only unless it says @Public() or @Roles(...) (rules.md §8.3).
   providers: [
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    // Global per-IP rate limit (THROTTLE_LIMIT / THROTTLE_TTL_SECONDS); routes
+    // like login and checkout add stricter @Throttle() limits (rules.md §8).
+    { provide: APP_GUARD, useClass: ThrottleGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],

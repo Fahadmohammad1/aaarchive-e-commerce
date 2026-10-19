@@ -70,7 +70,7 @@ Breaking any of these is a bug, however good the rest of the change is.
 | Config | `@nestjs/config` |
 | API docs | `@nestjs/swagger` |
 | Auth | `@nestjs/jwt` (HS256, own guards — no Passport), **`@node-rs/argon2`** (argon2id, prebuilt binaries; no install scripts), `cookie-parser` |
-| Rate limiting | `@nestjs/throttler` (installed; global limit on, stricter per-route limits in Phase 1/4) |
+| Rate limiting | Own `ThrottleGuard` + `@Throttle()` in `common/throttle/` (2026-10-20: replaced `@nestjs/throttler`, whose CommonJS build cannot load NestJS 12 on Vercel). **Never add a CommonJS `@nestjs/*` add-on** (architecture §8.1) |
 | Media | **Supabase Storage** via its S3 API (`@aws-sdk/client-s3`, storage-only access keys) + **`sharp`** for validation/resizing *(Phase 2, install after approval)* |
 | Email | Resend free tier, called through its HTTP API with `fetch` (no SDK) in `modules/mail/mail.service.ts`; skipped and logged when `RESEND_API_KEY`/`MAIL_FROM` are unset *(Phase 4)* |
 | Excel export | **exceljs** 4.4 (MIT), server-side streaming writer *(installed 2026-10-19)*. CSV is written by our own helper. Never use the npm `xlsx` package (stale 0.18.x with known advisories) |
@@ -232,7 +232,7 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 |---|---|
 | Database reachable only by the API: RLS on every table; Supabase's `anon` / `authenticated` roles have **no privileges** on any table, sequence or function (now and for future objects) | migrations `…_init`, `…_lock_down_supabase_roles` |
 | API refuses requests that did not come through the website (shared secret header `x-aaarchive-proxy`, constant-time compare); visitor-forged values are stripped by `proxy.ts` | `ProxySecretMiddleware`, `apps/web/proxy.ts` |
-| Global rate limit per client IP (120/min default), `trust proxy` set per deployment so the IP is the visitor's | `ThrottlerModule`, `TRUST_PROXY` |
+| Global rate limit per client IP (120/min default), `trust proxy` set per deployment so the IP is the visitor's | `ThrottleGuard` (`common/throttle/`), `TRUST_PROXY` |
 | Server Components call the API directly with the shared secret plus `x-aaarchive-ssr: 1`; only GET/HEAD reads carrying **both** skip the per-IP limit (they all come from the web server's one IP). `proxy.ts` strips `x-aaarchive-ssr` from visitor requests | `lib/api/api-client.ts`, `isServerRender()` in `proxy-secret.middleware.ts`, `apps/web/proxy.ts` |
 | Request bodies ≤ 100 KB; Zod validation on every input; one error shape with no stack traces or SQL | `main.ts`, `ZodValidationPipe`, `AllExceptionsFilter` |
 | `helmet` headers on the API; CORS limited to `FRONTEND_ORIGIN`; Swagger off in production | `main.ts` |

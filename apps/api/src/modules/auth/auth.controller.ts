@@ -19,7 +19,6 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { Throttle } from "@nestjs/throttler";
 import type { Request, Response } from "express";
 import type { z } from "zod";
 import {
@@ -30,6 +29,7 @@ import {
 import type { RequestUser } from "../../common/auth/request-user.js";
 import { SameOriginGuard } from "../../common/auth/same-origin.guard.js";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe.js";
+import { Throttle } from "../../common/throttle/throttle.decorator.js";
 import type { Env } from "../../config/env.schema.js";
 import { REFRESH_COOKIE, refreshCookieOptions } from "./auth.constants.js";
 import { AuthService } from "./auth.service.js";

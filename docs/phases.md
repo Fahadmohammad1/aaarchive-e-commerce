@@ -233,7 +233,7 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 - [ ] [repo] Security review before launch (rules.md §8.8) — *local part done 2026-10-20: `bun audit` clean, headers present; the rest needs the deployment*: OWASP ZAP baseline scan on staging, securityheaders.com grade A, `bun audit` clean, Supabase Security Advisor clean + Data API off + SSL enforced, `TRUST_PROXY` verified, API unreachable without the proxy secret, every secret rotated from dev values
 - [x] [web] Revisit CSP: nonce-based `script-src` (drop `'unsafe-inline'`) if it can be done without losing static caching; add Turnstile/analytics domains — kept `'unsafe-inline'` (nonces force dynamic pages), domains added (2026-10-20)
 - [ ] [repo] Scheduled `pg_dump` backup (GitHub Actions → private storage) and a tested restore — *workflow built 2026-10-20 (restore test in every run); needs the repo secrets and a first run*
-- [ ] [repo] Test deploy on Vercel (owner, 2026-10-20: testing only, architecture §8.1)
+- [x] [repo] Test deploy on Vercel (owner, 2026-10-20: testing only, architecture §8.1) — live at https://aaarchive-web.vercel.app
 - [ ] [repo] Production deploy: off Vercel Hobby (VPS planned), domain + HTTPS, Search Console
 - [ ] [repo] *(After the move off Vercel)* Serve media from our domain (`/media/*` → Supabase Storage, cached by Cloudflare with a long edge TTL) to stay within Supabase's free egress; API purges the Cloudflare cache when an image is deleted; scheduled clean-up of unreferenced media
 - [x] [web] Playwright test for the checkout flow (approved and built 2026-10-20, CI job `browser-e2e`)

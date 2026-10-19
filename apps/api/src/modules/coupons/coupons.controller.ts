@@ -1,9 +1,9 @@
 import { couponApplySchema } from "@aaarchive/shared/checkout";
 import { Body, Controller, HttpCode, Post } from "@nestjs/common";
-import { Throttle } from "@nestjs/throttler";
 import type { z } from "zod";
 import { Public } from "../../common/auth/auth.decorators.js";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe.js";
+import { Throttle } from "../../common/throttle/throttle.decorator.js";
 import { CouponsService } from "./coupons.service.js";
 
 @Public()

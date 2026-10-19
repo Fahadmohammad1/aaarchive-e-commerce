@@ -8,11 +8,11 @@ import {
   Post,
   Req,
 } from "@nestjs/common";
-import { Throttle } from "@nestjs/throttler";
 import type { Request } from "express";
 import type { z } from "zod";
 import { Public } from "../../common/auth/auth.decorators.js";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe.js";
+import { Throttle } from "../../common/throttle/throttle.decorator.js";
 import { ContactService } from "./contact.service.js";
 import { ContentService } from "./content.service.js";
 import { PagesService } from "./pages.service.js";

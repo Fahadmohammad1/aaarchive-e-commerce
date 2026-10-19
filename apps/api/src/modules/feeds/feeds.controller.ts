@@ -1,7 +1,7 @@
 import { Controller, Get, Header } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { Throttle } from "@nestjs/throttler";
 import { Public } from "../../common/auth/auth.decorators.js";
+import { Throttle } from "../../common/throttle/throttle.decorator.js";
 import type { Env } from "../../config/env.schema.js";
 import { PrismaService } from "../../prisma/prisma.service.js";
 import { MediaService } from "../media/media.service.js";
