@@ -129,9 +129,12 @@ function strings(value: unknown): string[] {
   return Array.isArray(value) ? value.map((cell) => String(cell ?? "")) : [];
 }
 
-export function thresholdOf(p: { lowStockThreshold: number | null }) {
-  // TODO(Phase 5): the store-wide threshold comes from Settings → Stock.
-  return p.lowStockThreshold ?? DEFAULT_LOW_STOCK_THRESHOLD;
+/** The product's own threshold, else the store's (Settings → Stock, PRD §5.6 rule 2). */
+export function thresholdOf(
+  p: { lowStockThreshold: number | null },
+  storeDefault: number = DEFAULT_LOW_STOCK_THRESHOLD,
+) {
+  return p.lowStockThreshold ?? storeDefault;
 }
 
 function sizeChartOf(row: ProductDetailRow): AdminProductSizeChart {
@@ -152,8 +155,9 @@ function sizeChartOf(row: ProductDetailRow): AdminProductSizeChart {
 export function toAdminProduct(
   row: ProductDetailRow,
   media: MediaService,
+  storeThreshold?: number,
 ): AdminProduct {
-  const threshold = thresholdOf(row);
+  const threshold = thresholdOf(row, storeThreshold);
   const variants = [...row.variants].sort(
     (a, b) =>
       a.color.sortOrder - b.color.sortOrder ||
@@ -213,8 +217,9 @@ export function toAdminProduct(
 export function toAdminProductListItem(
   row: ProductListRow,
   media: MediaService,
+  storeThreshold?: number,
 ): AdminProductListItem {
-  const threshold = thresholdOf(row);
+  const threshold = thresholdOf(row, storeThreshold);
   const active = row.variants.filter((v) => v.isActive);
   const first = row.images[0]?.media as MediaAssetRow | undefined;
   return {

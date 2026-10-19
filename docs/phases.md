@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Last updated** | 19 October 2026 |
-| **Current phase** | **Phase 5 — Order management** — built and verified locally (2026-10-19); next Phase 6. Open from earlier phases: API hosting (0), a real photo upload on Supabase (2), storefront JS budget + PDP delivery info (3) |
+| **Current phase** | **Phase 6 — Home, content & settings** — built and verified locally (2026-10-20); next Phase 7 (launch prep). Open from earlier phases: API hosting (0), a real photo upload on Supabase (2), storefront JS budget + PDP delivery info (3) |
 | **Related docs** | `PRD.md` (requirements) · `architecture.md` · `rules.md` · `design.md` · `memory.md` (day-to-day progress) |
 
 The build is split into **Phases 0–7**, which together deliver the MVP (PRD "Release 1"). Work after launch is grouped as **Release 2** and **Release 3** (PRD §4). "Phase" always means a build phase in this file. "Release" means a post-launch scope tier.
@@ -24,7 +24,7 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 | 3 | Storefront catalog | 1.5 weeks | built; open: JS budget, PDP delivery info |
 | 4 | Cart, checkout & order placement | 1.5 weeks | built (2026-10-19); concurrency to confirm on CI Postgres |
 | 5 | Order management | 1.5 weeks | built (2026-10-19) |
-| 6 | Home, content & settings | 1 week | not started |
+| 6 | Home, content & settings | 1 week | built (2026-10-20); customer accounts deferred to Release 2 |
 | 7 | Launch prep & launch | 1 week | not started |
 | — | Release 2 / Release 3 (post-launch) | — | backlog |
 
@@ -202,17 +202,19 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 
 - [x] [shared] `@aaarchive/shared/content`: schemas for every editable section (`contentSchemas`) + tests
 - [x] [api] `ContentBlock` + `FaqItem` tables (migration `20261018120000_content_blocks_faq`), seed for text-only blocks
-- [ ] [api] `content`: `GET /content/home` (resolved, missing sections = null), `GET /content/site`, `GET|PUT /admin/content/:key` (validated with `contentSchemas`, records `updatedById`, revalidates), `/admin/social-posts`, `/admin/pages`, `/admin/faq`, public `GET /pages/:slug`, `GET /faq`
-- [ ] [api] `settings`: store info + logo, delivery/payment toggles and numbers, advance delivery charge for COD, stock defaults, SEO defaults, tracking IDs; public `GET /settings/public`
-- [ ] [api] Staff management (Owner only): invite/create, role, deactivate
-- [ ] [web] Home sections H1–H6 per `design.md` §6 (hero, browse by category, featured look, exclusive collections, why us, social journey) *(UI built 2026-10-17 on fixture data in `lib/content/home-fixtures.ts`; awaiting design review, then wire to the API)*
-- [ ] [web] Content pages: about, contact (form + Turnstile), FAQ, size guide, policies
-- [ ] [web] Admin screens: **one form per home section** (hero, archive index, look file with a click-to-place hotspot picker, latest entries + campaign, made to be kept, social), site content (announcement, menu links, footer), social posts, pages (rich text), FAQ, settings tabs (store + logo, payments, stock, SEO, tracking), staff
-- [ ] [web] Storefront reads `GET /content/home` + `GET /content/site` + public settings (logo, contact links, SEO); sections without content are left out; delete `lib/content/home-fixtures.ts` and the hard-coded header/footer/menu data
-- [ ] [web] 404 and error pages per `design.md` §7.8
-- [ ] [api][web] *(Only if PRD open question 6 = yes)* Customer accounts: email/password + Google, My Orders, saved addresses, linking guest orders by phone
+- [x] [api] `content`: `GET /content/home` (resolved, missing sections = null), `GET /content/site`, `GET|PUT /admin/content/:key` (validated with `contentSchemas`, records `updatedById`, revalidates), `/admin/social-posts`, `/admin/pages`, `/admin/faq`, public `GET /pages/:slug`, `GET /faq`
+- [x] [api] `settings`: store info + logo, delivery/payment toggles and numbers, advance delivery charge for COD, stock defaults, SEO defaults, tracking IDs; public `GET /settings/public`
+- [x] [api] Staff management (Owner only): invite/create, role, deactivate *(the Owner creates the account with a first password; no email invite)*
+- [x] [web] Home sections H1–H6 per `design.md` §6 (hero, browse by category, featured look, exclusive collections, why us, social journey) *(UI built 2026-10-17 on fixture data in `lib/content/home-fixtures.ts`; awaiting design review, then wire to the API)*
+- [x] [web] Content pages: about, contact (form + Turnstile), FAQ, size guide, policies
+- [x] [web] Admin screens: **one form per home section** (hero, archive index, look file with a click-to-place hotspot picker, latest entries + campaign, made to be kept, social), site content (announcement, menu links, footer), social posts, pages (rich text), FAQ, settings tabs (store + logo, payments, stock, SEO, tracking), staff
+- [x] [web] Storefront reads `GET /content/home` + `GET /content/site` + public settings (logo, contact links, SEO); sections without content are left out; delete `lib/content/home-fixtures.ts` and the hard-coded header/footer/menu data
+- [x] [web] 404 and error pages per `design.md` §7.8
+- [ ] [api][web] *(Only if PRD open question 6 = yes)* Customer accounts — **user decision 2026-10-20: guest-only at launch; moved to Release 2**: email/password + Google, My Orders, saved addresses, linking guest orders by phone
 
 **Exit criteria:** every home section and content page is edited from the admin and shows on the storefront after revalidation. Settings changes (e.g. delivery charge) take effect at checkout.
+
+*Status 2026-10-20:* hold on a local database with revalidation wired (shared `REVALIDATE_SECRET`). The Owner saved the hero through its form (photo from the library) and the home page showed it on the next request; all six sections, announcement, footer, a policy page (`##` headings), the FAQ and the contact page rendered from dashboard content at 375px and 1440px. Settings → Stock "max 4" showed on the product page and Settings → Store WhatsApp became the chat button. `test/content.e2e-spec.ts` (6) covers roles, validation, resolution, settings taking effect, staff guards and the contact form. Real photo uploads still need Supabase Storage keys.
 
 ---
 

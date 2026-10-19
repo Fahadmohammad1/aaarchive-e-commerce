@@ -42,6 +42,25 @@ describe("parseRichText", () => {
   });
 });
 
+test("## lines become headings and end the paragraph before them", () => {
+  expect(parseRichText("Intro\n## Returns\nWithin **3 days**.")).toEqual([
+    { type: "paragraph", lines: [[{ text: "Intro", bold: false }]] },
+    { type: "heading", text: [{ text: "Returns", bold: false }] },
+    {
+      type: "paragraph",
+      lines: [
+        [
+          { text: "Within ", bold: false },
+          { text: "3 days", bold: true },
+          { text: ".", bold: false },
+        ],
+      ],
+    },
+  ]);
+  // "#" alone or "##" without a space is plain text.
+  expect(parseRichText("##Not a heading")[0]?.type).toBe("paragraph");
+});
+
 test("richTextToPlain flattens to one line", () => {
   expect(richTextToPlain("**Warm** hoodie\n\n- Cotton\n- 320 GSM")).toBe(
     "Warm hoodie Cotton 320 GSM",

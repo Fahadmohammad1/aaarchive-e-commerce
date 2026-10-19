@@ -20,6 +20,7 @@ import { Prisma } from "../../generated/prisma/client.js";
 import { PrismaService } from "../../prisma/prisma.service.js";
 import { MediaService } from "../media/media.service.js";
 import { RevalidationService } from "../revalidation/revalidation.service.js";
+import { SettingsService } from "../settings/settings.service.js";
 import {
   type AdminProduct,
   productDetailInclude,
@@ -42,18 +43,24 @@ export class ProductsService {
     private readonly prisma: PrismaService,
     private readonly media: MediaService,
     private readonly revalidation: RevalidationService,
+    private readonly settings: SettingsService,
   ) {}
 
   // ── Reads ────────────────────────────────────────────────────────────────
 
   async list(query: ListQuery) {
     const { page, limit } = query;
+    const { lowStockThreshold } = await this.settings.stock();
     const [ids, [{ total }]] = await Promise.all([
       this.prisma.$queryRaw<{ id: string }[]>(
-        productIdsSql(query, { limit, offset: (page - 1) * limit }),
+        productIdsSql(
+          query,
+          { limit, offset: (page - 1) * limit },
+          lowStockThreshold,
+        ),
       ),
       this.prisma.$queryRaw<{ total: number }[]>`
-        SELECT count(*)::int AS total FROM "Product" p WHERE ${whereSql(query)}`,
+        SELECT count(*)::int AS total FROM "Product" p WHERE ${whereSql(query, lowStockThreshold)}`,
     ]);
     const rows = await this.prisma.product.findMany({
       where: { id: { in: ids.map((r) => r.id) } },
@@ -64,7 +71,7 @@ export class ProductsService {
       data: ids
         .map((r) => byId.get(r.id))
         .filter((r) => r !== undefined)
-        .map((r) => toAdminProductListItem(r, this.media)),
+        .map((r) => toAdminProductListItem(r, this.media, lowStockThreshold)),
       meta: { page, limit, total },
     };
   }
@@ -75,7 +82,8 @@ export class ProductsService {
       include: productDetailInclude,
     });
     if (!row) throw notFound();
-    return toAdminProduct(row, this.media);
+    const { lowStockThreshold } = await this.settings.stock();
+    return toAdminProduct(row, this.media, lowStockThreshold);
   }
 
   // ── Writes ───────────────────────────────────────────────────────────────

@@ -572,6 +572,8 @@ YOU MAY ALSO LIKE                       [‹][›]
 - Title display-lg, body in `text-body` (Inter), max width 68ch.
 - FAQ: accordion rows on hairlines, `+`/`−` icon right.
 
+- *Built (2026-10-20):* pages from Content → Pages render through `ContentPage` (display-lg title, Markdown-lite body in text-body muted, `## ` headings in display-sm, max 68ch). FAQ: `<details>` rows on hairlines, question in display-sm, accent `+` that turns 45° when open. Contact: intro (page "contact") + "Reach us" rows on hairlines (phone, WhatsApp, Messenger, email, address from Settings) beside a raised form card (name, phone/email, message, Turnstile, primary Send). Admin content forms: one per section, sticky Save bar; look file shows the photo with numbered accent squares and a "Place on photo" button per piece (click the photo to set the spot).
+
 ### 7.8 Empty, loading and error states
 
 - **Loading:** skeleton blocks in `--bg-raised` with a slow shimmer (disabled for reduced motion). Same aspect ratios as final images to avoid layout shift. Utility: `skeleton` in `globals.css` (2.4 s shimmer); `ProductCardSkeleton`, `ProductGridSkeleton`, listing and PDP skeletons reuse it.

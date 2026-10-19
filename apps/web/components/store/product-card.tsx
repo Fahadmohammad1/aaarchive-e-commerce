@@ -1,6 +1,5 @@
 import type { MediaAsset } from "@aaarchive/shared/media";
 import { formatTaka } from "@aaarchive/shared/money";
-import Image from "next/image";
 import Link from "next/link";
 import { format, getMessages } from "@/lib/i18n/i18n";
 import { cn } from "@/lib/utils";
@@ -10,10 +9,8 @@ import { Tag } from "./tag";
 // Product card (design §5.5). The whole card is one link. Shows a status, never
 // a stock number (PRD §5.6).
 
-/** An uploaded image (API) or, until Phase 6, a home-fixture URL. */
-export type CardImage =
-  | { media: MediaAsset; alt: string }
-  | { src: string; alt: string };
+/** An uploaded image from the media library. */
+export type CardImage = { media: MediaAsset; alt: string };
 
 /** What a card needs: the API's StoreProductSummary fits as is. */
 export type CardProduct = {
@@ -48,27 +45,14 @@ function CardPicture({
   priority?: boolean;
   className?: string;
 }) {
-  if ("media" in image) {
-    return (
-      <MediaImage
-        media={image.media}
-        alt={image.alt}
-        sizes={sizes}
-        fill
-        priority={priority}
-        className={className}
-      />
-    );
-  }
   return (
-    <Image
-      src={image.src}
+    <MediaImage
+      media={image.media}
       alt={image.alt}
-      fill
       sizes={sizes}
-      quality={60}
+      fill
       priority={priority}
-      className={cn("object-cover", className)}
+      className={className}
     />
   );
 }

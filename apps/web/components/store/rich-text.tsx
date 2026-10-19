@@ -41,6 +41,11 @@ export function RichText({
               </React.Fragment>
             ))}
           </p>
+        ) : block.type === "heading" ? (
+          // biome-ignore lint/suspicious/noArrayIndexKey: derived from the text
+          <h2 key={i} className="mt-4 text-foreground type-display-sm">
+            <Line line={block.text} />
+          </h2>
         ) : (
           // biome-ignore lint/suspicious/noArrayIndexKey: derived from the text
           <ul key={i} className="list-disc pl-5">

@@ -14,6 +14,7 @@ import {
   TicketPercent,
   Truck,
   Type,
+  UserCog,
   Users,
   Wallet,
 } from "lucide-react";
@@ -66,14 +67,14 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   {
     label: "store",
     items: [
-      { label: "content", href: "/admin/content", icon: Tag, soon: true },
+      { label: "content", href: "/admin/content", icon: Tag },
       {
         label: "settings",
         href: "/admin/settings",
         icon: Settings,
-        soon: true,
         roles: ["OWNER"],
       },
+      { label: "staff", href: "/admin/staff", icon: UserCog, roles: ["OWNER"] },
     ],
   },
 ];

@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { imageSchema } from "./content.js";
+import { bdPhoneSchema } from "./phone.js";
 import {
   DEFAULT_LOW_STOCK_THRESHOLD,
   DEFAULT_MAX_QTY_PER_VARIANT,
@@ -10,8 +12,8 @@ import {
 
 const walletSchema = z.object({
   enabled: z.boolean().default(true),
-  /** The store's bKash/Nagad number customers send money to. */
-  number: z.string().trim().max(20).default(""),
+  /** The store's bKash/Nagad number customers send money to ("" = not set). */
+  number: z.union([z.literal(""), bdPhoneSchema]).default(""),
   /** Extra steps shown under the number ("Use Send Money…"). */
   instructions: z.string().trim().max(500).default(""),
 });
@@ -110,4 +112,97 @@ export function courierTrackingUrl(
     TRACKING_PLACEHOLDER,
     encodeURIComponent(trackingNumber.trim()),
   );
+}
+
+// ── Store, SEO and tracking (PRD §6.8) ─────────────────────────────────────
+
+/** "" means not set; a value must be valid. */
+const optional = <T extends z.ZodType>(schema: T) =>
+  z.union([z.literal(""), schema]).default("");
+
+const httpsUrl = z
+  .string()
+  .trim()
+  .max(300, { message: "TOO_LONG" })
+  .regex(/^https:\/\/\S+$/, { message: "INVALID_HREF" });
+
+export const storeSettingsSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, { message: "REQUIRED" })
+    .max(60)
+    .default("Aaarchive"),
+  /** Contact phone shown on the contact page. */
+  phone: optional(bdPhoneSchema),
+  /** WhatsApp number for the floating chat button (wa.me link). */
+  whatsapp: optional(bdPhoneSchema),
+  /** Messenger link, e.g. https://m.me/aaarchive. */
+  messenger: optional(httpsUrl),
+  /** Store inbox: contact-form messages go here. */
+  email: optional(
+    z
+      .string()
+      .trim()
+      .toLowerCase()
+      .pipe(z.email({ message: "INVALID_EMAIL" })),
+  ),
+  address: z.string().trim().max(300, { message: "TOO_LONG" }).default(""),
+  /** Uploaded logo; null = the bundled logo. */
+  logo: imageSchema.nullable().default(null),
+});
+export type StoreSettings = z.output<typeof storeSettingsSchema>;
+
+export const seoSettingsSchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(1, { message: "REQUIRED" })
+    .max(70, { message: "TOO_LONG" })
+    .default("Aaarchive"),
+  description: z.string().trim().max(160, { message: "TOO_LONG" }).default(""),
+  /** Default share image (Open Graph). */
+  ogImage: imageSchema.nullable().default(null),
+});
+export type SeoSettings = z.output<typeof seoSettingsSchema>;
+
+export const trackingSettingsSchema = z.object({
+  ga4Id: optional(
+    z
+      .string()
+      .trim()
+      .regex(/^G-[A-Z0-9]{4,20}$/, { message: "INVALID_GA4_ID" }),
+  ),
+  metaPixelId: optional(
+    z
+      .string()
+      .trim()
+      .regex(/^\d{6,20}$/, { message: "INVALID_PIXEL_ID" }),
+  ),
+  clarityId: optional(
+    z
+      .string()
+      .trim()
+      .regex(/^[a-z0-9]{6,20}$/, { message: "INVALID_CLARITY_ID" }),
+  ),
+});
+export type TrackingSettings = z.output<typeof trackingSettingsSchema>;
+
+/**
+ * Every `Setting` row the dashboard edits, with its schema. PUT
+ * /admin/settings/:key validates with these; the API rejects other keys.
+ */
+export const settingSchemas = {
+  store: storeSettingsSchema,
+  seo: seoSettingsSchema,
+  payments: paymentSettingsSchema,
+  stock: stockSettingsSchema,
+  delivery: deliverySettingsSchema,
+  tracking: trackingSettingsSchema,
+  couriers: courierSettingsSchema,
+} as const;
+export type SettingKey = keyof typeof settingSchemas;
+export const SETTING_KEYS = Object.keys(settingSchemas) as SettingKey[];
+export function isSettingKey(value: string): value is SettingKey {
+  return value in settingSchemas;
 }

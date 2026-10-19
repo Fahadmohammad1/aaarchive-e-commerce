@@ -162,6 +162,8 @@ export function toStoreProduct(
   row: StoreProductRow,
   media: MediaService,
   now: Date = new Date(),
+  /** Settings → Stock "max quantity per variant per order" (PRD §5.6 rule 4). */
+  maxQtyPerVariant: number = DEFAULT_MAX_QTY_PER_VARIANT,
 ): StoreProduct {
   const { price, compareAt } = currentPrice(row, now);
   const saleOn = isSaleActive(row, now);
@@ -203,18 +205,21 @@ export function toStoreProduct(
             : [],
         }
       : null,
-    // TODO(Phase 5): the store-wide maximum comes from Settings → Stock.
-    maxQtyPerVariant: DEFAULT_MAX_QTY_PER_VARIANT,
+    maxQtyPerVariant,
     seo: { title: row.seoTitle, description: row.seoDesc },
     updatedAt: row.updatedAt.toISOString(),
   };
 }
 
-export function toStoreProductStock(row: {
-  lowStockThreshold: number | null;
-  variants: Array<{ id: string; stock: number }>;
-}): StoreProductStock {
-  const threshold = thresholdOf(row);
+export function toStoreProductStock(
+  row: {
+    lowStockThreshold: number | null;
+    variants: Array<{ id: string; stock: number }>;
+  },
+  /** Settings → Stock threshold, used when the product has none. */
+  storeThreshold?: number,
+): StoreProductStock {
+  const threshold = thresholdOf(row, storeThreshold);
   return {
     variants: row.variants.map((v) => ({
       id: v.id,

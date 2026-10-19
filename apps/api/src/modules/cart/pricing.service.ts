@@ -7,6 +7,7 @@ import type { Prisma } from "../../generated/prisma/client.js";
 import { PrismaService } from "../../prisma/prisma.service.js";
 import { MediaService } from "../media/media.service.js";
 import { thresholdOf } from "../products/products.mapper.js";
+import { SettingsService } from "../settings/settings.service.js";
 
 // The single place that turns { variantId, quantity } into money (golden
 // rule 2): cart validation, coupon apply and order placement all price
@@ -77,6 +78,7 @@ export class PricingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly media: MediaService,
+    private readonly settings: SettingsService,
   ) {}
 
   /** Prices the items in the order given; quantities are taken as sent. */
@@ -90,6 +92,7 @@ export class PricingService {
       select: variantSelect,
     });
     const byId = new Map(rows.map((r) => [r.id, r]));
+    const { lowStockThreshold } = await this.settings.stock();
     const lines: PricedLine[] = [];
     const unavailable: string[] = [];
     for (const item of items) {
@@ -98,12 +101,17 @@ export class PricingService {
         unavailable.push(item.variantId);
         continue;
       }
-      lines.push(this.line(row, item.quantity, now));
+      lines.push(this.line(row, item.quantity, now, lowStockThreshold));
     }
     return { lines, unavailable };
   }
 
-  private line(row: VariantRow, quantity: number, now: Date): PricedLine {
+  private line(
+    row: VariantRow,
+    quantity: number,
+    now: Date,
+    storeThreshold: number,
+  ): PricedLine {
     const { price, compareAt } = variantPrice(row.product, row, now);
     // The photo of this colour, else the product's first photo.
     const image =
@@ -126,7 +134,10 @@ export class PricingService {
       quantity,
       lineTotal: price * quantity,
       stock: row.stock,
-      stockStatus: stockStatusFor(row.stock, thresholdOf(row.product)),
+      stockStatus: stockStatusFor(
+        row.stock,
+        thresholdOf(row.product, storeThreshold),
+      ),
     };
   }
 }

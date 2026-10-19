@@ -194,3 +194,114 @@ export const CONTENT_KEYS = Object.keys(contentSchemas) as ContentKey[];
 export function isContentKey(value: string): value is ContentKey {
   return value in contentSchemas;
 }
+
+// ── Tables edited in Content (PRD §6.7) ─────────────────────────────────
+
+export const SOCIAL_POST_PLATFORMS = [
+  "FACEBOOK",
+  "INSTAGRAM",
+  "TIKTOK",
+] as const;
+
+/** A post in "Follow our style journey" (PRD H6): photo uploaded, no social API. */
+export const socialPostInputSchema = z.strictObject({
+  image: imageSchema,
+  /** e.g. "12K+ likes". */
+  label: z
+    .string()
+    .trim()
+    .min(1, { message: "REQUIRED" })
+    .max(30, { message: "TOO_LONG" }),
+  platform: z.enum(SOCIAL_POST_PLATFORMS),
+  link: z
+    .string()
+    .trim()
+    .regex(/^https:\/\/\S+$/, { message: "INVALID_HREF" })
+    .max(500, { message: "TOO_LONG" }),
+  sortOrder: z.number().int().min(0).max(9999).default(0),
+  isActive: z.boolean().default(true),
+});
+export type SocialPostInput = z.input<typeof socialPostInputSchema>;
+
+/** Markdown-lite body (`@aaarchive/shared/rich-text`), never HTML. */
+const richTextBody = (max: number) =>
+  z
+    .string()
+    .trim()
+    .min(1, { message: "REQUIRED" })
+    .max(max, { message: "TOO_LONG" });
+
+const optionalSeo = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max, { message: "TOO_LONG" })
+    .nullable()
+    .transform((v) => (v ? v : null));
+
+/**
+ * Content pages: /about, /contact, /size-guide, /policies/<slug>
+ * (PRD §5.11). The slug decides the address.
+ */
+export const PAGE_SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+export const pageInputSchema = z.strictObject({
+  slug: z
+    .string()
+    .trim()
+    .min(1, { message: "REQUIRED" })
+    .max(60, { message: "TOO_LONG" })
+    .regex(PAGE_SLUG_REGEX, { message: "INVALID_SLUG" }),
+  title: z
+    .string()
+    .trim()
+    .min(1, { message: "REQUIRED" })
+    .max(80, { message: "TOO_LONG" }),
+  content: richTextBody(20_000),
+  seoTitle: optionalSeo(70),
+  seoDesc: optionalSeo(160),
+});
+export type PageInput = z.input<typeof pageInputSchema>;
+
+/** Pages with a fixed address in the storefront; any other slug is a policy. */
+export const FIXED_PAGE_SLUGS = ["about", "contact", "size-guide"] as const;
+
+/** Where a page lives on the storefront. */
+export function pagePath(slug: string): string {
+  return (FIXED_PAGE_SLUGS as readonly string[]).includes(slug)
+    ? `/${slug}`
+    : `/policies/${slug}`;
+}
+
+export const faqInputSchema = z.strictObject({
+  question: z
+    .string()
+    .trim()
+    .min(1, { message: "REQUIRED" })
+    .max(200, { message: "TOO_LONG" }),
+  answer: richTextBody(4_000),
+  sortOrder: z.number().int().min(0).max(9999).default(0),
+  isActive: z.boolean().default(true),
+});
+export type FaqInput = z.input<typeof faqInputSchema>;
+
+/** The contact form (PRD §5.11): goes to the store's email. */
+export const contactMessageSchema = z.strictObject({
+  name: z
+    .string()
+    .trim()
+    .min(2, { message: "TOO_SHORT" })
+    .max(60, { message: "TOO_LONG" }),
+  /** Phone or email, so the team can answer. */
+  contact: z
+    .string()
+    .trim()
+    .min(5, { message: "TOO_SHORT" })
+    .max(100, { message: "TOO_LONG" }),
+  message: z
+    .string()
+    .trim()
+    .min(10, { message: "TOO_SHORT" })
+    .max(2000, { message: "TOO_LONG" }),
+  turnstileToken: z.string().max(4096).optional(),
+});
+export type ContactMessageInput = z.input<typeof contactMessageSchema>;

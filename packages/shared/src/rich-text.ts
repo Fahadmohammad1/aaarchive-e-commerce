@@ -7,14 +7,17 @@
 //   "- " or "* "    → bullet (consecutive lines form one list)
 //   **bold**        → bold
 //   single newline  → line break inside a paragraph
+//   "## " line      → section heading (pages and FAQ, user decision 2026-10-19)
 
 export type RichInline = { text: string; bold: boolean };
 export type RichLine = RichInline[];
 export type RichBlock =
   | { type: "paragraph"; lines: RichLine[] }
-  | { type: "list"; items: RichLine[] };
+  | { type: "list"; items: RichLine[] }
+  | { type: "heading"; text: RichLine };
 
 const BULLET = /^\s*[-*]\s+/;
+const HEADING = /^\s*##\s+/;
 
 /** "a **b** c" → [a ][b, bold][ c]. An unmatched ** stays literal. */
 export function parseInline(line: string): RichLine {
@@ -50,7 +53,13 @@ export function parseRichText(source: string | null | undefined): RichBlock[] {
       list = [];
     };
     for (const line of lines) {
-      if (BULLET.test(line)) {
+      if (HEADING.test(line)) {
+        flush();
+        blocks.push({
+          type: "heading",
+          text: parseInline(line.replace(HEADING, "").trim()),
+        });
+      } else if (BULLET.test(line)) {
         if (paragraph.length) {
           blocks.push({ type: "paragraph", lines: paragraph });
           paragraph = [];
@@ -72,7 +81,9 @@ export function parseRichText(source: string | null | undefined): RichBlock[] {
 /** Plain text (for SEO descriptions and previews), collapsed to one line. */
 export function richTextToPlain(source: string | null | undefined): string {
   return parseRichText(source)
-    .flatMap((b) => (b.type === "paragraph" ? b.lines : b.items))
+    .flatMap((b) =>
+      b.type === "paragraph" ? b.lines : b.type === "list" ? b.items : [b.text],
+    )
     .map((line) => line.map((i) => i.text).join(""))
     .join(" ")
     .replace(/\s+/g, " ")

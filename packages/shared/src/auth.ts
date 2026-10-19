@@ -58,3 +58,33 @@ export type SessionResponse = z.infer<typeof sessionResponseSchema>;
 export function isStaffRole(role: Role): boolean {
   return (STAFF_ROLES as readonly Role[]).includes(role);
 }
+
+// ── Staff management (PRD §6.8, Owner only) ─────────────────────────────
+
+const staffName = z
+  .string()
+  .trim()
+  .min(2, { message: "TOO_SHORT" })
+  .max(60, { message: "TOO_LONG" });
+
+/** The Owner creates the account and shares the first password in person. */
+export const staffCreateSchema = z.strictObject({
+  name: staffName,
+  email: emailSchema,
+  role: z.enum(STAFF_ROLES),
+  password: newPasswordSchema,
+});
+export type StaffCreateInput = z.input<typeof staffCreateSchema>;
+
+export const staffUpdateSchema = z
+  .strictObject({
+    name: staffName,
+    role: z.enum(STAFF_ROLES),
+    /** false ends every session of that account at once. */
+    isActive: z.boolean(),
+    /** Set a new password (forgotten password); ends their sessions. */
+    password: newPasswordSchema,
+  })
+  .partial()
+  .refine((v) => Object.keys(v).length > 0, { message: "NOTHING_TO_CHANGE" });
+export type StaffUpdateInput = z.input<typeof staffUpdateSchema>;

@@ -1,6 +1,10 @@
-import type { CourierSettingsInput } from "@aaarchive/shared/settings";
+import type {
+  CourierSettingsInput,
+  SettingKey,
+} from "@aaarchive/shared/settings";
 import { z } from "zod";
 import { api } from "@/lib/api/api-client";
+import { adminSettingsSchema } from "./settings-admin-schemas";
 
 // Dashboard settings calls (Phase 5: couriers; the rest in Phase 6).
 
@@ -21,4 +25,12 @@ export function saveCouriers(body: CourierSettingsInput) {
     body,
     schema: courierListSchema,
   });
+}
+
+export function getAdminSettings(signal?: AbortSignal) {
+  return api.get("/admin/settings", { schema: adminSettingsSchema, signal });
+}
+
+export function saveSetting(key: SettingKey, value: unknown) {
+  return api.put(`/admin/settings/${key}`, { body: { value } });
 }

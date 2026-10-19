@@ -4,6 +4,7 @@ import { ExportService } from "../../common/export/export.service.js";
 import type { ExportColumn } from "../../common/export/export-columns.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import { PrismaService } from "../../prisma/prisma.service.js";
+import { SettingsService } from "../settings/settings.service.js";
 import { type ProductFilters, productIdsSql } from "./products.query.js";
 
 const variantInclude = {
@@ -76,6 +77,7 @@ export class ProductsExportService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly exporter: ExportService,
+    private readonly settings: SettingsService,
   ) {}
 
   async export(
@@ -83,7 +85,15 @@ export class ProductsExportService {
     query: ProductFilters & { format: "csv" | "xlsx" },
   ): Promise<void> {
     const ids = (
-      await this.prisma.$queryRaw<{ id: string }[]>(productIdsSql(query))
+      await this.prisma.$queryRaw<{ id: string }[]>(
+        productIdsSql(
+          query,
+          undefined,
+          (
+            await this.settings.stock()
+          ).lowStockThreshold,
+        ),
+      )
     ).map((r) => r.id);
     const total = ids.length
       ? await this.prisma.variant.count({ where: { productId: { in: ids } } })

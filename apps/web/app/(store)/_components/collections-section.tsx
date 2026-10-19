@@ -1,38 +1,25 @@
-import Image from "next/image";
 import { ArrowButton } from "@/components/store/arrow-button";
+import { MediaImage } from "@/components/store/media-image";
 import { ProductCard } from "@/components/store/product-card";
 import { SectionHeading } from "@/components/store/section-heading";
 import { Tag } from "@/components/store/tag";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  collectionsIntro,
-  collectionTabs,
-  type HomeProduct,
-  latestCampaign,
-  products,
-  toCardProduct,
-} from "@/lib/content/home-fixtures";
+import type { HomeContent } from "@/lib/content/content-store-schemas";
 import { getMessages } from "@/lib/i18n/i18n";
+import type { StoreProductSummary } from "@/lib/product/product-store-schemas";
 
-function productsFor(tab: string): HomeProduct[] {
-  const list =
-    tab === "new"
-      ? products.filter((p) => p.isNew)
-      : products.filter((p) => p.categorySlug === tab);
-  return list.slice(0, 8); // PRD H4: max 8 per tab
-}
+type Latest = NonNullable<HomeContent["latest"]>;
 
 // Campaign tile: a 2×2 editorial image that leads the grid.
-function CampaignTile() {
+function CampaignTile({ campaign }: { campaign: Latest["campaign"] }) {
   const t = getMessages();
   return (
     <li className="relative col-span-2 min-h-[28rem] overflow-hidden bg-sunken md:row-span-2">
-      <Image
-        src={latestCampaign.image}
-        alt=""
+      <MediaImage
+        media={campaign.image.media}
+        alt={campaign.image.alt}
         fill
         sizes="(min-width: 1024px) 50vw, 100vw"
-        quality={75}
         className="object-cover"
       />
       <span
@@ -40,33 +27,39 @@ function CampaignTile() {
         className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent"
       />
       <div className="absolute inset-x-4 bottom-4 flex flex-col items-start gap-4 md:inset-x-6 md:bottom-6">
-        <Tag>{latestCampaign.tag}</Tag>
+        {campaign.tag && <Tag>{campaign.tag}</Tag>}
         <p className="type-display-xl">
-          {latestCampaign.title.map((line) => (
+          {campaign.title.map((line) => (
             <span key={line} className="block">
               {line}
             </span>
           ))}
         </p>
-        <p className="max-w-[36ch] text-muted-foreground type-mono-body">
-          {latestCampaign.text}
-        </p>
-        <ArrowButton href={latestCampaign.href}>
-          {t.actions.shopTheDrop}
-        </ArrowButton>
+        {campaign.text && (
+          <p className="max-w-[36ch] text-muted-foreground type-mono-body">
+            {campaign.text}
+          </p>
+        )}
+        <ArrowButton href={campaign.href}>{t.actions.shopTheDrop}</ArrowButton>
       </div>
     </li>
   );
 }
 
-function EntryGrid({ items }: { items: HomeProduct[] }) {
+function EntryGrid({
+  campaign,
+  items,
+}: {
+  campaign: Latest["campaign"];
+  items: StoreProductSummary[];
+}) {
   return (
     <ul className="grid grid-flow-dense grid-cols-2 gap-x-3 gap-y-8 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-5">
-      <CampaignTile />
+      <CampaignTile campaign={campaign} />
       {items.map((product) => (
         <li key={product.slug}>
           <ProductCard
-            product={toCardProduct(product)}
+            product={product}
             sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
           />
         </li>
@@ -75,15 +68,17 @@ function EntryGrid({ items }: { items: HomeProduct[] }) {
   );
 }
 
-// Latest entries (design §6.5, PRD H4).
-export function CollectionsSection() {
+// Latest entries (design §6.5, PRD H4): tabs are "new" or a category, max 8
+// products each (the API applies it). Content → Home → Latest entries.
+export function CollectionsSection({ latest }: { latest: Latest }) {
   const t = getMessages();
+  const first = latest.tabs[0];
   return (
     <section className="site-container py-16 md:py-24 lg:py-32">
       <div className="mb-8 flex flex-col gap-6 md:mb-10 md:flex-row md:items-end md:justify-between">
         <SectionHeading
-          lines={collectionsIntro.heading}
-          intro={collectionsIntro.intro}
+          lines={latest.heading}
+          intro={latest.intro}
           align="stack"
         />
         <ArrowButton href="/shop" className="self-start md:self-end">
@@ -91,27 +86,31 @@ export function CollectionsSection() {
         </ArrowButton>
       </div>
 
-      <Tabs defaultValue="new" className="gap-8">
-        <TabsList
-          aria-label={t.product.filter}
-          className="h-auto w-full justify-start gap-2 overflow-x-auto bg-transparent p-0 scrollbar-none"
-        >
-          {collectionTabs.map((tab) => (
-            <TabsTrigger
-              key={tab.value}
-              value={tab.value}
-              className="h-7 flex-none border-line-strong px-3 type-mono-label text-muted-foreground hover:border-foreground data-active:border-primary data-active:bg-primary data-active:text-primary-foreground dark:data-active:border-primary dark:data-active:bg-primary dark:data-active:text-primary-foreground"
-            >
-              {tab.label}
-            </TabsTrigger>
+      {first ? (
+        <Tabs defaultValue={first.value} className="gap-8">
+          <TabsList
+            aria-label={t.product.filter}
+            className="h-auto w-full justify-start gap-2 overflow-x-auto bg-transparent p-0 scrollbar-none"
+          >
+            {latest.tabs.map((tab) => (
+              <TabsTrigger
+                key={tab.value}
+                value={tab.value}
+                className="h-7 flex-none border-line-strong px-3 type-mono-label text-muted-foreground hover:border-foreground data-active:border-primary data-active:bg-primary data-active:text-primary-foreground dark:data-active:border-primary dark:data-active:bg-primary dark:data-active:text-primary-foreground"
+              >
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          {latest.tabs.map((tab) => (
+            <TabsContent key={tab.value} value={tab.value}>
+              <EntryGrid campaign={latest.campaign} items={tab.products} />
+            </TabsContent>
           ))}
-        </TabsList>
-        {collectionTabs.map((tab) => (
-          <TabsContent key={tab.value} value={tab.value}>
-            <EntryGrid items={productsFor(tab.value)} />
-          </TabsContent>
-        ))}
-      </Tabs>
+        </Tabs>
+      ) : (
+        <EntryGrid campaign={latest.campaign} items={[]} />
+      )}
     </section>
   );
 }

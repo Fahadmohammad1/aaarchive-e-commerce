@@ -12,6 +12,9 @@ export const cacheTags = {
   home: "home",
   site: "site",
   content: "content",
+  /** Content pages (about, policies…) and the FAQ. */
+  page: (slug: string) => `page:${slug}`,
+  faq: "faq",
 } as const;
 
 /** Body of POST /api/revalidate (sent by the API, checked by the web). */

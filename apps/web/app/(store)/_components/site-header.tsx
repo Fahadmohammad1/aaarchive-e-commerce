@@ -4,7 +4,6 @@ import { Search } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import * as React from "react";
-import { Logo } from "@/components/store/logo";
 import { Button } from "@/components/ui/button";
 import { useCartCount, useCartStore } from "@/lib/cart/cart-store";
 import { format, getMessages } from "@/lib/i18n/i18n";
@@ -25,7 +24,7 @@ import { cn } from "@/lib/utils";
 
 // Header (design §6.1): Menu chip · wordmark logo · Search + Cart chip.
 // Transparent over the hero, solid with a hairline once scrolled.
-export function SiteHeader() {
+export function SiteHeader({ logo }: { logo: React.ReactNode }) {
   const t = getMessages();
   const cartCount = useCartCount();
   const drawerOpen = useCartStore((s) => s.drawerOpen);
@@ -81,12 +80,7 @@ export function SiteHeader() {
         {menuLoaded && <SiteMenu open={menuOpen} onOpenChange={setMenuOpen} />}
 
         <Link href="/" aria-label={t.header.home} className="block">
-          <Logo
-            alt=""
-            eager
-            sizes="(min-width: 768px) 128px, 104px"
-            className="h-8 w-auto md:h-10"
-          />
+          {logo}
         </Link>
 
         <div className="flex items-center justify-self-end gap-3">

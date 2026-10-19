@@ -159,11 +159,12 @@ export class MediaService {
   }
 
   private async isReferenced(id: string): Promise<boolean> {
-    const [products, categories, collections, content, settings] =
+    const [products, categories, collections, social, content, settings] =
       await Promise.all([
         this.prisma.productImage.count({ where: { mediaId: id } }),
         this.prisma.category.count({ where: { imageId: id } }),
         this.prisma.collection.count({ where: { imageId: id } }),
+        this.prisma.socialPost.count({ where: { mediaId: id } }),
         // Content blocks and settings store { mediaId, alt } inside JSON.
         this.prisma.$queryRaw<{ n: number }[]>`
         select count(*)::int as n from "ContentBlock" where data::text like ${`%"mediaId":"${id}"%`}`,
@@ -171,7 +172,7 @@ export class MediaService {
         select count(*)::int as n from "Setting" where value::text like ${`%"mediaId":"${id}"%`}`,
       ]);
     return (
-      products + categories + collections > 0 ||
+      products + categories + collections + social > 0 ||
       (content[0]?.n ?? 0) > 0 ||
       (settings[0]?.n ?? 0) > 0
     );

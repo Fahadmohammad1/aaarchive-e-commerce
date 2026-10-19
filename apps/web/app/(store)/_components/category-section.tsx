@@ -1,10 +1,10 @@
 import { ArrowUpRight } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowButton } from "@/components/store/arrow-button";
+import { MediaImage } from "@/components/store/media-image";
 import { SectionHeading } from "@/components/store/section-heading";
 import { Tag } from "@/components/store/tag";
-import { categories, categoriesIntro } from "@/lib/content/home-fixtures";
+import type { HomeContent } from "@/lib/content/content-store-schemas";
 import { format, getMessages } from "@/lib/i18n/i18n";
 import { cn } from "@/lib/utils";
 
@@ -20,18 +20,23 @@ const TILES = [
 ];
 
 // The archive index (design §6.3, PRD H2): categories as an editorial bento of
-// photographs, name over image. Product counts, never stock.
-export function CategorySection() {
+// photographs, name over image. Product counts, never stock. The heading is
+// Content → Home; the categories are those marked "show on home".
+export function CategorySection({
+  section,
+}: {
+  section: NonNullable<HomeContent["categories"]>;
+}) {
   const t = getMessages();
   return (
     <section id="categories" className="site-container py-16 md:py-24 lg:py-32">
       <SectionHeading
-        lines={categoriesIntro.heading}
-        intro={categoriesIntro.intro}
+        lines={section.heading}
+        intro={section.intro}
         className="mb-8 md:mb-12"
       />
       <ul className="grid auto-rows-[13rem] grid-cols-2 gap-2 md:auto-rows-[15rem] lg:grid-cols-4 lg:auto-rows-[17rem] lg:gap-3">
-        {categories.map((category, i) => {
+        {section.items.map((category, i) => {
           const lead = i === 0;
           return (
             <li key={category.slug} className={cn(TILES[i])}>
@@ -39,18 +44,19 @@ export function CategorySection() {
                 href={`/category/${category.slug}`}
                 className="group/tile relative block h-full overflow-hidden bg-sunken"
               >
-                <Image
-                  src={category.image}
-                  alt=""
-                  fill
-                  sizes={
-                    lead
-                      ? "(min-width: 1024px) 50vw, 100vw"
-                      : "(min-width: 1024px) 25vw, 50vw"
-                  }
-                  quality={60}
-                  className="object-cover transition-transform duration-700 ease-editorial group-hover/tile:scale-105"
-                />
+                {category.image && (
+                  <MediaImage
+                    media={category.image.media}
+                    alt=""
+                    fill
+                    sizes={
+                      lead
+                        ? "(min-width: 1024px) 50vw, 100vw"
+                        : "(min-width: 1024px) 25vw, 50vw"
+                    }
+                    className="object-cover transition-transform duration-700 ease-editorial group-hover/tile:scale-105"
+                  />
+                )}
                 <span
                   aria-hidden
                   className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent"

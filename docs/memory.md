@@ -4,12 +4,16 @@ Living log of where the project stands. **Every agent updates this at the end of
 
 ## Current status
 
-- **Phase:** 5 — Order management: built and verified locally (2026-10-19). Next: Phase 6 (home, content & settings).
-- **In progress:** — (Phase 5 done; open items from earlier phases under Next up)
-- **File currently being worked on:** — (next: Phase 6 `apps/api/src/modules/content/`)
+- **Phase:** 6 — Home, content & settings: built and verified locally (2026-10-20). Next: Phase 7 (launch prep & launch).
+- **In progress:** —
+- **File currently being worked on:** — (next: Phase 7 `apps/web/app/sitemap.ts`)
 
 ## Completed
 
+- **2026-10-20** [shared][api][web] — Phase 6: home, content & settings.
+  - Shared: `content.ts` + social post / page / FAQ / contact schemas, `pagePath()`; `settings.ts` + store / SEO / tracking schemas and the `settingSchemas` registry (wallet numbers now validated as BD mobiles); `auth.ts` staff create/update; rich-text `## ` headings; cache tags `page:<slug>`, `faq`. 108 shared tests.
+  - API: `content` module (`GET /content/home` resolved, `/content/site`, `/pages/:slug`, `/faq`, `POST /contact`; admin `GET /admin/content`, `PUT /admin/content/:key`, CRUD `/admin/social-posts`, `/admin/pages`, `/admin/faq`), settings rewritten (`GET /admin/settings`, `PUT /admin/settings/:key`, richer `GET /settings/public`), `users` module (`/admin/staff`). Settings → Stock now drives the low-stock threshold and max quantity everywhere (the old `TODO(Phase 5)`s). Migration `20261019050000_social_post_media` (SocialPost.image → mediaId + alt, user-approved) — **applied to Supabase**. Tests: `test/content.e2e-spec.ts` (6); e2e 54 pass + 2 race tests skipped locally.
+  - Web: storefront layout/home/footer/menu/announcement/chat buttons from the API (cached fetchers in `lib/content/content-store-api.ts`, request-time via `connection()` in Suspense so the build never needs the API), content pages (`[page]` for about/size-guide, `/policies/[slug]`, `/faq`, `/contact` + form), SEO defaults from settings in the store layout's `generateMetadata`, root `not-found` + `global-error`; deleted `lib/content/home-fixtures.ts` and `components/store/category-card.tsx`. Admin: `/admin/content` (+ one form per section in `[key]`, look-file hotspot picker), `/admin/content/social-posts`, `/pages` (+ editor with live preview), `/faq`, `/admin/settings` (tabs), `/admin/staff`. `--paper`/`--ink` tokens were added in Phase 5. Browser-checked as Owner at 375px/1440px with local placeholder media.
 - **2026-10-19** [shared][api][web][repo] — Follow-ups to Phase 5 (user answers): (1) user rule: the agent applies finished, additive migrations to Supabase with `db:deploy` at the end of a task (rules.md §10, AGENTS.md) — applied `20261019040000_order_event_edit`, Supabase is up to date; (2) CSV phone guard: export type `phone` → `="01712…"` in CSV (`csv-writer.ts`, orders/customers/payments exports, `export.spec.ts`); (3) several couriers: `couriers` setting (`@aaarchive/shared/settings`), `GET|PUT /admin/settings/couriers`, Couriers editor on `/admin/zones` (`couriers-card.tsx`), courier suggestions in the Shipped dialog, "Track parcel on …" link on `/track-order`; seed adds an empty `couriers` row. Tests: shared 100, API unit 50, e2e 48 (+1 courier test). Browser-checked the editor at 375px/1440px.
 - **2026-10-19** [shared][api][web] — Phase 5: order management.
   - Shared: `order.ts` (status flow `ORDER_TRANSITIONS`/`canTransition()`, status/bulk/note/edit schemas, admin list + export queries, `dhakaRange()`, payment verify/reject/list schemas), new `customer.ts` (list/export queries, `successRate()`, blocklist schemas). 98 shared tests.
@@ -153,6 +157,10 @@ Living log of where the project stands. **Every agent updates this at the end of
 
 ## Decisions
 
+- **2026-10-20** [repo] Customer accounts (PRD open question 6): **guest-only at launch**, accounts move to Release 2 (user).
+- **2026-10-20** [api][web] Pages and FAQ answers are Markdown-lite like product descriptions, plus `## ` headings — no HTML, no sanitiser (user). Social posts store a media-library image (user-approved migration).
+- **2026-10-20** [web] Content-driven storefront parts read the API at request time (`connection()` inside `<Suspense>`) from `"use cache"` fetchers, so `next build`/CI never need the API. About and Size guide are served by a dynamic `[page]` route for the same reason.
+- **2026-10-20** [api] Staff accounts are created by the Owner with a first password (no email invite). Owners cannot demote or deactivate themselves, and the last active Owner cannot be removed; role change, deactivation or a new password end that person's sessions.
 - **2026-10-19** [api] Status flow read from PRD §6.4's diagram: Shipped may still go to Cancelled (stock restored) as well as Returned; Delivered is final (no Delivered → Returned). Delivering a COD order marks it Paid; verifying a COD advance makes it Partially paid (Paid if already delivered); rejecting a payment makes the order Unpaid. Staff (Order Manager) can do everything in orders, payments, customers, blocklist and their exports.
 - **2026-10-19** [api] Revenue on the dashboard = orders Delivered or Paid (not cancelled/returned), by order date in Dhaka time; open unpaid orders are "pending". Customer success rate = delivered ÷ (delivered + cancelled + returned).
 - **2026-10-19** [web] Zod is allowed in the `/checkout` and `/track-order` route chunks only (shared schemas, architecture §3.1); shared storefront code stays Zod-free (rules.md §4.2 clarified).
@@ -183,6 +191,7 @@ Living log of where the project stands. **Every agent updates this at the end of
 
 ## Blockers / open questions
 
+- **2026-10-20** Owner to fill in the real content in the dashboard: hero, look file, latest entries, made to be kept (photos need Supabase Storage keys `MEDIA_S3_*`), the pages (about, contact, size-guide, returns, privacy, terms, delivery — the footer already links to some), FAQ, Settings (bKash/Nagad numbers, WhatsApp, store email for the contact form, SEO). Sections without content stay hidden.
 - **2026-10-19** Owner to add the couriers actually used and their tracking-page patterns under Delivery zones → Couriers (none are set yet).
 - **2026-10-19** [api] While setting up the browser check, `prisma db seed` ran once against the Supabase DB from `apps/api/.env` (`DIRECT_URL`) instead of the local one. The seed only creates missing rows (upserts with `update: {}`, Owner skipped if present), so nothing was changed or removed, but missing sizes/colours/zones/settings/content rows would have been added there.
 - **2026-10-19** Local `prisma dev` also listens on 127.0.0.1:4000, so the API must use another `PORT` (e.g. 4100 + `API_PROXY_TARGET`) while it runs.

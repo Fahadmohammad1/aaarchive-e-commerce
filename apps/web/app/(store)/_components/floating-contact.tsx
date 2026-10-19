@@ -1,24 +1,33 @@
 import { MessageCircle, MessagesSquare } from "lucide-react";
-import { contactLinks } from "@/lib/content/home-fixtures";
 import { getMessages } from "@/lib/i18n/i18n";
 
 // Click-to-chat buttons on every page (PRD §5.1). Plain links, no widget.
-export function FloatingContact() {
+// Numbers and links come from Settings → Store; an unset one is left out.
+export function FloatingContact({
+  whatsapp,
+  messenger,
+}: {
+  /** 01XXXXXXXXX, or "" when not set. */
+  whatsapp: string;
+  messenger: string;
+}) {
   const t = getMessages();
   const items = [
-    {
-      href: contactLinks.whatsapp,
+    whatsapp && {
+      // wa.me wants the country code without the leading 0.
+      href: `https://wa.me/88${whatsapp}`,
       label: t.contact.whatsapp,
       Icon: MessageCircle,
       accent: true,
     },
-    {
-      href: contactLinks.messenger,
+    messenger && {
+      href: messenger,
       label: t.contact.messenger,
       Icon: MessagesSquare,
       accent: false,
     },
-  ];
+  ].filter((i): i is Exclude<typeof i, "" | false> => Boolean(i));
+  if (items.length === 0) return null;
   return (
     <div className="fixed right-4 bottom-[calc(1rem+var(--buy-bar-h,0px))] z-30 flex flex-col gap-1 transition-[bottom] duration-250">
       {items.map(({ href, label, Icon, accent }) => (

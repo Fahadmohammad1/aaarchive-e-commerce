@@ -7,6 +7,7 @@ import type { z } from "zod";
 import { Prisma } from "../../generated/prisma/client.js";
 import { PrismaService } from "../../prisma/prisma.service.js";
 import { MediaService } from "../media/media.service.js";
+import { SettingsService } from "../settings/settings.service.js";
 import {
   type StoreProduct,
   type StoreProductStock,
@@ -105,6 +106,7 @@ export class StoreProductsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly media: MediaService,
+    private readonly settings: SettingsService,
   ) {}
 
   async list(query: ListQuery) {
@@ -205,7 +207,8 @@ export class StoreProductsService {
       include: storeProductInclude,
     });
     if (!row) throw notFound();
-    return toStoreProduct(row, this.media);
+    const { maxQtyPerVariant } = await this.settings.stock();
+    return toStoreProduct(row, this.media, new Date(), maxQtyPerVariant);
   }
 
   /** Per-variant status, read at request time (never cached, PRD §8.2). */
@@ -221,7 +224,8 @@ export class StoreProductsService {
       },
     });
     if (!row) throw notFound();
-    return toStoreProductStock(row);
+    const { lowStockThreshold } = await this.settings.stock();
+    return toStoreProductStock(row, lowStockThreshold);
   }
 
   /** Loads cards for ids, keeping the order the SQL chose. */

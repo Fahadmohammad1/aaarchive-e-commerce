@@ -1,32 +1,52 @@
-import { ArrowLeftRight, Banknote, Scale, Sun } from "lucide-react";
-import Image from "next/image";
+import type { PROMISE_ICONS } from "@aaarchive/shared/content";
+import {
+  ArrowLeftRight,
+  BadgeCheck,
+  Banknote,
+  Feather,
+  Gift,
+  type LucideIcon,
+  Scale,
+  Sun,
+  Truck,
+} from "lucide-react";
 import { ArrowButton } from "@/components/store/arrow-button";
 import { KanthaDivider } from "@/components/store/kantha-divider";
-import { madeToKeep } from "@/lib/content/home-fixtures";
+import { MediaImage } from "@/components/store/media-image";
+import type { HomeContent } from "@/lib/content/content-store-schemas";
 import { getMessages } from "@/lib/i18n/i18n";
 
-const ICONS = {
+/** The icon each promise can use (PROMISE_ICONS in @aaarchive/shared/content). */
+const ICONS: Record<(typeof PROMISE_ICONS)[number], LucideIcon> = {
   weather: Sun,
   fabric: Scale,
   payment: Banknote,
   exchange: ArrowLeftRight,
-} as const;
+  delivery: Truck,
+  quality: BadgeCheck,
+  comfort: Feather,
+  gift: Gift,
+};
+const iconFor = (name: string) =>
+  ICONS[name as keyof typeof ICONS] ?? BadgeCheck;
+
+type Section = NonNullable<HomeContent["promises"]>;
 
 // Made to be kept (design §6.6, PRD H5): a full-width campaign photo with the
-// heading and the four promises laid over it.
-export function MadeToKeepSection() {
+// heading and the promises laid over it. Content → Home → Made to be kept.
+export function MadeToKeepSection({ section }: { section: Section }) {
   const t = getMessages();
+  const madeToKeep = { ...section, labels: section.items };
   return (
     <section>
       <KanthaDivider />
       <div className="relative isolate overflow-hidden">
         <div className="relative aspect-[4/5] sm:aspect-[16/10] lg:aspect-[21/10]">
-          <Image
-            src={madeToKeep.image}
-            alt="Model in a black leather jacket against a brick wall"
+          <MediaImage
+            media={madeToKeep.image.media}
+            alt={madeToKeep.image.alt}
             fill
             sizes="100vw"
-            quality={75}
             className="object-cover object-[50%_30%]"
           />
           <span
@@ -55,9 +75,9 @@ export function MadeToKeepSection() {
               <ArrowButton href="/about">{t.actions.learnMore}</ArrowButton>
             </div>
 
-            <ol className="hidden grid-cols-4 gap-6 border-t border-line-strong pt-6 lg:grid">
+            <ol className="hidden auto-cols-fr grid-flow-col gap-6 border-t border-line-strong pt-6 lg:grid">
               {madeToKeep.labels.map((label) => {
-                const Icon = ICONS[label.icon];
+                const Icon = iconFor(label.icon);
                 return (
                   <li key={label.title} className="flex flex-col gap-2">
                     <Icon
@@ -80,7 +100,7 @@ export function MadeToKeepSection() {
       {/* below lg the promises sit under the photo */}
       <ol className="site-container grid gap-x-4 gap-y-8 py-10 sm:grid-cols-2 lg:hidden">
         {madeToKeep.labels.map((label) => {
-          const Icon = ICONS[label.icon];
+          const Icon = iconFor(label.icon);
           return (
             <li key={label.title} className="flex gap-4">
               <Icon

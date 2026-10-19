@@ -12,6 +12,7 @@ import {
   SheetDescription,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useSiteContent } from "@/lib/content/use-site-content";
 import { getMessages } from "@/lib/i18n/i18n";
 
 // Menu overlay (design §5.15). Loaded on the first tap of "Menu" (see
@@ -24,15 +25,9 @@ export function SiteMenu({
   onOpenChange: (open: boolean) => void;
 }) {
   const t = getMessages();
-  const menuItems = [
-    { label: t.nav.shop, href: "/shop" },
-    { label: t.nav.collections, href: "/collection/archive-01-winter-drop" },
-    { label: t.nav.categories, href: "/shop#categories" },
-    { label: t.nav.trackOrder, href: "/track-order" },
-    { label: t.nav.about, href: "/about" },
-    { label: t.nav.faq, href: "/faq" },
-    { label: t.nav.contact, href: "/contact" },
-  ];
+  // Links from Content → Site, loaded when the menu first opens.
+  const site = useSiteContent();
+  const menuItems = site.data?.navigation?.menu ?? [];
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -59,7 +54,13 @@ export function SiteMenu({
           </SheetClose>
         </div>
         <nav className="site-container flex flex-1 flex-col justify-center border-t">
-          <ul>
+          <ul aria-busy={site.isPending}>
+            {site.isPending &&
+              [0, 1, 2, 3, 4].map((i) => (
+                <li key={i} className="border-b py-3">
+                  <div className="skeleton h-10 w-2/3" />
+                </li>
+              ))}
             {menuItems.map((item, i) => (
               <li key={item.href} className="border-b">
                 <SheetClose asChild>

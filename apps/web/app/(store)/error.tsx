@@ -10,20 +10,20 @@ export default function StoreError({
   error: Error;
   reset: () => void;
 }) {
-  const t = getMessages().listing;
+  const t = getMessages();
   return (
     <div className="site-container py-20">
       <div
         role="alert"
         className="mx-auto flex max-w-md flex-col items-center gap-4 border border-destructive p-6 text-center"
       >
-        <p className="type-mono-label">{t.loadFailed}</p>
+        <p className="type-mono-label">{t.pageError}</p>
         <Button
           variant="outline"
           onClick={reset}
           className="h-11 rounded-none type-mono-label uppercase"
         >
-          {getMessages().actions.retry}
+          {t.actions.retry}
         </Button>
       </div>
     </div>

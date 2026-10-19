@@ -16,7 +16,11 @@ function likeTerm(q: string): string {
   return `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 }
 
-export function whereSql(query: ProductFilters): Prisma.Sql {
+/** `lowStock`: the store's threshold (Settings → Stock) for products without their own. */
+export function whereSql(
+  query: ProductFilters,
+  lowStock: number = DEFAULT_LOW_STOCK_THRESHOLD,
+): Prisma.Sql {
   const parts: Prisma.Sql[] = [Prisma.sql`TRUE`];
   if (query.q) {
     const term = likeTerm(query.q);
@@ -37,11 +41,10 @@ export function whereSql(query: ProductFilters): Prisma.Sql {
       WHERE s."productId" = p.id AND s."isActive" AND s.stock <= 0)`);
   }
   if (query.stock === "low") {
-    // TODO(Phase 5): store-wide threshold from Settings → Stock.
     parts.push(Prisma.sql`EXISTS (
       SELECT 1 FROM "Variant" s
       WHERE s."productId" = p.id AND s."isActive" AND s.stock > 0
-        AND s.stock <= COALESCE(p."lowStockThreshold", ${DEFAULT_LOW_STOCK_THRESHOLD}))`);
+        AND s.stock <= COALESCE(p."lowStockThreshold", ${lowStock}))`);
   }
   return Prisma.join(parts, " AND ");
 }
@@ -70,12 +73,13 @@ export function orderSql(sort: ProductFilters["sort"]): Prisma.Sql {
 export function productIdsSql(
   query: ProductFilters,
   page?: { limit: number; offset: number },
+  lowStock?: number,
 ): Prisma.Sql {
   return Prisma.sql`
     SELECT p.id
     FROM "Product" p
     LEFT JOIN "Variant" v ON v."productId" = p.id AND v."isActive"
-    WHERE ${whereSql(query)}
+    WHERE ${whereSql(query, lowStock)}
     GROUP BY p.id
     ORDER BY ${orderSql(query.sort)}, p.id
     ${page ? Prisma.sql`LIMIT ${page.limit} OFFSET ${page.offset}` : Prisma.empty}`;

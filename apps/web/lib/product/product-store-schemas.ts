@@ -7,7 +7,11 @@ import { pagedSchema } from "@/lib/api/paged";
 // anything the API might add by mistake, so an unexpected field can never
 // reach props or hydration data.
 
-const storeImageSchema = z.object({ media: mediaAssetSchema, alt: z.string() });
+export const storeImageSchema = z.object({
+  media: mediaAssetSchema,
+  alt: z.string(),
+});
+export type StoreImage = z.infer<typeof storeImageSchema>;
 
 export const storeProductSummarySchema = z.object({
   slug: z.string(),

@@ -16,6 +16,6 @@ import { VariantsService } from "./variants.service.js";
     ProductsExportService,
     StoreProductsService,
   ],
-  exports: [ProductsService],
+  exports: [ProductsService, StoreProductsService],
 })
 export class ProductsModule {}

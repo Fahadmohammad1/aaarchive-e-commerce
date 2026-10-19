@@ -260,6 +260,8 @@ export const en = {
     INVALID_BD_PHONE: "Enter a Bangladeshi mobile number: 01XXXXXXXXX.",
     INVALID_EMAIL: "Enter a valid email address.",
     INVALID_TRXID: "Use the letters and numbers from your TrxID.",
+    CONTACT_UNAVAILABLE:
+      "Messages cannot be sent from here right now. Please use WhatsApp or Messenger.",
     INVALID_ORDER_NUMBER: "Enter the order number, e.g. AAR-24101.",
     INVALID_CODE: "This coupon code is not valid.",
     OUT_OF_STOCK:
@@ -299,6 +301,7 @@ export const en = {
     resultsFor: "Results for “{q}”",
     searching: "Searching…",
   },
+  pageError: "This page could not load. Please try again.",
   notFound: {
     title: "Not found",
     text: "This page is not in the archive.",
@@ -307,6 +310,27 @@ export const en = {
   contact: {
     whatsapp: "Chat on WhatsApp",
     messenger: "Chat on Messenger",
+    title: "Contact",
+    description: "Questions about an order, a size or a fit? Write to us.",
+    reach: "Reach us",
+    phone: "Phone",
+    email: "Email",
+    address: "Address",
+    formTitle: "Send a message",
+    name: "Your name",
+    contact: "Phone or email",
+    contactHint: "So we can answer you.",
+    message: "Message",
+    send: "Send message",
+    sending: "Sending…",
+    sent: "Thank you. We will get back to you soon.",
+    unavailable:
+      "Messages cannot be sent from here right now. Please use WhatsApp or Messenger.",
+  },
+  faq: {
+    title: "FAQs",
+    description: "Answers about ordering, delivery, payment and exchanges.",
+    empty: "No questions here yet.",
   },
   look: {
     pieces: "{count} pieces",
@@ -323,7 +347,8 @@ export const en = {
     terms: "Terms & conditions",
     returns: "Return policy",
     social: "Follow Aaarchive",
-    rights: "© {year} Aaarchive. All rights reserved.",
+    rights: "© {year} {name}. All rights reserved.",
+    nav: "Footer",
   },
 } as const;
 
