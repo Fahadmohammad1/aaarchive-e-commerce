@@ -55,13 +55,8 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: "sales",
     items: [
       { label: "customers", href: "/admin/customers", icon: Users, soon: true },
-      {
-        label: "coupons",
-        href: "/admin/coupons",
-        icon: TicketPercent,
-        soon: true,
-      },
-      { label: "zones", href: "/admin/zones", icon: Truck, soon: true },
+      { label: "coupons", href: "/admin/coupons", icon: TicketPercent },
+      { label: "zones", href: "/admin/zones", icon: Truck },
     ],
   },
   {

@@ -4,8 +4,11 @@ import { formatTaka } from "@aaarchive/shared/money";
 import type { StockStatus } from "@aaarchive/shared/stock";
 import { Minus, Plus, Ruler } from "lucide-react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
+import { trackAddToCart } from "@/lib/analytics/analytics";
+import { useCartStore } from "@/lib/cart/cart-store";
 import { format, getMessages } from "@/lib/i18n/i18n";
 import type {
   StoreProduct,
@@ -71,8 +74,8 @@ function StatusLine({ status }: { status: StockStatus }) {
 
 /**
  * Colour, size, status, quantity and the buy buttons (PRD §5.5). Rendered in
- * the request-time hole with that moment's stock status; the cart itself
- * arrives in Phase 4.
+ * the request-time hole with that moment's stock status. The cart gets the
+ * variant id and quantity; prices are re-checked by the API (golden rule 2).
  */
 export function VariantPicker({
   product,
@@ -138,6 +141,47 @@ export function VariantPicker({
 
   const price = variant?.price ?? product.price;
   const showVariantPrice = variant && variant.price !== product.price;
+
+  const router = useRouter();
+  const addLine = useCartStore((s) => s.add);
+  const openDrawer = useCartStore((s) => s.openDrawer);
+  const [needSize, setNeedSize] = React.useState(false);
+  const canBuy = Boolean(variant) && variantStatus !== "out_of_stock";
+
+  /** Adds the chosen variant; false when no size is picked yet. */
+  const addToCart = (): boolean => {
+    if (!variant || variantStatus === "out_of_stock") {
+      setNeedSize(true);
+      return false;
+    }
+    const size = product.sizes.find((s) => s.id === variant.sizeId);
+    const image =
+      product.images.find((i) => i.colorId === variant.colorId) ??
+      product.images[0];
+    addLine(
+      {
+        variantId: variant.id,
+        quantity: qty,
+        snapshot: {
+          slug: product.slug,
+          name: product.name,
+          sizeName: size?.name ?? "",
+          colorName: color?.name ?? "",
+          unitPrice: variant.price,
+          image: image ? { media: image.media, alt: image.alt } : null,
+        },
+      },
+      product.maxQtyPerVariant,
+    );
+    trackAddToCart({
+      id: variant.id,
+      name: product.name,
+      price: variant.price,
+      quantity: qty,
+    });
+    setNeedSize(false);
+    return true;
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -293,25 +337,36 @@ export function VariantPicker({
       </fieldset>
 
       <div ref={buyRef} className="flex flex-col gap-2">
-        {/* TODO(Phase 4): add to the cart / go to checkout with { variantId, qty }. */}
         <Button
-          disabled
-          aria-describedby="ordering-soon"
+          disabled={stock === null}
+          aria-describedby={needSize ? "choose-first" : undefined}
+          onClick={() => {
+            if (addToCart()) openDrawer();
+          }}
           className="h-11 w-full justify-between rounded-none type-mono-label uppercase"
         >
           {t.addToCart} <span aria-hidden>↗</span>
         </Button>
         <Button
-          disabled
+          disabled={stock === null}
           variant="outline"
-          aria-describedby="ordering-soon"
+          aria-describedby={needSize ? "choose-first" : undefined}
+          onClick={() => {
+            if (addToCart()) router.push("/checkout");
+          }}
           className="h-11 w-full rounded-none type-mono-label uppercase"
         >
           {t.buyNow}
         </Button>
-        <p id="ordering-soon" className="text-muted-foreground type-mono-micro">
-          {t.orderingSoon}
-        </p>
+        {needSize && !canBuy && (
+          <p
+            id="choose-first"
+            role="alert"
+            className="text-destructive type-mono-micro"
+          >
+            {t.chooseFirst}
+          </p>
+        )}
       </div>
 
       <div
@@ -323,8 +378,13 @@ export function VariantPicker({
       >
         <span className="type-mono-label">{formatTaka(price)}</span>
         <Button
-          disabled
+          disabled={stock === null}
           tabIndex={buyVisible ? -1 : 0}
+          onClick={() => {
+            if (addToCart()) openDrawer();
+            // No size yet: bring the picker into view.
+            else buyRef.current?.scrollIntoView({ block: "center" });
+          }}
           className="h-11 flex-1 justify-between rounded-none type-mono-label uppercase"
         >
           {t.addToCart} <span aria-hidden>↗</span>

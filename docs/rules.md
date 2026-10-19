@@ -72,7 +72,7 @@ Breaking any of these is a bug, however good the rest of the change is.
 | Auth | `@nestjs/jwt` (HS256, own guards — no Passport), **`@node-rs/argon2`** (argon2id, prebuilt binaries; no install scripts), `cookie-parser` |
 | Rate limiting | `@nestjs/throttler` (installed; global limit on, stricter per-route limits in Phase 1/4) |
 | Media | **Supabase Storage** via its S3 API (`@aws-sdk/client-s3`, storage-only access keys) + **`sharp`** for validation/resizing *(Phase 2, install after approval)* |
-| Email | Resend (or Brevo) free tier *(Phase 4)* |
+| Email | Resend free tier, called through its HTTP API with `fetch` (no SDK) in `modules/mail/mail.service.ts`; skipped and logged when `RESEND_API_KEY`/`MAIL_FROM` are unset *(Phase 4)* |
 | Excel export | **exceljs** 4.4 (MIT), server-side streaming writer *(installed 2026-10-19)*. CSV is written by our own helper. Never use the npm `xlsx` package (stale 0.18.x with known advisories) |
 | Tests | Vitest + supertest |
 
@@ -127,7 +127,7 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 - **Public, SEO-relevant pages** (home, shop, category, collection, product, content) fetch on the server through `lib/<module>/<module>-api.ts`, cached with `"use cache"` + `cacheLife` + `cacheTag`. Product **stock status** is fetched uncached inside `<Suspense>`.
 - **Everything client-side uses TanStack Query**: admin screens, account pages, cart validation, coupon apply, checkout submit, order tracking, search-as-you-type.
 - When a server-rendered page also needs the data in a Client Component, prefetch on the server with `queryClient.prefetchQuery` and pass it down with `<HydrationBoundary>`. Do not fetch twice.
-- **Storefront JS budget (2026-10-19).** Storefront client code never imports Zod at runtime: browser-side public reads (`lib/product/product-search-api.ts`) use `import type` and skip parsing (the server fetchers validate the same responses); URL helpers used by Client Components live in Zod-free files (`listing-query.ts`, not `listing-params.ts`). Storefront code never imports `lib/i18n/i18n-admin.ts`, `en-admin.ts` or `error-text.ts`. Dialogs, sheets and overlays that open on a tap (menu, search, filters, size chart, zoom) load with `next/dynamic({ ssr: false })` on first use.
+- **Storefront JS budget (2026-10-19).** Storefront client code never imports Zod at runtime: browser-side public reads (`lib/product/product-search-api.ts`) use `import type` and skip parsing (the server fetchers validate the same responses); URL helpers used by Client Components live in Zod-free files (`listing-query.ts`, not `listing-params.ts`). Storefront code never imports `lib/i18n/i18n-admin.ts`, `en-admin.ts` or `error-text.ts`. Dialogs, sheets and overlays that open on a tap (menu, search, filters, size chart, zoom, cart drawer) load with `next/dynamic({ ssr: false })` on first use. **Clarified 2026-10-19:** the `/checkout` and `/track-order` route chunks *may* use Zod (React Hook Form + the shared `checkoutSchema` / `trackOrderSchema`, as architecture §3.1 describes); everything they share with other storefront pages (header, cart store, cart drawer, `lib/cart`, `lib/order`, `lib/settings`, `*-store-api.ts`) stays Zod-free.
 
 **TanStack Query**
 
@@ -175,7 +175,7 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 ### 5.1 API
 
 - Every error response has the shape `{ statusCode, message, code?, details? }` (`AllExceptionsFilter`).
-- Throw Nest `HttpException`s with a stable **`code`** for anything the UI must react to: `VALIDATION_ERROR`, `OUT_OF_STOCK`, `COUPON_INVALID`, `COUPON_EXPIRED`, `PHONE_BLOCKED`, `RATE_LIMITED`, `TURNSTILE_FAILED`, `TRXID_ALREADY_USED`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `SLUG_TAKEN`, `NAME_TAKEN`, `CATEGORY_IN_USE`, `SIZE_IN_USE`, `COLOR_IN_USE`, `MEDIA_NOT_FOUND`, `MEDIA_IN_USE`. Add new codes to this list.
+- Throw Nest `HttpException`s with a stable **`code`** for anything the UI must react to: `VALIDATION_ERROR`, `OUT_OF_STOCK`, `COUPON_INVALID`, `COUPON_EXPIRED`, `PHONE_BLOCKED`, `RATE_LIMITED`, `TURNSTILE_FAILED`, `TRXID_ALREADY_USED`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `SLUG_TAKEN`, `NAME_TAKEN`, `CATEGORY_IN_USE`, `SIZE_IN_USE`, `COLOR_IN_USE`, `MEDIA_NOT_FOUND`, `MEDIA_IN_USE`, and since Phase 4: `COUPON_NOT_STARTED`, `COUPON_MIN_ORDER` (`details.minOrder`), `COUPON_NOT_APPLICABLE`, `COUPON_LIMIT_REACHED`, `ITEM_UNAVAILABLE`, `QTY_LIMIT`, `ZONE_UNAVAILABLE`, `PAYMENT_METHOD_UNAVAILABLE`, `ORDER_NOT_FOUND`, `ZONE_IN_USE`, `COUPON_IN_USE`, `CODE_TAKEN`. Add new codes to this list.
 - Unexpected errors: log the full error server-side and return a bare 500 (`INTERNAL_ERROR`). Never return stack traces, SQL or Prisma messages.
 - Never log passwords, tokens, full card/wallet data, or full phone numbers alongside names. Log order numbers and ids instead.
 - Status codes: 400 validation, 401 not logged in, 403 wrong role, 404 not found, 409 conflict (duplicate TrxID, slug), 422 business rule (out of stock, coupon), 429 rate limit.

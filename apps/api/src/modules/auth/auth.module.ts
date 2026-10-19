@@ -31,6 +31,6 @@ import { TurnstileService } from "./turnstile.service.js";
   ],
   controllers: [AuthController],
   providers: [AuthService, TokenService, TurnstileService],
-  exports: [AuthService, TokenService],
+  exports: [AuthService, TokenService, TurnstileService],
 })
 export class AuthModule {}

@@ -6,13 +6,13 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
 import { useForm } from "react-hook-form";
+import { useAuth } from "@/components/providers/auth-provider";
+import { Logo } from "@/components/store/logo";
 import {
   type TurnstileHandle,
   TurnstileWidget,
   turnstileSiteKey,
-} from "@/components/admin/turnstile-widget";
-import { useAuth } from "@/components/providers/auth-provider";
-import { Logo } from "@/components/store/logo";
+} from "@/components/turnstile-widget";
 import { Button } from "@/components/ui/button";
 import {
   Card,

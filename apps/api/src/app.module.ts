@@ -18,12 +18,18 @@ import {
 import { type Env, validateEnv } from "./config/env.schema.js";
 import { HealthModule } from "./health/health.module.js";
 import { AuthModule } from "./modules/auth/auth.module.js";
+import { CartModule } from "./modules/cart/cart.module.js";
 import { CategoriesModule } from "./modules/categories/categories.module.js";
 import { CollectionsModule } from "./modules/collections/collections.module.js";
 import { ColorsModule } from "./modules/colors/colors.module.js";
+import { CouponsModule } from "./modules/coupons/coupons.module.js";
+import { DeliveryZonesModule } from "./modules/delivery-zones/delivery-zones.module.js";
+import { MailModule } from "./modules/mail/mail.module.js";
 import { MediaModule } from "./modules/media/media.module.js";
+import { OrdersModule } from "./modules/orders/orders.module.js";
 import { ProductsModule } from "./modules/products/products.module.js";
 import { RevalidationModule } from "./modules/revalidation/revalidation.module.js";
+import { SettingsModule } from "./modules/settings/settings.module.js";
 import { SizeChartsModule } from "./modules/size-charts/size-charts.module.js";
 import { SizesModule } from "./modules/sizes/sizes.module.js";
 import { PrismaModule } from "./prisma/prisma.module.js";
@@ -60,6 +66,8 @@ import { PrismaModule } from "./prisma/prisma.module.js";
     HealthModule,
     RevalidationModule,
     ExportModule,
+    SettingsModule,
+    MailModule,
     AuthModule,
     MediaModule,
     CategoriesModule,
@@ -68,6 +76,10 @@ import { PrismaModule } from "./prisma/prisma.module.js";
     ColorsModule,
     SizeChartsModule,
     ProductsModule,
+    DeliveryZonesModule,
+    CartModule,
+    CouponsModule,
+    OrdersModule,
   ],
   // Order matters: rate limit → authentication → role. Every route is
   // OWNER/STAFF-only unless it says @Public() or @Roles(...) (rules.md §8.3).

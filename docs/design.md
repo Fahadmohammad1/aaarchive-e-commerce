@@ -538,6 +538,7 @@ YOU MAY ALSO LIKE                       [‹][›]
 - Line item: 64×80 image, name (display-sm 12px), `Black / L` mono-micro, price, qty stepper, remove link.
 - Footer: coupon input + Apply, subtotal, "Delivery calculated at checkout", primary `Checkout ↗` full width.
 - Empty state: large outlined wordmark-style "EMPTY" text, `Start Shopping ↗`.
+- *Built (2026-10-19):* one `CartView` (components/store/cart/) for the drawer and `/cart`. The header's `Cart (n)` chip opens the drawer (modifier-clicks follow the `/cart` link). The cart re-checks with the API each time it opens: notices sit under the line in `--danger` mono-micro (out of stock / not enough stock / limited to the max / price changed), and lines that are gone are removed with one notice at the top. Out-of-stock lines disable Checkout. Coupon: input + `Apply` outline button, then `CODE applied: −৳…` with a `✕`, or the reason in `--danger`.
 
 ### 7.4 Checkout
 
@@ -549,6 +550,7 @@ YOU MAY ALSO LIKE                       [‹][›]
   - **bKash** / **Nagad** — expands an instruction panel: store number in large mono with a `Copy` chip, exact amount, steps (1–3), then fields for sender number and TrxID.
   - Use official bKash/Nagad logos only as allowed by their brand guidelines; otherwise use text labels.
 - Delivery zone radio cards show charge and estimate: `INSIDE DHAKA · ৳70 · 1–2 days` (values from admin).
+- *Built (2026-10-19):* inputs 48px on `--bg-raised`; zone cards 3-up from `sm`; district is a native select of the 64 districts; the wallet panel sits on `--bg-sunken` under its radio card with the number in 24px mono + accent `Copy` chip and the amount on the right; COD with "advance delivery charge" shows the same panel for the delivery charge. The phone's sticky bar shows `Place order … ৳total` (the chat buttons move up above it via `--buy-bar-h`).
 
 ### 7.5 Order success
 
@@ -556,11 +558,13 @@ YOU MAY ALSO LIKE                       [‹][›]
 - Message: "We'll call you on 017••••••89 to confirm your order."
 - If bKash/Nagad: "Payment pending verification" notice.
 - Summary panel + `Track Order ↗` and `Continue Shopping` buttons.
+- *Built (2026-10-19):* when the page is opened without this tab's order data (another device, new tab), it shows the number and a "track it with your phone number" line instead of the summary.
 
 ### 7.6 Track order
 
 - Centred card: phone + order number inputs → `Track ↗`.
 - Result: vertical timeline — completed steps with accent squares, current step pulsing outline (disabled for reduced motion), upcoming steps `--fg-subtle`. Courier + tracking number with external link.
+- *Built (2026-10-19):* cancelled/returned orders show only the steps they reached. The courier row shows name + tracking number; the courier tracking link waits for courier names to be fixed (Phase 5).
 
 ### 7.7 Content pages (About, FAQ, policies)
 

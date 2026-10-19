@@ -6,11 +6,16 @@ import Link from "next/link";
 import * as React from "react";
 import { Logo } from "@/components/store/logo";
 import { Button } from "@/components/ui/button";
+import { useCartCount, useCartStore } from "@/lib/cart/cart-store";
 import { format, getMessages } from "@/lib/i18n/i18n";
 
 const SiteMenu = dynamic(() => import("./site-menu").then((m) => m.SiteMenu), {
   ssr: false,
 });
+const CartDrawer = dynamic(
+  () => import("./cart-drawer").then((m) => m.CartDrawer),
+  { ssr: false },
+);
 const SearchDialog = dynamic(
   () => import("@/components/store/search-overlay").then((m) => m.SearchDialog),
   { ssr: false },
@@ -20,8 +25,22 @@ import { cn } from "@/lib/utils";
 
 // Header (design §6.1): Menu chip · wordmark logo · Search + Cart chip.
 // Transparent over the hero, solid with a hairline once scrolled.
-export function SiteHeader({ cartCount = 0 }: { cartCount?: number }) {
+export function SiteHeader() {
   const t = getMessages();
+  const cartCount = useCartCount();
+  const drawerOpen = useCartStore((s) => s.drawerOpen);
+  const openDrawer = useCartStore((s) => s.openDrawer);
+  // The drawer's code loads the first time it opens.
+  const [cartLoaded, setCartLoaded] = React.useState(false);
+  React.useEffect(() => {
+    if (drawerOpen) setCartLoaded(true);
+  }, [drawerOpen]);
+
+  // The saved cart is read after the first render, so server HTML and the
+  // first client render agree (cart-store.ts: skipHydration).
+  React.useEffect(() => {
+    void useCartStore.persist.rehydrate();
+  }, []);
   const [scrolled, setScrolled] = React.useState(false);
   // The menu and search dialogs load on first use, not with every page.
   const [menuLoaded, setMenuLoaded] = React.useState(false);
@@ -92,10 +111,20 @@ export function SiteHeader({ cartCount = 0 }: { cartCount?: number }) {
             <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
           )}
           <Button asChild size="xs" className="h-6 px-2 type-mono-label">
-            <Link href="/cart">
+            <Link
+              href="/cart"
+              aria-haspopup="dialog"
+              onClick={(event) => {
+                // Plain clicks open the drawer; new-tab clicks follow the link.
+                if (event.metaKey || event.ctrlKey || event.shiftKey) return;
+                event.preventDefault();
+                openDrawer();
+              }}
+            >
               {format(t.header.cart, { count: cartCount })}
             </Link>
           </Button>
+          {cartLoaded && <CartDrawer />}
         </div>
       </div>
     </header>

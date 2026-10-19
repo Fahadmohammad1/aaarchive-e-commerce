@@ -58,6 +58,12 @@ export const envSchema = z.object({
   MEDIA_S3_SECRET_ACCESS_KEY: z.string().min(1).optional(),
   MEDIA_BUCKET: z.string().min(1).default("media"),
   MEDIA_PUBLIC_BASE_URL: z.url().optional(),
+
+  // ── Email: Resend free tier (order confirmations, PRD §11) ──
+  // Unset = emails are skipped and logged; orders still go through.
+  RESEND_API_KEY: z.string().min(1).optional(),
+  // Sender on a domain verified in Resend, e.g. "Aaarchive <orders@example.com>".
+  MAIL_FROM: z.string().min(3).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

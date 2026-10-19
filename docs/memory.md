@@ -4,12 +4,17 @@ Living log of where the project stands. **Every agent updates this at the end of
 
 ## Current status
 
-- **Phase:** 3 — Storefront catalog (see `phases.md`). Phase 2 is done apart from real photo uploads, which can only be tried against Supabase Storage.
-- **In progress:** Phase 3 — public catalog API, listings, product page, search and SEO built and browser-checked on local data. Open: storefront JS budget (169–179 KB vs 150 KB gzipped); delivery info on the PDP waits for delivery zones (Phase 4).
-- **File currently being worked on:** — (next: JS budget, then Phase 4 `apps/web/lib/cart/cart-store.ts`)
+- **Phase:** 4 — Cart, checkout & order placement: built and verified locally (2026-10-19). Next: Phase 5 (order management).
+- **In progress:** — (Phase 4 done; open items from earlier phases listed under Next up)
+- **File currently being worked on:** — (next: Phase 5 `apps/api/src/modules/orders/admin-orders.controller.ts`)
 
 ## Completed
 
+- **2026-10-19** [shared][api][web] — Phase 4: cart, checkout, orders.
+  - Shared: `checkout.ts` (cart items, cart validate, coupon apply, `checkoutSchema` with COD/BKASH/NAGAD payment union + COD `advance`, `trxIdSchema`, 64 `BD_DISTRICTS`, `orderNumberSchema`, `trackOrderSchema`), `coupon.ts` (schemas, `couponIssues()`, pure `couponDiscount()`), `delivery.ts` (zone schemas, `deliveryChargeFor()`), `settings.ts` (default-filled payments/stock/delivery schemas, `walletAvailable()`). 90 shared tests.
+  - API: modules `settings` (global, `GET /settings/public`), `delivery-zones` (public list + `/admin/zones`), `cart` (`PricingService` — single pricing path — and `POST /cart/validate`), `coupons` (admin CRUD + export, `POST /coupons/apply`), `orders` (`POST /orders`, `POST /orders/track`, `claimStock()`, public mapper, confirmation mail), `mail` (Resend via fetch). `TurnstileService` exported from AuthModule; env `RESEND_API_KEY`, `MAIL_FROM`. Tests: `cart.mapper.spec`, `orders.mapper.spec`, `claim-stock.spec` (48 unit) and `test/checkout.e2e-spec.ts` (9; all 40 e2e pass on local Postgres).
+  - Web: Zustand cart store (persisted, `skipHydration`), cart drawer (lazy) + `/cart` (`components/store/cart/`), PDP Add to cart / Buy now, `/checkout` (RHF + shared schema, zone/payment radio cards, bKash/Nagad panel with Copy, COD advance, Turnstile, sticky phone bar), `/order/success/[number]` (sessionStorage), `/track-order` (timeline), admin `/admin/zones` and `/admin/coupons` (scope picker, export), `lib/analytics/analytics.ts` events, store error texts (`store-error-text.ts`). Moved `turnstile-widget.tsx` to `components/` and the datetime-local helpers to `lib/datetime-local.ts`. Installed `zustand` (approved stack). Browser-checked at 375px and 1440px against a local DB: COD and bKash orders placed and tracked, admin zone/coupon screens, no horizontal scroll, no console errors.
+- **2026-10-19** [repo] — Fixed `bun run dev` starting only the shared watcher: `bun --filter` waits for dependencies' scripts to exit, and `tsc --watch` never does. Root `dev` now uses `bun run --parallel --filter '*' dev` (`package.json`).
 - **2026-10-19** [shared][api][web] — Phase 3: storefront catalog.
   - Shared: `@aaarchive/shared/storefront` (public list/search query schemas, `variantPrice()` — user decision: during a sale the sale price wins over a variant's own price). 67 shared tests.
   - API: migration `20261019030000_search_trgm` (`pg_trgm` + GIN trigram index on `Product.name`, also declared in `schema.prisma`) — **not applied to Supabase yet**. Public `ProductsController` (`/products`, `/products/filters`, `/products/:slug`, `/products/:slug/stock` no-store) + `SearchController` (`/search`) on `StoreProductsService` (raw SQL for filters, current-price sort, best selling, ranked search); `store-products.mapper.ts` (no stock in public shapes); public `CategoriesController` / `CollectionsController` via `common/catalog/store-groups.ts`. Security: Server Components now send the proxy secret + `x-aaarchive-ssr`; GET page renders with both skip the per-IP limit (`isServerRender()`, spec); `proxy.ts` strips the header from visitors — without this, production SSR would have been refused (403). Tests: `store-products.mapper.spec.ts`, `proxy-secret.spec.ts`, `test/store.e2e-spec.ts` (no stock number in any public response). 43 unit tests; **all 31 e2e tests pass** against a local Postgres (first time the catalog/products/store suites ran).
@@ -135,12 +140,17 @@ Living log of where the project stands. **Every agent updates this at the end of
 
 ## Next up
 
+1. [api] **User:** decide whether to commit Phase 4; add `RESEND_API_KEY` + `MAIL_FROM` (verified domain) to try a real confirmation email; set the real bKash/Nagad numbers (Settings arrive in Phase 6 — until then edit the `payments` row).
+2. Phase 5: admin orders list/detail, status flow with stock restore, payment verify/reject, customers + blocklist, reports, exports.
 1. [api] **User:** `bun run --filter @aaarchive/api db:deploy` — applies `20261019020000_size_chart_is_template` and `20261019030000_search_trgm` (enables `pg_trgm`, available on Supabase free tier). Then try a real photo upload in a product and a category.
 2. [web] Storefront JS budget: 169–179 KB gzipped vs 150 KB (React DOM + Next router are ~113 KB of it). Candidates: TanStack Query only where the storefront needs it, a smaller i18n slice, lucide icon count, header client code. Run Lighthouse mobile on shop + product (exit criterion ≥ 85) once available.
 3. Phase 4: cart store, cart drawer/page, wire Add to cart / Buy now on the PDP, delivery zones (then the PDP delivery info), checkout, order placement.
 
 ## Decisions
 
+- **2026-10-19** [web] Zod is allowed in the `/checkout` and `/track-order` route chunks only (shared schemas, architecture §3.1); shared storefront code stays Zod-free (rules.md §4.2 clarified).
+- **2026-10-19** [api] Coupon rules: minimum order is checked on the whole subtotal, the discount comes only from in-scope lines; per-phone uses count non-cancelled orders with the code; a coupon that fails at checkout is dropped by the web rather than blocking the order. Free delivery (setting) compares subtotal − discount with the threshold. Over-cap quantities are lowered by cart validate but refused (`QTY_LIMIT`) by `POST /orders`.
+- **2026-10-19** [web] The success page reads the placed order from sessionStorage only; there is no public "get order by number" endpoint (IDOR) — elsewhere customers track with phone + number.
 - **2026-10-19** [shared] — Price when a variant has its own price and the product is on sale (user): **the sale price wins** for every variant; outside the sale the variant's own price, else the product price (`variantPrice()`, shared with checkout).
 - **2026-10-19** [web] — Storefront client code skips Zod parsing and never imports dashboard strings; tap-to-open dialogs load lazily (`rules.md` §4.2). Missing product/category pages are 200 + `noindex` (streamed not-found), not a hard 404 — a hard 404 would need the API at build time.
 - **2026-10-19** [api] — Server-rendered reads authenticate with the proxy secret + `x-aaarchive-ssr` and are exempt from the per-IP rate limit (`rules.md` §8.1).
@@ -166,6 +176,8 @@ Living log of where the project stands. **Every agent updates this at the end of
 
 ## Blockers / open questions
 
+- **2026-10-19** [api] While setting up the browser check, `prisma db seed` ran once against the Supabase DB from `apps/api/.env` (`DIRECT_URL`) instead of the local one. The seed only creates missing rows (upserts with `update: {}`, Owner skipped if present), so nothing was changed or removed, but missing sizes/colours/zones/settings/content rows would have been added there.
+- **2026-10-19** Local `prisma dev` also listens on 127.0.0.1:4000, so the API must use another `PORT` (e.g. 4100 + `API_PROXY_TARGET`) while it runs.
 - **2026-10-19** [web] Storefront JS over budget (169–179 KB vs 150 KB gzipped). Lighthouse not installed here; metrics measured by hand look good.
 - **2026-10-19** [web] Menu links (collections → `archive-01-winter-drop`, categories → `/shop#categories`) are still fixture values until the menu becomes content (Phase 6).
 - **2026-10-19** `ui.shadcn.com` is blocked by this cloud environment's network policy, so `bunx shadcn add` fails here; allow the host in the environment settings or re-add the hand-written primitives later (`design.md` §12.1).

@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Last updated** | 17 October 2026 |
-| **Current phase** | **Phase 2 — Admin dashboard & catalog management** — in progress (Phase 0: only API hosting left; Phase 1 done) |
+| **Last updated** | 19 October 2026 |
+| **Current phase** | **Phase 4 — Cart, checkout & order placement** — built and verified locally (2026-10-19); next Phase 5. Open from earlier phases: API hosting (0), a real photo upload on Supabase (2), storefront JS budget + PDP delivery info (3) |
 | **Related docs** | `PRD.md` (requirements) · `architecture.md` · `rules.md` · `design.md` · `memory.md` (day-to-day progress) |
 
 The build is split into **Phases 0–7**, which together deliver the MVP (PRD "Release 1"). Work after launch is grouped as **Release 2** and **Release 3** (PRD §4). "Phase" always means a build phase in this file. "Release" means a post-launch scope tier.
@@ -20,9 +20,9 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 |---|---|---|---|
 | 0 | Foundation | 1 week | done except API hosting |
 | 1 | Authentication | 0.5 week | done |
-| 2 | Admin dashboard & catalog management | 1.5 weeks | in progress |
-| 3 | Storefront catalog | 1.5 weeks | not started |
-| 4 | Cart, checkout & order placement | 1.5 weeks | not started |
+| 2 | Admin dashboard & catalog management | 1.5 weeks | done except a real photo upload on Supabase |
+| 3 | Storefront catalog | 1.5 weeks | built; open: JS budget, PDP delivery info |
+| 4 | Cart, checkout & order placement | 1.5 weeks | built (2026-10-19); concurrency to confirm on CI Postgres |
 | 5 | Order management | 1.5 weeks | not started |
 | 6 | Home, content & settings | 1 week | not started |
 | 7 | Launch prep & launch | 1 week | not started |
@@ -151,21 +151,23 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 
 **Goal:** a guest places an order with COD or manual bKash/Nagad in under 2 minutes, and the API protects stock and prices (PRD §5.7–5.9, §8.4).
 
-- [ ] [api] `delivery-zones`: CRUD (admin) + public list with charge and estimate
-- [ ] [api] `coupons`: CRUD (admin), `POST /coupons/apply` (type, min order, max discount, dates, usage limits, per-phone limit, scope)
-- [ ] [api] `POST /cart/validate`: re-checks items, prices and stock status, and returns notices
-- [ ] [shared] Checkout, cart-validate, coupon-apply and track-order Zod schemas
-- [ ] [api] `POST /orders`: Turnstile check, rate limits (3/phone/hour, 10/IP/hour), blocklist (COD only), server-side pricing, one transaction with conditional stock decrement, order/items snapshot/payment/event, coupon usage, unique TrxID, `AAR-` order number
-- [ ] [api] Confirmation email via Resend after commit (if an email was given)
-- [ ] [api] `POST /orders/track` with a masked phone in the response
-- [ ] [api] Tests: price recomputation ignores client prices; concurrent orders cannot oversell; coupon edge cases; rate limit; blocklist; duplicate TrxID
-- [ ] [web] Admin screens: delivery zones, coupons (with CSV/Excel export, Owner only)
-- [ ] [web] Cart store (Zustand, persisted) + cart drawer + `/cart`, re-validated on open
-- [ ] [web] `/checkout`: contact → delivery → payment sections, zone and payment radio cards, bKash/Nagad instructions with copy, Turnstile, sticky Place Order on mobile, summary panel
-- [ ] [web] `/order/success/[number]` and `/track-order` (timeline)
-- [ ] [web] GA4 + Pixel events: `add_to_cart`, `begin_checkout`, `purchase`
+- [x] [api] `delivery-zones`: CRUD (admin) + public list with charge and estimate (2026-10-19: `/admin/zones`, `GET /delivery-zones`)
+- [x] [api] `coupons`: CRUD (admin) + export, `POST /coupons/apply` (type, min order, max discount, dates, usage limits, per-phone limit, scope)
+- [x] [api] `POST /cart/validate`: re-checks items, prices and stock status, and returns notices
+- [x] [shared] Checkout, cart-validate, coupon-apply and track-order Zod schemas
+- [x] [api] `POST /orders`: Turnstile check, rate limits (3/phone/hour, 10/IP/hour), blocklist (COD only), server-side pricing, one transaction with conditional stock decrement, order/items snapshot/payment/event, coupon usage, unique TrxID, `AAR-` order number
+- [x] [api] Confirmation email via Resend after commit (if an email was given) *(HTTP API, no SDK; not sent for real yet: needs `RESEND_API_KEY` + a verified `MAIL_FROM` domain)*
+- [x] [api] `POST /orders/track` with a masked phone in the response
+- [x] [api] Tests: price recomputation ignores client prices; concurrent orders cannot oversell; coupon edge cases; rate limit; blocklist; duplicate TrxID
+- [x] [web] Admin screens: delivery zones, coupons (with CSV/Excel export, Owner only)
+- [x] [web] Cart store (Zustand, persisted) + cart drawer + `/cart`, re-validated on open
+- [x] [web] `/checkout`: contact → delivery → payment sections, zone and payment radio cards, bKash/Nagad instructions with copy, Turnstile, sticky Place Order on mobile, summary panel
+- [x] [web] `/order/success/[number]` and `/track-order` (timeline)
+- [x] [web] GA4 + Pixel events: `add_to_cart`, `begin_checkout`, `purchase` *(sent through `window.gtag`/`fbq` when present; the tags load in Phase 7)*
 
 **Exit criteria:** COD, bKash and Nagad orders all complete end to end. Two simultaneous orders for the last unit produce one order and one generic out-of-stock message. Tampered prices in the request change nothing. An order can be tracked with phone + order number.
+
+*Status 2026-10-19:* all hold on a local database. COD and bKash were placed in the browser (375px and 1440px) and tracked; Nagad, blocklist, duplicate TrxID, coupon limit, per-phone limit, last-unit race and tampered prices are in `apps/api/test/checkout.e2e-spec.ts` (9 tests, all pass). The local PGlite server takes one connection at a time, so the race ran serialised there; CI's real Postgres runs it in parallel. Not yet tried: Turnstile with real keys, a real Resend email.
 
 ---
 
