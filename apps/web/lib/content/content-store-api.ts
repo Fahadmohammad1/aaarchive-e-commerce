@@ -8,6 +8,7 @@ import {
   publicPageSchema,
   publicSettingsSchema,
   siteContentSchema,
+  sitemapSchema,
 } from "./content-store-schemas";
 
 // Server-only content fetchers (architecture §4.7). Cached and tagged: a
@@ -61,4 +62,17 @@ export async function getStoreFaq() {
   cacheLife("catalog");
   cacheTag(cacheTags.faq, cacheTags.content);
   return api.get("/faq", { schema: faqListSchema });
+}
+
+/** Slugs for sitemap.xml; refreshed with the catalog and content tags. */
+export async function getSitemapEntries() {
+  "use cache";
+  cacheLife("catalog");
+  cacheTag(
+    cacheTags.products,
+    cacheTags.categories,
+    cacheTags.collections,
+    cacheTags.content,
+  );
+  return api.get("/sitemap", { schema: sitemapSchema });
 }

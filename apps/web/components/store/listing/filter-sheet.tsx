@@ -8,6 +8,7 @@ import {
   SheetDescription,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useReturnFocus } from "@/lib/a11y/use-return-focus";
 import { getMessages } from "@/lib/i18n/i18n";
 import { FilterGroups, type PanelProps } from "./filter-panel";
 
@@ -17,10 +18,12 @@ export function FilterSheet({
   onOpenChange,
   ...props
 }: PanelProps & { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const returnFocus = useReturnFocus();
   const t = getMessages().listing;
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
+        {...returnFocus}
         side="bottom"
         className="max-h-[85dvh] gap-0 overflow-y-auto rounded-none bg-background px-4 pb-4"
       >

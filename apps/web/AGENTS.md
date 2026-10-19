@@ -19,7 +19,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - `proxy.ts` replaces `middleware.ts` in Next 16.
 - Tailwind CSS v4: tokens in `app/globals.css` under `@theme`, no `tailwind.config`. Use tokens, never raw hex values.
 - **shadcn/ui is the component base for everything** (`components/ui/`, Radix, `radix-nova`), with **Lucide** icons. Storefront pieces in `components/store/` wrap shadcn and follow `design.md` §5–7 (radius 0, no shadows). The admin renders inside `.admin` (4px radius, `design.md` §8). Token names: `design.md` §12.1 (marigold = `primary`; shadcn `accent` is a hover surface).
-- The home-page fixtures are gone (Phase 6); `images.unsplash.com` is still allowed in `next.config.ts` until Phase 7 removes it.
+- Dialogs/sheets opened from state (no `*Trigger` inside) spread `useReturnFocus()` from `lib/a11y/use-return-focus.ts` on their content; no `autoFocus` inside them (`docs/rules.md` §4.2).
 - Data: the API is reached through the same-origin `/api/v1` rewrite via `lib/api/`. No database, Prisma or business logic here. The only route handler is `app/api/revalidate`.
 - Feature modules in `lib/<module>/`: `<module>-schemas.ts`, `<module>-api.ts`, `<module>-keys.ts`, `use-*.ts`, `<module>-store.ts` (client state only). Kebab-case filenames with the module prefix, no `index.ts` barrels. Route-private UI goes in `_components/`.
 - Shared request schemas, enums, `formatTaka`, phone helpers: import from `@aaarchive/shared/<topic>`. Don't re-implement them.

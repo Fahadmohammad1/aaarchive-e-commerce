@@ -26,6 +26,7 @@ import { ContentModule } from "./modules/content/content.module.js";
 import { CouponsModule } from "./modules/coupons/coupons.module.js";
 import { CustomersModule } from "./modules/customers/customers.module.js";
 import { DeliveryZonesModule } from "./modules/delivery-zones/delivery-zones.module.js";
+import { FeedsModule } from "./modules/feeds/feeds.module.js";
 import { MailModule } from "./modules/mail/mail.module.js";
 import { MediaModule } from "./modules/media/media.module.js";
 import { OrdersModule } from "./modules/orders/orders.module.js";
@@ -90,6 +91,7 @@ import { PrismaModule } from "./prisma/prisma.module.js";
     ReportsModule,
     ContentModule,
     UsersModule,
+    FeedsModule,
   ],
   // Order matters: rate limit → authentication → role. Every route is
   // OWNER/STAFF-only unless it says @Public() or @Roles(...) (rules.md §8.3).

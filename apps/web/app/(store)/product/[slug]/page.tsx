@@ -40,14 +40,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const product = await getStoreProduct(slug);
   if (!product) return { title: getMessages().notFound.title };
   const image = product.images[0];
+  const description = describe(product);
   return {
     title: product.seo.title ?? product.name,
-    description: describe(product),
+    // Left out when empty, so Settings → SEO's default description applies.
+    ...(description ? { description } : {}),
     alternates: { canonical: `/product/${product.slug}` },
     openGraph: {
       type: "website",
       title: product.seo.title ?? product.name,
-      description: describe(product),
+      ...(description ? { description } : {}),
       images: image
         ? [{ url: image.media.url, alt: image.alt || product.name }]
         : undefined,

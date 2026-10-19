@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useReturnFocus } from "@/lib/a11y/use-return-focus";
 import { ApiError } from "@/lib/api/api-error";
 import type { AdminZone } from "@/lib/delivery-zone/delivery-zone-schemas";
 import { useSaveZone } from "@/lib/delivery-zone/use-delivery-zones";
@@ -44,6 +45,7 @@ export function ZoneFormDialog({
   onOpenChange: (open: boolean) => void;
   item: AdminZone | null;
 }) {
+  const returnFocus = useReturnFocus();
   const t = getAdminMessages();
   const tz = t.zones;
   const save = useSaveZone();
@@ -86,7 +88,7 @@ export function ZoneFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent {...returnFocus} className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{item ? tz.editZone : tz.newZone}</DialogTitle>
         </DialogHeader>

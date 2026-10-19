@@ -7,20 +7,26 @@ const mediaBase = process.env.NEXT_PUBLIC_MEDIA_BASE_URL
   ? new URL(process.env.NEXT_PUBLIC_MEDIA_BASE_URL)
   : null;
 
-// Content-Security-Policy (docs/rules.md §8). Scripts and styles only from this
-// site; images also from Supabase Storage (and Unsplash placeholders until launch).
-// 'unsafe-inline' scripts are needed by Next's inline bootstrap unless every
-// page uses a per-request nonce, which would turn the cached storefront into
-// dynamic pages — revisit in Phase 7. Cloudflare Turnstile (bot check on the
-// dashboard login) is the only third party so far; analytics come in Phase 7.
+// Content-Security-Policy (docs/rules.md §8). Scripts and styles from this
+// site, Turnstile and the analytics tags (GA4, Meta Pixel, Clarity — loaded
+// only when their IDs are set in Settings); images from Supabase Storage.
+// 'unsafe-inline' scripts stay (decided in Phase 7, 2026-10-20): Next's inline
+// bootstrap would otherwise need a per-request nonce, which makes every page
+// dynamic and loses the cached static shells that keep LCP low.
 const TURNSTILE = "https://challenges.cloudflare.com";
+const ANALYTICS_SCRIPTS =
+  "https://www.googletagmanager.com https://connect.facebook.net https://www.clarity.ms https://*.clarity.ms";
+const ANALYTICS_CONNECT =
+  "https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://www.facebook.com https://*.clarity.ms https://c.bing.com";
+const ANALYTICS_IMAGES =
+  "https://*.google-analytics.com https://www.googletagmanager.com https://www.facebook.com https://*.clarity.ms https://c.bing.com";
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline' ${TURNSTILE}${isDev ? " 'unsafe-eval'" : ""}`,
+  `script-src 'self' 'unsafe-inline' ${TURNSTILE} ${ANALYTICS_SCRIPTS}${isDev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
-  `img-src 'self' data: blob:${mediaBase ? ` ${mediaBase.origin}` : ""} https://images.unsplash.com`,
+  `img-src 'self' data: blob:${mediaBase ? ` ${mediaBase.origin}` : ""} ${ANALYTICS_IMAGES}`,
   "font-src 'self'",
-  `connect-src 'self' ${TURNSTILE}${isDev ? " ws: wss:" : ""}`,
+  `connect-src 'self' ${TURNSTILE} ${ANALYTICS_CONNECT}${isDev ? " ws: wss:" : ""}`,
   "frame-ancestors 'none'",
   `frame-src ${TURNSTILE}`,
   "base-uri 'self'",
@@ -47,6 +53,10 @@ const securityHeaders = [
           value: "max-age=63072000; includeSubDomains; preload",
         },
       ]),
+  // Test deployments (architecture §8.1) must stay out of search results.
+  ...(process.env.SITE_NOINDEX === "1"
+    ? [{ key: "X-Robots-Tag", value: "noindex, nofollow" }]
+    : []),
 ];
 
 const nextConfig: NextConfig = {
@@ -80,8 +90,6 @@ const nextConfig: NextConfig = {
             },
           ]
         : []),
-      // Development placeholders only (design.md §9) — remove before launch.
-      { protocol: "https", hostname: "images.unsplash.com", pathname: "/**" },
     ],
   },
   // Same-origin API proxy (docs/architecture.md §3.4): the browser calls

@@ -12,6 +12,7 @@ import {
   SheetDescription,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useReturnFocus } from "@/lib/a11y/use-return-focus";
 import { useSiteContent } from "@/lib/content/use-site-content";
 import { getMessages } from "@/lib/i18n/i18n";
 
@@ -24,6 +25,7 @@ export function SiteMenu({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const returnFocus = useReturnFocus();
   const t = getMessages();
   // Links from Content → Site, loaded when the menu first opens.
   const site = useSiteContent();
@@ -32,6 +34,7 @@ export function SiteMenu({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
+        {...returnFocus}
         side="left"
         showCloseButton={false}
         className="gap-0 bg-background p-0 data-[side=left]:w-full data-[side=left]:border-r-0 data-[side=left]:sm:max-w-none"

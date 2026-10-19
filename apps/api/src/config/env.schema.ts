@@ -49,6 +49,9 @@ export const envSchema = z.object({
   LOGIN_LOCK_MINUTES: z.coerce.number().int().min(1).max(1440).default(15),
   // Cloudflare Turnstile secret. Unset locally = check skipped; required in production.
   TURNSTILE_SECRET_KEY: z.string().optional(),
+  // Encrypts two-factor keys at rest. Generate: openssl rand -hex 32.
+  // Required in production; locally a key derived from JWT_ACCESS_SECRET is used.
+  TOTP_ENCRYPTION_KEY: z.string().min(32).optional(),
 
   // ── Media: Supabase Storage via its S3 API (architecture §4.7a) ──
   // Storage-only keys. Unset locally = uploads answer 503; required in production.
@@ -64,6 +67,12 @@ export const envSchema = z.object({
   RESEND_API_KEY: z.string().min(1).optional(),
   // Sender on a domain verified in Resend, e.g. "Aaarchive <orders@example.com>".
   MAIL_FROM: z.string().min(3).optional(),
+
+  // Sentry error monitoring (read directly in src/instrument.ts). Optional.
+  SENTRY_DSN: z.url().optional(),
+
+  // Public site origin, for absolute links in the Facebook catalog feed.
+  SITE_URL: z.url().default("http://localhost:3000"),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -98,6 +107,13 @@ const productionRules = envSchema.superRefine((env, ctx) => {
         message: "Required in production",
       });
     }
+  }
+  if (!env.TOTP_ENCRYPTION_KEY) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["TOTP_ENCRYPTION_KEY"],
+      message: "Required in production",
+    });
   }
   if (!env.REVALIDATE_SECRET) {
     ctx.addIssue({

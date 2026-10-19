@@ -88,3 +88,55 @@ export const staffUpdateSchema = z
   .partial()
   .refine((v) => Object.keys(v).length > 0, { message: "NOTHING_TO_CHANGE" });
 export type StaffUpdateInput = z.input<typeof staffUpdateSchema>;
+
+// ── Two-factor sign-in (TOTP, rules.md §8.2) ────────────────────────────
+
+/** A 6-digit authenticator code, or a one-time backup code (XXXX-XXXX). */
+export const totpCodeSchema = z
+  .string()
+  .trim()
+  .transform((v) => v.replace(/\s+/g, "").toUpperCase())
+  .pipe(
+    z.string().regex(/^(\d{6}|[A-Z0-9]{4}-?[A-Z0-9]{4})$/, {
+      message: "INVALID_CODE",
+    }),
+  );
+
+/** Login answer when the account has two-factor on: no session yet. */
+export const mfaChallengeSchema = z.object({
+  mfaRequired: z.literal(true),
+  /** Short-lived (5 min) proof that the password step passed. */
+  mfaToken: z.string(),
+});
+export type MfaChallenge = z.infer<typeof mfaChallengeSchema>;
+export const loginResponseSchema = z.union([
+  mfaChallengeSchema,
+  sessionResponseSchema,
+]);
+export type LoginResponse = z.infer<typeof loginResponseSchema>;
+
+export const totpLoginSchema = z.strictObject({
+  mfaToken: z.string().min(1).max(2048),
+  code: totpCodeSchema,
+});
+export type TotpLoginInput = z.input<typeof totpLoginSchema>;
+
+export const totpEnableSchema = z.strictObject({ code: totpCodeSchema });
+export const totpDisableSchema = z.strictObject({
+  password: z.string().min(1).max(PASSWORD_MAX_LENGTH),
+  code: totpCodeSchema,
+});
+export type TotpDisableInput = z.input<typeof totpDisableSchema>;
+
+export const totpStatusSchema = z.object({
+  enabled: z.boolean(),
+  backupCodesLeft: z.number().int(),
+});
+export type TotpStatus = z.infer<typeof totpStatusSchema>;
+
+export const totpSetupSchema = z.object({
+  /** Base32 key for manual entry. */
+  secret: z.string(),
+  /** otpauth:// link (opens the authenticator app on a phone). */
+  uri: z.string(),
+});

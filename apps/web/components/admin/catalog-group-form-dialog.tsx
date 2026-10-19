@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useReturnFocus } from "@/lib/a11y/use-return-focus";
 import { ApiError } from "@/lib/api/api-error";
 import type { ImageRef } from "@/lib/category/category-schemas";
 import {
@@ -69,6 +70,7 @@ export function CatalogGroupFormDialog({
   withActive,
   onSave,
 }: CatalogGroupFormDialogProps) {
+  const returnFocus = useReturnFocus();
   const t = getAdminMessages();
   const [preview, setPreview] = React.useState<MediaAsset | null>(null);
   const [formError, setFormError] = React.useState<string | null>(null);
@@ -119,7 +121,7 @@ export function CatalogGroupFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent {...returnFocus} className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>

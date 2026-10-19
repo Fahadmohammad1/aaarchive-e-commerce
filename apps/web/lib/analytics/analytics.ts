@@ -1,8 +1,8 @@
 "use client";
 
-// GA4 + Meta Pixel ecommerce events (PRD §10). The tags themselves load in
-// Phase 7 with IDs from Settings; until then (or when a visitor blocks them)
-// every call is a no-op.
+// GA4 + Meta Pixel events (PRD §10). The tags load from analytics-tags.tsx
+// when their IDs are set in Settings → Tracking; without them (or when a
+// visitor blocks them) every call is a no-op.
 
 type Item = { id: string; name: string; price: number; quantity: number };
 
@@ -58,4 +58,37 @@ export function trackPurchase(
   items: Item[],
 ) {
   send("purchase", "Purchase", value, items, { transaction_id: orderNumber });
+}
+
+/**
+ * A product page view. `id` is the product slug: the Facebook catalog feed
+ * groups variants by it (item_group_id), so Pixel reports a product_group.
+ */
+export function trackViewItem(item: Omit<Item, "quantity">) {
+  if (typeof window === "undefined") return;
+  window.gtag?.("event", "view_item", {
+    currency: "BDT",
+    value: item.price,
+    items: [{ item_id: item.id, item_name: item.name, price: item.price }],
+  });
+  window.fbq?.("track", "ViewContent", {
+    currency: "BDT",
+    value: item.price,
+    content_type: "product_group",
+    content_ids: [item.id],
+    content_name: item.name,
+  });
+}
+
+export function trackSearch(term: string) {
+  if (typeof window === "undefined") return;
+  window.gtag?.("event", "search", { search_term: term });
+  window.fbq?.("track", "Search", { search_string: term });
+}
+
+/** One page view per client-side navigation (the first is sent on load). */
+export function trackPageView(path: string) {
+  if (typeof window === "undefined") return;
+  window.gtag?.("event", "page_view", { page_path: path });
+  window.fbq?.("track", "PageView");
 }

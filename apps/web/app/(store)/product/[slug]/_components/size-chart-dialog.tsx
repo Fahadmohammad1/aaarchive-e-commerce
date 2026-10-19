@@ -8,6 +8,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useReturnFocus } from "@/lib/a11y/use-return-focus";
 import { getMessages } from "@/lib/i18n/i18n";
 
 /**
@@ -23,10 +24,12 @@ export function SizeChartDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const returnFocus = useReturnFocus();
   const t = getMessages().pdp;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        {...returnFocus}
         showCloseButton={false}
         className="max-w-[calc(100%-2rem)] gap-4 rounded-none border border-border bg-card p-5 ring-0 sm:max-w-[720px]"
       >

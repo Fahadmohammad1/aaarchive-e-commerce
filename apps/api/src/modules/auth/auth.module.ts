@@ -6,6 +6,7 @@ import { JWT_AUDIENCE, JWT_ISSUER } from "./auth.constants.js";
 import { AuthController } from "./auth.controller.js";
 import { AuthService } from "./auth.service.js";
 import { TokenService } from "./token.service.js";
+import { TotpService } from "./totp.service.js";
 import { TurnstileService } from "./turnstile.service.js";
 
 @Module({
@@ -30,7 +31,7 @@ import { TurnstileService } from "./turnstile.service.js";
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, TokenService, TurnstileService],
+  providers: [AuthService, TokenService, TurnstileService, TotpService],
   exports: [AuthService, TokenService, TurnstileService],
 })
 export class AuthModule {}

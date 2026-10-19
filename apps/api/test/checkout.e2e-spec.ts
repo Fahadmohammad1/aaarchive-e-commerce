@@ -108,7 +108,26 @@ async function setUp(): Promise<Fixture> {
       },
     },
   });
+  // The quantity cap and threshold the tests assume (5 / 3): a database
+  // used by a browser check may hold other values.
+  const stockBefore = await db.setting.findUnique({ where: { key: "stock" } });
+  await db.setting.upsert({
+    where: { key: "stock" },
+    update: { value: { lowStockThreshold: 3, maxQtyPerVariant: 5 } },
+    create: {
+      key: "stock",
+      value: { lowStockThreshold: 3, maxQtyPerVariant: 5 },
+    },
+  });
   const restorePayments = async () => {
+    if (stockBefore) {
+      await db.setting.update({
+        where: { key: "stock" },
+        data: { value: stockBefore.value ?? {} },
+      });
+    } else {
+      await db.setting.deleteMany({ where: { key: "stock" } });
+    }
     if (before) {
       await db.setting.update({
         where: { key: "payments" },

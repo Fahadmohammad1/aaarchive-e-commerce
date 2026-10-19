@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useReturnFocus } from "@/lib/a11y/use-return-focus";
 import { useBlockPhone } from "@/lib/customer/use-customers";
 import { errorText } from "@/lib/i18n/error-text";
 import { format } from "@/lib/i18n/i18n";
@@ -29,6 +30,7 @@ export function BlockDialog({
   /** Set when blocking from a customer page; otherwise typed in. */
   phone?: string;
 }) {
+  const returnFocus = useReturnFocus();
   const t = getAdminMessages();
   const tc = t.customers;
   const block = useBlockPhone();
@@ -63,7 +65,7 @@ export function BlockDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent {...returnFocus} className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
             {fixedPhone

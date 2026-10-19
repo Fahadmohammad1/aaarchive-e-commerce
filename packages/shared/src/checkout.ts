@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { emailSchema } from "./auth.js";
 import { couponCodeSchema } from "./coupon.js";
+import { normalizeOrderNumber } from "./order-number.js";
 import { bdPhoneSchema } from "./phone.js";
 
 // Cart, checkout and order tracking (PRD §5.7–5.9, §8.4). The web sends only
@@ -188,16 +189,19 @@ export type CheckoutValues = z.output<typeof checkoutSchema>;
 
 // ── Order tracking (PRD §5.9) ──────────────────────────────────────────────
 
-export const ORDER_NUMBER_PREFIX = "AAR-";
+export { ORDER_NUMBER_PREFIX } from "./order-number.js";
 
 /** "aar-24101", "AAR 24101" and "24101" all mean AAR-24101. */
 export const orderNumberSchema = z
   .string({ message: "REQUIRED" })
-  .trim()
-  .transform((v) => v.toUpperCase().replace(/\s+/g, ""))
-  .transform((v) => (v.startsWith("AAR") ? v.replace(/^AAR-?/, "") : v))
-  .pipe(z.string().regex(/^\d{1,12}$/, { message: "INVALID_ORDER_NUMBER" }))
-  .transform((digits) => `${ORDER_NUMBER_PREFIX}${digits}`);
+  .transform((value, ctx) => {
+    const number = normalizeOrderNumber(value);
+    if (!number) {
+      ctx.addIssue({ code: "custom", message: "INVALID_ORDER_NUMBER" });
+      return z.NEVER;
+    }
+    return number;
+  });
 
 export const trackOrderSchema = z.strictObject({
   phone: bdPhoneSchema,

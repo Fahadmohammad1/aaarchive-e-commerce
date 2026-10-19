@@ -12,6 +12,8 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useReturnFocus } from "@/lib/a11y/use-return-focus";
+import { trackSearch } from "@/lib/analytics/analytics";
 import { format, getMessages } from "@/lib/i18n/i18n";
 import { useInstantSearch } from "@/lib/product/use-store-products";
 import { MediaImage } from "./media-image";
@@ -36,11 +38,17 @@ export function SearchDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  const returnFocus = useReturnFocus(inputRef);
   const t = getMessages().search;
   const router = useRouter();
   const [q, setQ] = React.useState("");
   const term = useDebounced(q, 300);
   const results = useInstantSearch(term);
+  // search / Search event once the visitor pauses typing (PRD §10).
+  React.useEffect(() => {
+    if (term.trim().length >= 2) trackSearch(term.trim());
+  }, [term]);
   const items = term.trim().length >= 2 ? (results.data?.data ?? []) : [];
   const total = results.data?.meta.total ?? 0;
 
@@ -52,6 +60,7 @@ export function SearchDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent
+        {...returnFocus}
         showCloseButton={false}
         className="top-0 max-h-dvh w-full max-w-none translate-y-0 gap-0 rounded-none border-b bg-background p-0 ring-0 sm:max-w-none"
       >
@@ -73,13 +82,13 @@ export function SearchDialog({
                 className="size-5 text-muted-foreground"
               />
               <input
+                ref={inputRef}
                 type="search"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder={t.placeholder}
                 aria-label={t.label}
                 maxLength={80}
-                autoFocus
                 className="h-14 flex-1 bg-transparent type-display-sm outline-none placeholder:text-subtle"
               />
               <DialogClose

@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useReturnFocus } from "@/lib/a11y/use-return-focus";
 import { errorText } from "@/lib/i18n/error-text";
 import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 import { useMediaLibrary, useUploadMedia } from "@/lib/upload/use-media";
@@ -200,13 +201,14 @@ export function MediaLibraryDialog({
   selectedId: string | undefined;
   onSelect: (asset: MediaAsset) => void;
 }) {
+  const returnFocus = useReturnFocus();
   const t = getAdminMessages();
   const library = useMediaLibrary(purpose, open);
   const assets = library.data?.pages.flatMap((page) => page.data) ?? [];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent {...returnFocus} className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{t.media.libraryTitle}</DialogTitle>
           <DialogDescription>{t.media.fileHint}</DialogDescription>

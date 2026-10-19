@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useReturnFocus } from "@/lib/a11y/use-return-focus";
 import { useZones } from "@/lib/delivery-zone/use-delivery-zones";
 import { errorText } from "@/lib/i18n/error-text";
 import { format } from "@/lib/i18n/i18n";
@@ -43,6 +44,7 @@ export function EditOrderDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const returnFocus = useReturnFocus();
   const t = getAdminMessages();
   const to = t.orders;
   const edit = useEditOrder(order.id);
@@ -130,7 +132,10 @@ export function EditOrderDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent
+        {...returnFocus}
+        className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl"
+      >
         <DialogHeader>
           <DialogTitle>
             {format(to.editTitle, { number: order.orderNumber })}

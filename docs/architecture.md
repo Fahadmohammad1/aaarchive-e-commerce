@@ -28,6 +28,7 @@ aaarchive/
 ├── bun.lock                       # the only lockfile — never add package-lock.json / yarn.lock
 ├── biome.json                     # lint + format for every package
 ├── .gitignore · .gitattributes
+├── .github/workflows/            # ci.yml (check/test/build, API e2e, Playwright checkout) · backup.yml (daily pg_dump, §8.3)
 ```
 
 ### 1.1 Tooling
@@ -74,7 +75,7 @@ Run a script in one package with `bun run --filter @aaarchive/<name> <script>`, 
 
 ```
             ┌────────────────────────────────────────────────────────────┐
- Browser ──►│  apps/web  (Next.js 16, Cloudflare via OpenNext)           │
+ Browser ──►│  apps/web  (Next.js 16; host: §8)                          │
             │  • storefront  (server-rendered, cached)                   │
             │  • /admin      (client-heavy, TanStack Query)              │
             │  • /api/v1/*   ── rewrite (same-origin proxy) ──┐          │
@@ -170,8 +171,9 @@ The cart stores only `variantId` + `quantity` (+ a display snapshot). It never s
 | Icons | **Lucide** (`lucide-react`, shadcn's icon library) | installed |
 | Images | `components/store/media-image.tsx`: `<img srcset>` over the stored WebP widths (works in Server Components; no optimiser). `next/image` only for bundled assets (logo) and dev placeholders | built |
 | Bot protection | Cloudflare Turnstile widget | planned |
-| Analytics | GA4, Meta Pixel, Microsoft Clarity via `lib/analytics/` | planned |
-| Hosting | Cloudflare Workers via OpenNext (`@opennextjs/cloudflare`). **Never Vercel Hobby** (non-commercial) | planned |
+| Analytics | GA4, Meta Pixel, Microsoft Clarity via `lib/analytics/` (IDs from Settings → Tracking, loaded after idle) | built (Phase 7) |
+| Hosting | **Testing (2026-10-20):** Vercel Hobby, test data only, no real orders (§8.1). **Launch:** must move off Vercel Hobby (non-commercial licence): a VPS is planned, Cloudflare Workers via OpenNext is the free alternative | testing |
+| Browser tests | Playwright (`e2e/checkout.spec.ts`, Pixel 7 profile) against the built web + API on a disposable DB | built (Phase 7) |
 
 ### 3.3 Data fetching — Server Components + TanStack Query
 
@@ -214,7 +216,7 @@ apps/web/
 ├── app/
 │   ├── layout.tsx                 # root: <html>, fonts, providers, grain overlay
 │   ├── globals.css                # Tailwind v4 + design tokens under @theme
-│   ├── not-found.tsx · error.tsx · sitemap.ts · robots.ts   # (planned)
+│   ├── not-found.tsx · error.tsx · sitemap.ts (from GET /content/sitemap) · robots.ts
 │   ├── (store)/                   # storefront — shares header/footer/floating contact
 │   │   ├── layout.tsx             # grain, announcement bar, header, footer, floating contact
 │   │   ├── page.tsx               # home: six sections (design §6) on fixture data
@@ -272,7 +274,9 @@ apps/web/
 │   ├── i18n/                      # en.ts (storefront + shared strings), i18n.ts (getMessages, format); en-admin.ts + i18n-admin.ts
 │   │                              #   (getAdminMessages: dashboard only, never imported by storefront code), error-text.ts (admin
 │   │                              #   code → text); bn.ts / bn-admin.ts in Release 2
-│   ├── analytics/                 # analytics.ts: add_to_cart / begin_checkout / purchase → gtag + fbq (no-op until tags load)
+│   ├── analytics/                 # analytics.ts: view_item / search / add_to_cart / begin_checkout / purchase → gtag + fbq (no-op until tags load);
+│   │                              #   analytics-tags.tsx loads GA4 / Pixel / Clarity after idle, IDs from Settings → Tracking
+│   ├── a11y/                      # use-return-focus.ts: spread on every Dialog/Sheet content opened from state (focus back to the opener)
 │   ├── datetime-local.ts          # ISO ↔ <input type="datetime-local"> (sale dates, coupon dates)
 │   ├── utils.ts                   # cn() (shadcn)
 │   ├── product/                   # admin: product-api/-keys/-schemas, use-products · storefront: product-store-api (cached server
@@ -357,6 +361,7 @@ apps/api/
 ├── prisma.config.ts               # Prisma CLI config (schema, migrations, DIRECT_URL)
 ├── .env.example
 ├── src/
+│   ├── instrument.ts              # Sentry init (only when SENTRY_DSN is set); imported first by main.ts
 │   ├── main.ts                    # /api/v1 prefix, helmet, CORS, error filter, Swagger
 │   ├── app.module.ts              # Config, Prisma, Health, feature modules
 │   ├── config/env.schema.ts       # Zod schema for process.env + validateEnv()
@@ -382,6 +387,9 @@ apps/api/
 │       │                                  # categories/, collections/: + public controllers; common/catalog/store-groups.ts
 │       ├── cart/ · orders/ · payments/ · coupons/ · delivery-zones/
 │       ├── customers/ · content/ · settings/ · uploads/ · reports/
+│       ├── content/sitemap.service.ts    # GET /content/sitemap (slugs + updatedAt for app/sitemap.ts)
+│       ├── feeds/                 # GET /feeds/facebook.xml (Meta catalog, one item per active variant)
+│       ├── auth/totp.service.ts · totp-crypto.ts   # two-factor sign-in (AES-256-GCM secrets, hashed backup codes)
 │       └── revalidation/ · mail/
 └── test/                          # e2e tests
 ```
@@ -443,7 +451,9 @@ request → helmet/CORS → body limit (100 KB) → ProxySecretMiddleware → /a
   - Public: `GET /content/home` → `{ hero, categories, lookFile, latest, promises, social }`, each `null` until set up (or when its required photo/products are gone): images resolved to `{ media, alt }`, categories = those with `showOnHome` + published counts, look-file items = published products only (`{ code, hotspot, product: StoreProductSummary }`), latest tabs = `"new"` or a category, newest 8 each, social posts active (≤ 8). `GET /content/site` → `{ announcement (null when off), navigation, footer }`. `GET /pages/:slug` (no id), `GET /faq` (active only), `POST /contact` (Turnstile, 5/IP/hour; mailed to Settings → Store email via Resend; `503 CONTACT_UNAVAILABLE` without inbox or mail setup). `GET /settings/public` now also returns `store` (name, phone, whatsapp, messenger, email, address, logo), `seo` (title, description, ogImage) and `tracking`.
   - Admin (reads OWNER/STAFF, writes OWNER): `GET /admin/content` → `{ blocks: [{ key, data|null, updatedAt, updatedBy }], media, products }`; `PUT /admin/content/:key { data }` (validated with `contentSchemas[key]`, media + look-file products must exist, records `updatedById`, revalidates `content` + `home`/`site`); CRUD `/admin/social-posts`, `/admin/pages` (`409 SLUG_TAKEN`), `/admin/faq`. Settings (OWNER only): `GET /admin/settings` → `{ settings: every key (default-filled), media }`, `PUT /admin/settings/:key { value }` (validated with `settingSchemas[key]`; revalidates `site`, plus `products` for `stock`). Settings → Stock now feeds every stock status and the PDP/cart quantity cap. Staff (OWNER only): `GET|POST /admin/staff`, `PATCH /admin/staff/:id { name?, role?, isActive?, password? }` (`409 EMAIL_TAKEN / CANNOT_CHANGE_SELF / LAST_OWNER`).
   - Web: storefront content comes from `lib/content/content-store-api.ts` (`"use cache"` + tags) called inside `<Suspense>` after `connection()`, so builds never need the API; the menu overlay loads `/content/site` on the client. About / Size guide use `(content)/[page]` (dynamic segment, only those slugs), other pages `/policies/[slug]`.
-- **Public (planned):** `GET /feeds/facebook.xml` (all home sections, resolved), `GET /content/site` (announcement, navigation, footer), `GET /pages/:slug`, `GET /faq`, `GET /settings/public` (logo, contact links, SEO defaults — never payment numbers' admin notes or secrets), `GET /feeds/facebook.xml`.
+- **Phase 7 (built 2026-10-20):**
+  - Public: `GET /content/sitemap` → `{ products, categories, collections, pages }`, each `[{ slug, updatedAt }]` (published/visible only) for `app/sitemap.ts`; `GET /feeds/facebook.xml` (30/min, `Cache-Control` 1 h) → RSS 2.0 Meta catalog, one `<item>` per active variant of a published product: `g:id` = variant id, `g:item_group_id` = product slug (matches the Pixel's `content_ids`), `g:availability` in stock / out of stock only (never a number), `g:price` / `g:sale_price` from `variantPrice()`, links built from `SITE_URL`.
+  - Two-factor sign-in (OWNER and STAFF may turn it on; the dashboard nudges Owners): `POST /auth/login` answers either the session or `{ mfaRequired: true, mfaToken }` (JWT, audience `aaarchive-mfa`, 5 min); `POST /auth/login/totp { mfaToken, code }` (6-digit code or a backup code; 10/15 min; wrong codes count toward the account lockout; `401 INVALID_TOTP_CODE / MFA_EXPIRED`). Signed in: `GET /auth/totp` → `{ enabled, backupCodesLeft }`; `POST /auth/totp/setup` → `{ secret, uri }` (otpauth link) (pending until confirmed; `409 TOTP_ALREADY_ON`); `POST /auth/totp/enable { code }` → `{ backupCodes }` (10, shown once; `400 TOTP_SETUP_MISSING`); `POST /auth/totp/disable { password, code }` (ends every session). Secrets are AES-256-GCM encrypted with `TOTP_ENCRYPTION_KEY`; a used time step is stored so a code cannot be replayed; backup codes are stored hashed and work once. Migration `20261020000000_user_totp`.
 - **Admin, built (Phase 2):** `GET|POST /admin/categories`, `GET|PATCH|DELETE /admin/categories/:id`; same for `/admin/collections`; `GET|POST /admin/sizes`, `PATCH|DELETE /admin/sizes/:id`; same for `/admin/colors`; `POST|GET /admin/media`, `DELETE /admin/media/:id`. Reads OWNER/STAFF, writes OWNER only. Lists take `q`, `page`, `limit` (≤ 100, default 100) and return `{ data, meta }`. Responses: category `{ id, name, slug, description, image: { mediaId, alt, media } | null, sortOrder, showOnHome, productCount, createdAt, updatedAt }` (collection adds `isActive`); size `{ id, name, sortOrder, variantCount }` (colour adds `hex`). Slugs are generated from the name when omitted (`hoodies`, `hoodies-2`…), kept on rename, `409 SLUG_TAKEN` when taken; deleting a category with products → `409 CATEGORY_IN_USE`, a size/colour used by variants → `409 SIZE_IN_USE` / `COLOR_IN_USE`; deleting a collection only unlinks its products. Size charts: `GET|POST /admin/size-charts`, `GET|PATCH|DELETE /admin/size-charts/:id`, body `sizeChartInputSchema` (`@aaarchive/shared/catalog`) on both POST and PATCH (always the whole chart), response `{ id, name, columns: string[], rows: string[][], productCount, updatedAt }`; cells are strings (`"40"`, `"27.5"`, `"38-40"`, `""`), first column = size label; names unique ignoring case (`409 NAME_TAKEN`); deleting a chart used by products → `409 SIZE_CHART_IN_USE`; editing a used chart revalidates `products`. These endpoints only see templates (`isTemplate = true`); a product's custom table is a `SizeChart` row with `isTemplate = false`, written through the product and deleted with it (or when the product switches away).
 - **Admin products (Phase 2):** `GET /admin/products` (`adminProductListQuerySchema`: `q` over name/slug/SKU, `categoryId`, `status`, `stock=low|out`, `sort=updated|newest|name|stock_asc|stock_desc`, `page`, `limit` ≤ 50, default 20) → `{ data: [{ id, name, slug, status, isFeatured, category, basePrice, salePrice, saleActive, image, variantCount, totalStock, lowStockCount, outOfStockCount, updatedAt }], meta }`; `GET|PATCH|DELETE /admin/products/:id`, `POST /admin/products` (`productInputSchema`; PATCH `productUpdateSchema`, lists such as `images` and `collectionIds` replace whole); `POST /admin/products/:id/duplicate` (DRAFT copy, variants with stock 0, new SKUs); `POST /admin/products/:id/variants` (`variantGenerateSchema`: adds missing size × colour pairs, SKU from `skuFor()` made unique, ≤ 200 per product); `PATCH /admin/products/:id/variants` (`variantBulkUpdateSchema`, one transaction, `409 STOCK_CHANGED` when `expectedStock` no longer matches); `DELETE /admin/products/:id/variants/:variantId`. Every write returns the full admin product `{ …, sizeChart: { kind: none | template | custom }, images: [{ id, mediaId, alt, colorId, media }], variants: [{ id, sizeId, sizeName, colorId, colorName, colorHex, sku, stock, stockStatus, priceOverride, isActive, hasOrders }] }`. Rules: publishing needs ≥ 1 image (`400 PUBLISH_NEEDS_IMAGE`) and, when becoming published, ≥ 1 active variant (`400 PUBLISH_NEEDS_VARIANT`, so a new product is created as a draft); sale price < base price and end > start, also re-checked on the merged record for PATCH (`400 SALE_NOT_BELOW_BASE / SALE_PRICE_REQUIRED / SALE_END_BEFORE_START`, `details.field`); references checked (`400 CATEGORY_NOT_FOUND / COLLECTION_NOT_FOUND / MEDIA_NOT_FOUND / COLOR_NOT_FOUND / SIZE_CHART_NOT_FOUND`); products or variants with orders cannot be deleted (`409 PRODUCT_HAS_ORDERS / VARIANT_HAS_ORDERS`: archive or deactivate); `409 SLUG_TAKEN / SKU_TAKEN`. Reads OWNER/STAFF, writes OWNER. Product writes revalidate `products`, `product:<slug>` (old and new) and `home`. The list's stock sort runs one raw SQL query for the page's ids, then Prisma loads the rows.
 - **Admin** (auth + role on every route): CRUD `/admin/products`, `/admin/variants`, `/admin/categories`, `/admin/collections`, `/admin/sizes`, `/admin/colors`, `/admin/size-charts`, `/admin/coupons`, `/admin/zones`, `/admin/pages`, `/admin/faq`, `/admin/social-posts`, `/admin/blocked-phones`. Content: `GET /admin/content`, `GET|PUT /admin/content/:key`. Settings: `GET|PUT /admin/settings/:key`. Also `GET /admin/orders`, `PATCH /admin/orders/:id/status`, `POST /admin/orders/:id/notes`, `POST /admin/payments/:id/verify|reject`, `GET /admin/reports/summary`, `POST /admin/uploads/sign`.
@@ -543,7 +553,8 @@ every API call: Authorization: Bearer … → JwtAuthGuard (verify JWT; re-read 
 - **Endpoints:** `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `POST /auth/logout-all`, `GET /auth/me`, `POST /auth/change-password`. `SameOriginGuard` requires our `Origin` on the state-changing ones.
 - **Limits:** login 10/IP/15 min + 5 failures/account → 15-min lock; refresh 30/min; change-password 5/15 min.
 - **Web:** `AuthProvider` (mounted only in `app/admin/layout.tsx`) restores the session on load, refreshes 1 min before expiry, and signs out every tab via `BroadcastChannel`. `proxy.ts` sends guests to `/admin/login?next=…`; `RequireAdmin` is the client guard; `safeNextPath()` stops open redirects. Shared shapes: `@aaarchive/shared/auth`.
-- **Not yet:** customer accounts and Google OAuth (Phase 6, if PRD Q6 = yes); TOTP for Owners (decision pending).
+- **Two-factor (Phase 7):** TOTP via `otplib`, see §4.6 "Phase 7". Login form shows a code step when the API answers `{ mfaRequired }`; Account → Two-factor turns it on/off.
+- **Not yet:** customer accounts and Google OAuth (Release 2; launch is guest-only, user 2026-10-20).
 
 ### 4.11 Security architecture
 
@@ -611,9 +622,93 @@ Rules:
 
 ## 7. Open questions
 
-1. **API hosting** (free + commercial use): Oracle Cloud Always Free VM (Docker + Nginx) vs Render/Koyeb free tiers. Watch cold starts and Supabase connection limits (Phase 0).
-2. **Backups:** GitHub Actions `pg_dump` → private storage target (Phase 7).
+1. **Launch hosting:** testing runs on Vercel (§8.1). Before real orders both apps move: a VPS is the owner's plan (2026-10-20); decide provider and setup then.
+2. ~~Backups~~ — decided: `.github/workflows/backup.yml`, encrypted GitHub artifacts (§8.3).
 3. **Order-number sequence:** Postgres sequence via raw migration vs a counter table (Phase 0).
 4. **Social brand logos:** Lucide has none, so the footer uses text chips. Decide whether to add a brand-icon source.
 
 CI (GitHub Actions) is a Phase 0 task in `phases.md`.
+
+---
+
+## 8. Deployment
+
+### 8.1 Test hosting on Vercel (owner decision, 2026-10-20)
+
+The owner is **hosting the project for testing, not launching**. Vercel Hobby is allowed for that only: test data, no real customers or orders, no public announcement (rules.md golden rule 7). Before real orders, both apps move (VPS planned, §7).
+
+Two Vercel projects from this repo, both with *Include files outside the Root Directory* on (they need `packages/shared` and the root `bun.lock`; Vercel installs with Bun when it sees `bun.lock`):
+
+| | `aaarchive-api` | `aaarchive-web` |
+|---|---|---|
+| Root Directory | `apps/api` | `apps/web` |
+| Framework | NestJS (zero-config, entry `src/main.ts`, one Vercel Function) | Next.js |
+| Deploy order | first: note its URL | second: needs the API URL at **build** time |
+
+**Environment variables** (Production scope; generate secrets with `openssl rand -hex 32`, new values, never the local ones):
+
+| API | Value |
+|---|---|
+| `DATABASE_URL` | Supabase transaction pooler (6543). `DIRECT_URL` is only for migrations: not needed on Vercel |
+| `JWT_ACCESS_SECRET`, `TOTP_ENCRYPTION_KEY` | secrets |
+| `API_PROXY_SECRET`, `REVALIDATE_SECRET` | secrets, **same values as the web project** |
+| `FRONTEND_ORIGIN`, `SITE_URL` | `https://<web>.vercel.app` |
+| `FRONTEND_REVALIDATE_URL` | `https://<web>.vercel.app/api/revalidate` |
+| `TURNSTILE_SECRET_KEY` | real key, or Cloudflare's always-pass test secret `1x0000000000000000000000000000000AA` while testing |
+| `TRUST_PROXY` | `1`, then verify (below) |
+| `MEDIA_S3_*`, `MEDIA_BUCKET`, `MEDIA_PUBLIC_BASE_URL` | Supabase Storage S3 keys (uploads answer 503 without them) |
+| `RESEND_API_KEY`, `MAIL_FROM`, `SENTRY_DSN` | optional |
+
+| Web | Value |
+|---|---|
+| `API_PROXY_TARGET` | `https://<api>.vercel.app/api/v1` (read by the `/api/v1` rewrite at build time) |
+| `NEXT_PUBLIC_API_URL` | `/api/v1` |
+| `NEXT_PUBLIC_SITE_URL` | `https://<web>.vercel.app` |
+| `API_PROXY_SECRET`, `REVALIDATE_SECRET` | same as the API |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | real key, or test key `1x00000000000000000000AA` |
+| `NEXT_PUBLIC_MEDIA_BASE_URL` | same bucket URL as `MEDIA_PUBLIC_BASE_URL` |
+| `SITE_NOINDEX` | `1`: robots.txt disallows everything and every page sends `X-Robots-Tag: noindex` (build-time) |
+
+**Database:** the test deploy uses the Supabase project. Apply migrations from a laptop or CI with `db:deploy` before deploying code that needs them; Vercel never runs migrations. Before launch, delete test orders and customers.
+
+**After the first deploy, check:**
+1. `https://<api>.vercel.app/api/v1/health` → ok (left open for the uptime monitor); `https://<api>.vercel.app/api/v1/products` → refused (no proxy secret); `https://<web>.vercel.app/api/v1/products` → ok.
+2. Sign in at `/admin` (proves DI, decorator metadata, Prisma client and cookies work in the Vercel build), then place a COD order from a phone and track it.
+3. Upload a product photo (proves `sharp` and the S3 keys).
+4. Rate limits see the visitor's IP: trigger the login limit from one network and confirm another network can still sign in; adjust `TRUST_PROXY` if not.
+5. securityheaders.com against the web URL.
+
+**Known limits of the test setup** (not problems for testing; fixed by the move):
+- Vercel Functions accept request bodies up to **4.5 MB**, so photo uploads above that fail (the API allows 8 MB). Resize before uploading while testing.
+- Rate limits and login lockout counters live in memory **per function instance**, so they are looser than on one server.
+- Cold starts: the first request after idle pays the Nest start-up cost.
+
+### 8.2 Before real orders (launch)
+
+Move both apps off Vercel Hobby (rules.md golden rule 7), set `SITE_NOINDEX` empty, real Turnstile keys, domain + HTTPS, Search Console, then the rest of the PRD §13.1 checklist and rules.md §8.8.
+
+### 8.3 Backups and restore
+
+`.github/workflows/backup.yml` runs daily (02:30 Dhaka) and on demand (Actions → Database backup → Run workflow):
+
+1. `pg_dump` (Postgres 17 client, same major version as Supabase) of the `public` schema in custom format, over `BACKUP_DATABASE_URL` (session pooler, port 5432).
+2. **Restore test on every run:** `pg_restore` into a throwaway Postgres 17 and count migrations, products and orders. A dump that cannot be restored fails the run (GitHub emails the owner).
+3. Encrypt with `gpg --symmetric` (AES-256) using `BACKUP_PASSPHRASE`, upload as an Actions artifact kept 30 days. Repo secrets: `BACKUP_DATABASE_URL`, `BACKUP_PASSPHRASE`. **Keep the passphrase outside GitHub too** (password manager): without it the backups cannot be opened.
+
+Not covered: photos in Supabase Storage (the originals stay on the owner's devices).
+
+**Restore (disaster recovery):**
+
+```bash
+# 1. Download the artifact from the Actions run, unzip, decrypt (asks for the passphrase)
+gpg --output aaarchive.dump --decrypt aaarchive-YYYYMMDD-HHMM.dump.gpg
+# 2. Practice first on a local Postgres 17
+pg_restore --no-owner --no-privileges --dbname=postgresql://postgres:postgres@localhost:5432/restore aaarchive.dump
+# 3. Real recovery: into an EMPTY public schema (new Supabase project), over the session pooler
+pg_restore --no-owner --no-privileges --exit-on-error --dbname="$DIRECT_URL" aaarchive.dump
+# 4. Re-apply the role lock-down (grants are not restored), then confirm migrations
+bunx prisma db execute --file prisma/migrations/20261018130000_lock_down_supabase_roles/migration.sql
+bun run --filter @aaarchive/api db:status
+```
+
+Then point `DATABASE_URL` / `DIRECT_URL` at the restored project, redeploy the API, and run the §8.1 checks.

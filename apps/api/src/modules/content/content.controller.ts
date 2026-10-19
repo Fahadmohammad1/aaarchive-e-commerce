@@ -16,6 +16,7 @@ import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe.js";
 import { ContactService } from "./contact.service.js";
 import { ContentService } from "./content.service.js";
 import { PagesService } from "./pages.service.js";
+import { SitemapService } from "./sitemap.service.js";
 
 /** Public content (PRD §5.1, §5.2, §5.11). Cached by the storefront per tag. */
 @Public()
@@ -25,7 +26,14 @@ export class ContentController {
     private readonly content: ContentService,
     private readonly pages: PagesService,
     private readonly contact: ContactService,
+    private readonly sitemap: SitemapService,
   ) {}
+
+  /** Slugs and dates for sitemap.xml (PRD §9.2). */
+  @Get("sitemap")
+  sitemapEntries() {
+    return this.sitemap.entries();
+  }
 
   /** Every home section, resolved; a section not set up yet is null. */
   @Get("content/home")

@@ -1,0 +1,80 @@
+name: Database backup
+
+# Daily pg_dump of the Supabase database (rules.md §8.8, phases.md Phase 7).
+# Every run also restores the dump into a throwaway Postgres to prove it works.
+# The dump is encrypted before upload: anyone with repo access can download
+# artifacts, and the data holds customers' names, phones and addresses.
+#
+# Repository secrets:
+#   BACKUP_DATABASE_URL  Supabase *session* pooler URL (port 5432), not 6543
+#   BACKUP_PASSPHRASE    long random string (openssl rand -hex 32), kept
+#                        outside GitHub too, or the backups cannot be opened
+# Restore steps: docs/architecture.md §8.3.
+
+on:
+  schedule:
+    - cron: "30 20 * * *" # 02:30 Asia/Dhaka
+  workflow_dispatch:
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    name: Dump, encrypt, test restore
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      restore:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: restore_check
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      # pg_dump must be at least the server's version (Supabase: Postgres 17).
+      - name: Dump the public schema
+        env:
+          DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+        run: |
+          test -n "$DATABASE_URL" || { echo "BACKUP_DATABASE_URL is not set"; exit 1; }
+          docker run --rm --network host -e DATABASE_URL -v "$PWD:/out" postgres:17 \
+            sh -c 'pg_dump "$DATABASE_URL" --format=custom --schema=public --no-owner --file=/out/aaarchive.dump'
+          ls -l aaarchive.dump
+
+      - name: Restore into a throwaway database
+        run: |
+          docker run --rm --network host -v "$PWD:/in" postgres:17 \
+            pg_restore --no-owner --no-privileges --exit-on-error \
+              --dbname=postgresql://postgres:postgres@localhost:5432/restore_check /in/aaarchive.dump
+          docker run --rm --network host postgres:17 psql \
+            postgresql://postgres:postgres@localhost:5432/restore_check -v ON_ERROR_STOP=1 -At -c "
+              SELECT 'migrations ' || count(*) FROM \"_prisma_migrations\" WHERE finished_at IS NOT NULL;
+              SELECT 'products '   || count(*) FROM \"Product\";
+              SELECT 'orders '     || count(*) FROM \"Order\";"
+
+      - name: Encrypt
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          test -n "$BACKUP_PASSPHRASE" || { echo "BACKUP_PASSPHRASE is not set"; exit 1; }
+          echo "$BACKUP_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback \
+            --passphrase-fd 0 --symmetric --cipher-algo AES256 \
+            --output "aaarchive-$(date -u +%Y%m%d-%H%M).dump.gpg" aaarchive.dump
+          rm aaarchive.dump
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: aaarchive-*.dump.gpg
+          retention-days: 30
+          if-no-files-found: error

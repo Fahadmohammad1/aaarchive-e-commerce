@@ -7,7 +7,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
-import { trackAddToCart } from "@/lib/analytics/analytics";
+import { trackAddToCart, trackViewItem } from "@/lib/analytics/analytics";
 import { useCartStore } from "@/lib/cart/cart-store";
 import { format, getMessages } from "@/lib/i18n/i18n";
 import type {
@@ -107,6 +107,16 @@ export function VariantPicker({
   const variant = variantFor(sizeId, colorId);
   const variantStatus = variant ? status.get(variant.id) : undefined;
   const color = product.colors.find((c) => c.id === colorId);
+
+  // view_item / ViewContent once per product (PRD §10).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once per product
+  React.useEffect(() => {
+    trackViewItem({
+      id: product.slug,
+      name: product.name,
+      price: product.price,
+    });
+  }, [product.slug]);
 
   // A size sold out in the newly picked colour is unpicked.
   // biome-ignore lint/correctness/useExhaustiveDependencies: recheck on colour change

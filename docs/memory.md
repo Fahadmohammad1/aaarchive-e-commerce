@@ -4,12 +4,23 @@ Living log of where the project stands. **Every agent updates this at the end of
 
 ## Current status
 
-- **Phase:** 6 — Home, content & settings: built and verified locally (2026-10-20). Next: Phase 7 (launch prep & launch).
+- **Phase:** 7 — Launch prep. Everything that can be done locally is built and verified (2026-10-20). The rest needs the Vercel **test** deployment (owner: testing only, not launching) and the owner's accounts/content.
 - **In progress:** —
-- **File currently being worked on:** — (next: Phase 7 `apps/web/app/sitemap.ts`)
+- **File currently being worked on:** — (next: owner creates the two Vercel projects per `architecture.md` §8.1)
 
 ## Completed
 
+- **2026-10-20** [shared][api][web][repo] — Phase 7 launch prep (local part).
+  - SEO: `app/sitemap.ts` (from new `GET /content/sitemap`), `app/robots.ts`, Organization JSON-LD in the footer, og:image falls back to the logo, product meta description only when set. `SITE_NOINDEX=1` keeps a test deploy out of search (robots + `X-Robots-Tag`).
+  - Analytics: `lib/analytics/analytics-tags.tsx` loads GA4 / Pixel / Clarity after idle with IDs from Settings → Tracking; `view_item` and `search` events added; CSP allows their domains; Unsplash removed from `next.config.ts`.
+  - API: Facebook catalog feed `GET /feeds/facebook.xml` (`modules/feeds/`, `SITE_URL`); Sentry (API only, `src/instrument.ts`, only with `SENTRY_DSN`, 500s captured, no request data).
+  - Two-factor sign-in (TOTP, `otplib`): shared schemas, `totp.service.ts` + `totp-crypto.ts`, login code step, Account → Two-factor card, Owner nudge on the dashboard. Migration `20261020000000_user_totp` — **applied to Supabase**.
+  - Tests: Playwright `apps/web/e2e/checkout.spec.ts` (COD order → track; no stock number in the PDP) + CI job `browser-e2e`; `test/totp.e2e-spec.ts`; `facebook-feed.spec.ts`; checkout e2e pins the stock setting.
+  - JS: storefront shared code made Zod-free (`stock-limits.ts`, `phone-format.ts`, `order-number.ts` in shared; `/track-order` validates without Zod).
+  - Accessibility: Lighthouse a11y 100 on home, shop, product, cart, checkout, track-order, FAQ, contact, policy, admin login; hidden "Products" h2 on listings; keyboard pass on the PDP. Fixed: closing a dialog opened from state dropped focus to `<body>` — new `lib/a11y/use-return-focus.ts` spread on all 18 such dialogs (menu, search, filters, cart drawer, size chart, every admin form dialog); search input focused through it instead of `autoFocus`.
+  - Backups: `.github/workflows/backup.yml` (daily `pg_dump` with the Postgres 17 client, test restore into a throwaway DB on every run, gpg-encrypted artifact, 30 days). Not run yet: needs the repo secrets.
+  - Docs: `architecture.md` §8 (Vercel test hosting, env vars, post-deploy checks, backups + restore), §4.6 Phase 7 endpoints, tree; `rules.md` (Vercel testing exception, TOTP built, new error codes, Sentry/CSP decisions, Playwright, dialog focus rule).
+  - Verified: `bun run check`, `typecheck`, `test` (shared 109, API unit 56), API e2e on local DB 56 pass + 2 race tests skipped, Playwright 2 pass, `bun audit` clean, security headers present in the production build.
 - **2026-10-20** [shared][api][web] — Phase 6: home, content & settings.
   - Shared: `content.ts` + social post / page / FAQ / contact schemas, `pagePath()`; `settings.ts` + store / SEO / tracking schemas and the `settingSchemas` registry (wallet numbers now validated as BD mobiles); `auth.ts` staff create/update; rich-text `## ` headings; cache tags `page:<slug>`, `faq`. 108 shared tests.
   - API: `content` module (`GET /content/home` resolved, `/content/site`, `/pages/:slug`, `/faq`, `POST /contact`; admin `GET /admin/content`, `PUT /admin/content/:key`, CRUD `/admin/social-posts`, `/admin/pages`, `/admin/faq`), settings rewritten (`GET /admin/settings`, `PUT /admin/settings/:key`, richer `GET /settings/public`), `users` module (`/admin/staff`). Settings → Stock now drives the low-stock threshold and max quantity everywhere (the old `TODO(Phase 5)`s). Migration `20261019050000_social_post_media` (SocialPost.image → mediaId + alt, user-approved) — **applied to Supabase**. Tests: `test/content.e2e-spec.ts` (6); e2e 54 pass + 2 race tests skipped locally.
@@ -149,21 +160,25 @@ Living log of where the project stands. **Every agent updates this at the end of
 
 ## Next up
 
-1. [api] **User:** decide whether to commit Phase 4; add `RESEND_API_KEY` + `MAIL_FROM` (verified domain) to try a real confirmation email; set the real bKash/Nagad numbers (Settings arrive in Phase 6 — until then edit the `payments` row).
-2. Phase 5: admin orders list/detail, status flow with stock restore, payment verify/reject, customers + blocklist, reports, exports.
-1. [api] **User:** `bun run --filter @aaarchive/api db:deploy` — applies `20261019020000_size_chart_is_template` and `20261019030000_search_trgm` (enables `pg_trgm`, available on Supabase free tier). Then try a real photo upload in a product and a category.
-2. [web] Storefront JS budget: 169–179 KB gzipped vs 150 KB (React DOM + Next router are ~113 KB of it). Candidates: TanStack Query only where the storefront needs it, a smaller i18n slice, lucide icon count, header client code. Run Lighthouse mobile on shop + product (exit criterion ≥ 85) once available.
-3. Phase 4: cart store, cart drawer/page, wire Add to cart / Buy now on the PDP, delivery zones (then the PDP delivery info), checkout, order placement.
+1. [repo] **Owner:** create the Vercel projects `aaarchive-api` then `aaarchive-web` (`architecture.md` §8.1, with `SITE_NOINDEX=1`), then run the §8.1 post-deploy checks. Agent can help read logs and fix what breaks.
+2. [repo] **Owner:** add repo secrets `BACKUP_DATABASE_URL` + `BACKUP_PASSPHRASE` (keep a copy of the passphrase outside GitHub), run *Database backup* once by hand and check it passes.
+3. [repo] On the test deploy: Lighthouse mobile with real photos, securityheaders.com, OWASP ZAP baseline, `TRUST_PROXY` check, uptime monitor on `/api/v1/health`, Supabase Security Advisor + Data API off + SSL enforced.
+4. **Owner decision:** storefront JS budget (see Blockers).
+5. Later, before real orders: move off Vercel Hobby (VPS), domain + Search Console, media from our own domain, secrets rotated, PRD §13.1 checklist, soft launch.
 
 ## Decisions
 
+- **2026-10-20** [repo] Hosting: **Vercel Hobby for testing only** (owner: "not launching, just hosting for testing"); no real orders there; VPS planned for launch. Recorded in rules.md golden rule 7 and architecture §8.
+- **2026-10-20** [api][web] Sentry on the API only for now; TOTP two-factor built for all dashboard users (Owners nudged); Playwright checkout test approved (owner).
+- **2026-10-20** [web] CSP keeps `'unsafe-inline'`: nonces would make every page dynamic (rules.md §8.7).
+- **2026-10-20** [repo] Backups: daily encrypted `pg_dump` as GitHub artifacts (free), restore-tested on every run; photos in Storage not included.
 - **2026-10-20** [repo] Customer accounts (PRD open question 6): **guest-only at launch**, accounts move to Release 2 (user).
 - **2026-10-20** [api][web] Pages and FAQ answers are Markdown-lite like product descriptions, plus `## ` headings — no HTML, no sanitiser (user). Social posts store a media-library image (user-approved migration).
 - **2026-10-20** [web] Content-driven storefront parts read the API at request time (`connection()` inside `<Suspense>`) from `"use cache"` fetchers, so `next build`/CI never need the API. About and Size guide are served by a dynamic `[page]` route for the same reason.
 - **2026-10-20** [api] Staff accounts are created by the Owner with a first password (no email invite). Owners cannot demote or deactivate themselves, and the last active Owner cannot be removed; role change, deactivation or a new password end that person's sessions.
 - **2026-10-19** [api] Status flow read from PRD §6.4's diagram: Shipped may still go to Cancelled (stock restored) as well as Returned; Delivered is final (no Delivered → Returned). Delivering a COD order marks it Paid; verifying a COD advance makes it Partially paid (Paid if already delivered); rejecting a payment makes the order Unpaid. Staff (Order Manager) can do everything in orders, payments, customers, blocklist and their exports.
 - **2026-10-19** [api] Revenue on the dashboard = orders Delivered or Paid (not cancelled/returned), by order date in Dhaka time; open unpaid orders are "pending". Customer success rate = delivered ÷ (delivered + cancelled + returned).
-- **2026-10-19** [web] Zod is allowed in the `/checkout` and `/track-order` route chunks only (shared schemas, architecture §3.1); shared storefront code stays Zod-free (rules.md §4.2 clarified).
+- **2026-10-19** [web] Zod is allowed in the `/checkout` route chunk only (`/track-order` too until 2026-10-20, now Zod-free) (shared schemas, architecture §3.1); shared storefront code stays Zod-free (rules.md §4.2 clarified).
 - **2026-10-19** [api] Coupon rules: minimum order is checked on the whole subtotal, the discount comes only from in-scope lines; per-phone uses count non-cancelled orders with the code; a coupon that fails at checkout is dropped by the web rather than blocking the order. Free delivery (setting) compares subtotal − discount with the threshold. Over-cap quantities are lowered by cart validate but refused (`QTY_LIMIT`) by `POST /orders`.
 - **2026-10-19** [web] The success page reads the placed order from sessionStorage only; there is no public "get order by number" endpoint (IDOR) — elsewhere customers track with phone + number.
 - **2026-10-19** [shared] — Price when a variant has its own price and the product is on sale (user): **the sale price wins** for every variant; outside the sale the variant's own price, else the product price (`variantPrice()`, shared with checkout).
@@ -182,7 +197,7 @@ Living log of where the project stands. **Every agent updates this at the end of
 - **2026-10-17** [web] — Dev placeholder images from Unsplash (user decision), never shipped.
 - **2026-10-18** — CSV/Excel export is MVP scope (user request). Generated by the API (`GET /admin/<resource>/export?format=csv|xlsx`), `exceljs` for xlsx.
 - **2026-10-18** — Media: Supabase Storage via the API (S3 keys, sharp re-encoding), not Cloudinary (user).
-- **2026-10-18** — Owner TOTP two-factor: not now (user); revisit in Phase 7.
+- **2026-10-18** — Owner TOTP two-factor: not now (user); revisited and built 2026-10-20.
 - **2026-10-18** — Security is a first-class requirement (user): rules.md §8 is the enforced checklist; API reachable only through the website in production (shared proxy secret).
 - **2026-10-18** — Everything customer-facing is editable from the dashboard (user requirement). Home/site sections are `ContentBlock` rows validated by `@aaarchive/shared/content`; no drafts in the MVP; interface wording stays in code (i18n).
 - **2026-10-18** [api] — Order numbers come from a Postgres sequence (not a counter table). RLS enabled on every table as Supabase Data API protection.
@@ -195,8 +210,8 @@ Living log of where the project stands. **Every agent updates this at the end of
 - **2026-10-19** Owner to add the couriers actually used and their tracking-page patterns under Delivery zones → Couriers (none are set yet).
 - **2026-10-19** [api] While setting up the browser check, `prisma db seed` ran once against the Supabase DB from `apps/api/.env` (`DIRECT_URL`) instead of the local one. The seed only creates missing rows (upserts with `update: {}`, Owner skipped if present), so nothing was changed or removed, but missing sizes/colours/zones/settings/content rows would have been added there.
 - **2026-10-19** Local `prisma dev` also listens on 127.0.0.1:4000, so the API must use another `PORT` (e.g. 4100 + `API_PROXY_TARGET`) while it runs.
-- **2026-10-19** [web] Storefront JS over budget (169–179 KB vs 150 KB gzipped). Lighthouse not installed here; metrics measured by hand look good.
-- **2026-10-19** [web] Menu links (collections → `archive-01-winter-drop`, categories → `/shop#categories`) are still fixture values until the menu becomes content (Phase 6).
+- **2026-10-20** [web] **Owner decision needed — JS budget.** Storefront pages load 177–187 KB gzipped (checkout 240 KB) against the 150 KB rule; the Next 16 + React 19 framework alone is ~130 KB, so 150 KB is not reachable without dropping core libraries. Proposal: revise the budget to ≤ 200 KB on storefront pages (checkout ≤ 250 KB) and keep Lighthouse ≥ 85 as the real gate. AGENTS.md / PRD keep 150 KB until the owner decides.
+- **2026-10-20** [web] Lighthouse mobile on the local build (placeholder data, no photos): home 84, shop 82, product 81 (LCP 4.1–4.6 s, from text streamed after `connection()`); a11y 100, best practices 100, SEO 92. Re-measure on the test deploy with real photos before deciding on further work.
 - **2026-10-19** `ui.shadcn.com` is blocked by this cloud environment's network policy, so `bunx shadcn add` fails here; allow the host in the environment settings or re-add the hand-written primitives later (`design.md` §12.1).
 
 - `SEED_OWNER_PASSWORD` is still in `apps/api/.env`; user to remove it once the password is saved elsewhere.
@@ -205,5 +220,5 @@ Living log of where the project stands. **Every agent updates this at the end of
 - [web] `next.config.ts` has `experimental.agentFeedback: true` (from create-next-app). It makes `next dev` add a block to `apps/web/AGENTS.md` asking agents to send feedback to the Next.js team. Agents must not send anything without the user's approval. Ask whether to turn it off.
 - [web] Logo is a raster PNG cut-out; an SVG (or transparent PNG) from the designer would be sharper. No favicon/monogram yet. No real product/campaign photos yet; men's panjabi placeholder is a white-tee photo.
 
-- API hosting (free + commercial use) not chosen.
+- Launch hosting (VPS) not chosen yet; testing runs on Vercel.
 - User to disable Supabase Data API in the dashboard (tables are already inaccessible to its roles).

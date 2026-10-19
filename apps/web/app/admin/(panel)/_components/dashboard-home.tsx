@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ListError, ListSkeleton } from "@/components/admin/list-state";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
+import { useTotpStatus } from "@/lib/auth/use-totp";
 import { format } from "@/lib/i18n/i18n";
 import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 import type { ReportSummary } from "@/lib/report/report-schemas";
@@ -75,6 +76,8 @@ export function DashboardHome() {
   const th = t.home;
   const { user } = useAuth();
   const summary = useReportSummary();
+  const totp = useTotpStatus();
+  const nudge2fa = user?.role === "OWNER" && totp.data && !totp.data.enabled;
 
   return (
     <div className="flex flex-col gap-4">
@@ -91,6 +94,14 @@ export function DashboardHome() {
           </p>
         )}
       </div>
+      {nudge2fa && (
+        <Link
+          href="/admin/account"
+          className="rounded-md border border-primary/60 p-3 text-sm hover:border-primary"
+        >
+          {t.twoFactor.ownerNudge}
+        </Link>
+      )}
       {summary.isPending ? (
         <ListSkeleton rows={6} />
       ) : summary.isError ? (

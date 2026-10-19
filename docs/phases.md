@@ -222,20 +222,21 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 
 **Goal:** production-ready, measured, backed up, and launched (PRD §9, §10, §13.1).
 
-- [ ] [web] `sitemap.ts`, `robots.ts`, canonical URLs on filtered listings, `Organization` JSON-LD
-- [ ] [web] GA4, Meta Pixel, Microsoft Clarity wired through `lib/analytics/` (IDs from settings)
-- [ ] [api] Facebook catalog feed `GET /feeds/facebook.xml`
-- [ ] [web] Remove Unsplash placeholders (`lib/content/home-fixtures.ts`) and the `images.unsplash.com` pattern in `next.config.ts`
-- [ ] [web] Performance pass: LCP < 2.5s, CLS < 0.1, storefront JS < 150 KB gzipped, Lighthouse mobile ≥ 85 on home/category/product
-- [ ] [web] Accessibility pass (WCAG 2.1 AA, keyboard, reduced motion)
-- [ ] [repo] Sentry free tier on both apps, and an uptime monitor on `/api/v1/health`
-- [ ] Re-decide TOTP two-factor for Owner accounts (deferred in Phase 1)
-- [ ] [repo] Security review before launch (rules.md §8.8): OWASP ZAP baseline scan on staging, securityheaders.com grade A, `bun audit` clean, Supabase Security Advisor clean + Data API off + SSL enforced, `TRUST_PROXY` verified, API unreachable without the proxy secret, every secret rotated from dev values
-- [ ] [web] Revisit CSP: nonce-based `script-src` (drop `'unsafe-inline'`) if it can be done without losing static caching; add Turnstile/analytics domains
-- [ ] [repo] Scheduled `pg_dump` backup (GitHub Actions → private storage) and a tested restore
-- [ ] [repo] Production deploy: web on Cloudflare (OpenNext), API on the chosen host, domain + HTTPS, Search Console
-- [ ] [repo] Serve media from our domain (`/media/*` → Supabase Storage, cached by Cloudflare with a long edge TTL) to stay within Supabase's free egress; API purges the Cloudflare cache when an image is deleted; scheduled clean-up of unreferenced media
-- [ ] [web] *(Needs approval)* Playwright test for the checkout flow
+- [x] [web] `sitemap.ts`, `robots.ts`, canonical URLs on filtered listings, `Organization` JSON-LD (2026-10-20)
+- [x] [web] GA4, Meta Pixel, Microsoft Clarity wired through `lib/analytics/` (IDs from settings) (2026-10-20)
+- [x] [api] Facebook catalog feed `GET /feeds/facebook.xml` (2026-10-20)
+- [x] [web] Remove Unsplash placeholders (`lib/content/home-fixtures.ts`) and the `images.unsplash.com` pattern in `next.config.ts` (2026-10-20)
+- [ ] [web] Performance pass: LCP < 2.5s, CLS < 0.1, storefront JS < 150 KB gzipped, Lighthouse mobile ≥ 85 on home/category/product — *local pass done 2026-10-20 (81–84, JS 177–187 KB); re-measure on the test deploy; JS budget awaits the owner's decision (memory.md)*
+- [x] [web] Accessibility pass (WCAG 2.1 AA, keyboard, reduced motion) (2026-10-20)
+- [ ] [repo] Sentry free tier on both apps, and an uptime monitor on `/api/v1/health` — *Sentry built for the API only (owner, 2026-10-20); needs `SENTRY_DSN` + the uptime monitor on the deploy*
+- [x] Re-decide TOTP two-factor for Owner accounts (deferred in Phase 1) — built for all dashboard users (2026-10-20)
+- [ ] [repo] Security review before launch (rules.md §8.8) — *local part done 2026-10-20: `bun audit` clean, headers present; the rest needs the deployment*: OWASP ZAP baseline scan on staging, securityheaders.com grade A, `bun audit` clean, Supabase Security Advisor clean + Data API off + SSL enforced, `TRUST_PROXY` verified, API unreachable without the proxy secret, every secret rotated from dev values
+- [x] [web] Revisit CSP: nonce-based `script-src` (drop `'unsafe-inline'`) if it can be done without losing static caching; add Turnstile/analytics domains — kept `'unsafe-inline'` (nonces force dynamic pages), domains added (2026-10-20)
+- [ ] [repo] Scheduled `pg_dump` backup (GitHub Actions → private storage) and a tested restore — *workflow built 2026-10-20 (restore test in every run); needs the repo secrets and a first run*
+- [ ] [repo] Test deploy on Vercel (owner, 2026-10-20: testing only, architecture §8.1)
+- [ ] [repo] Production deploy: off Vercel Hobby (VPS planned), domain + HTTPS, Search Console
+- [ ] [repo] *(After the move off Vercel)* Serve media from our domain (`/media/*` → Supabase Storage, cached by Cloudflare with a long edge TTL) to stay within Supabase's free egress; API purges the Cloudflare cache when an image is deleted; scheduled clean-up of unreferenced media
+- [x] [web] Playwright test for the checkout flow (approved and built 2026-10-20, CI job `browser-e2e`)
 - [ ] PRD §13.1 launch checklist completed
 - [ ] Soft launch to friends/followers → public launch
 

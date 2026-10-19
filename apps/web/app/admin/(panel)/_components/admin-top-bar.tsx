@@ -22,10 +22,12 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useReturnFocus } from "@/lib/a11y/use-return-focus";
 import { getAdminMessages } from "@/lib/i18n/i18n-admin";
 import { AdminNavList } from "./admin-nav-list";
 
 export function AdminTopBar() {
+  const returnFocus = useReturnFocus();
   const t = getAdminMessages();
   const { user, logout } = useAuth();
   const router = useRouter();
@@ -144,6 +146,7 @@ export function AdminTopBar() {
 
       <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
         <SheetContent
+          {...returnFocus}
           side="left"
           className="w-72 bg-sidebar p-0 text-sidebar-foreground"
         >

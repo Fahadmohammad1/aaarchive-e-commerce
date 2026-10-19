@@ -1,6 +1,8 @@
 import { connection } from "next/server";
+import { JsonLd, siteUrl } from "@/components/store/json-ld";
 import { Logo } from "@/components/store/logo";
 import { MediaImage } from "@/components/store/media-image";
+import { AnalyticsTags } from "@/lib/analytics/analytics-tags";
 import {
   getSiteContent,
   getStoreSettings,
@@ -55,19 +57,50 @@ export async function FooterSlot() {
     getSiteContent(),
     getStoreSettings(),
   ]);
+  const { store } = settings;
   return (
-    <SiteFooter
-      site={site}
-      store={settings.store}
-      year={new Date().getFullYear()}
-    />
+    <>
+      <SiteFooter site={site} store={store} year={new Date().getFullYear()} />
+      {/* Organization structured data (PRD §9.2), from Settings + footer links. */}
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          name: store.name,
+          url: siteUrl("/"),
+          logo: store.logo?.media.url ?? siteUrl("/images/logo-full.png"),
+          ...(site.footer?.socials.length
+            ? { sameAs: site.footer.socials.map((s) => s.href) }
+            : {}),
+          ...(store.phone || store.email
+            ? {
+                contactPoint: {
+                  "@type": "ContactPoint",
+                  contactType: "customer service",
+                  areaServed: "BD",
+                  ...(store.phone ? { telephone: `+88${store.phone}` } : {}),
+                  ...(store.email ? { email: store.email } : {}),
+                },
+              }
+            : {}),
+        }}
+      />
+    </>
   );
 }
 
 export async function FloatingContactSlot() {
   await connection();
-  const { store } = await getStoreSettings();
+  const { store, tracking } = await getStoreSettings();
   return (
-    <FloatingContact whatsapp={store.whatsapp} messenger={store.messenger} />
+    <>
+      <FloatingContact whatsapp={store.whatsapp} messenger={store.messenger} />
+      {/* Analytics tags (PRD §10), storefront only, IDs from Settings. */}
+      <AnalyticsTags
+        ga4Id={tracking.ga4Id}
+        metaPixelId={tracking.metaPixelId}
+        clarityId={tracking.clarityId}
+      />
+    </>
   );
 }

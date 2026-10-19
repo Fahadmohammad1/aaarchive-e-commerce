@@ -26,9 +26,10 @@ export async function generateMetadata(): Promise<Metadata> {
       description: seo.description || undefined,
       openGraph: {
         siteName: store.name,
+        // Without a share image in Settings, the logo stands in.
         images: seo.ogImage
           ? [{ url: seo.ogImage.media.url, alt: seo.ogImage.alt }]
-          : undefined,
+          : [{ url: "/images/logo-full.png", alt: store.name }],
       },
     };
   } catch {

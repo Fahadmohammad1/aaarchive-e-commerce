@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useReturnFocus } from "@/lib/a11y/use-return-focus";
 import { ApiError } from "@/lib/api/api-error";
 import type { AdminCoupon } from "@/lib/coupon/coupon-schemas";
 import { useSaveCoupon } from "@/lib/coupon/use-coupons";
@@ -72,6 +73,7 @@ export function CouponFormDialog({
   onOpenChange: (open: boolean) => void;
   item: AdminCoupon | null;
 }) {
+  const returnFocus = useReturnFocus();
   const t = getAdminMessages();
   const tc = t.coupons;
   const save = useSaveCoupon();
@@ -127,7 +129,10 @@ export function CouponFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
+      <DialogContent
+        {...returnFocus}
+        className="max-h-[90dvh] overflow-y-auto sm:max-w-xl"
+      >
         <DialogHeader>
           <DialogTitle>{item ? tc.editCoupon : tc.newCoupon}</DialogTitle>
         </DialogHeader>

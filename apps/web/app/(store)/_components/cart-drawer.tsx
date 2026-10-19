@@ -10,11 +10,13 @@ import {
   SheetDescription,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useReturnFocus } from "@/lib/a11y/use-return-focus";
 import { useCartCount, useCartStore } from "@/lib/cart/cart-store";
 import { format, getMessages } from "@/lib/i18n/i18n";
 
 /** Slide-out cart (design §5.15, §7.3): 420px from the right, full width on phones. */
 export function CartDrawer() {
+  const returnFocus = useReturnFocus();
   const t = getMessages();
   const open = useCartStore((s) => s.drawerOpen);
   const setOpen = useCartStore((s) => s.setDrawerOpen);
@@ -23,6 +25,7 @@ export function CartDrawer() {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetContent
+        {...returnFocus}
         side="right"
         showCloseButton={false}
         className="gap-0 rounded-none bg-card p-4 shadow-none data-[side=right]:w-full data-[side=right]:sm:max-w-[420px]"

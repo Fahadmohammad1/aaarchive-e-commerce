@@ -12,6 +12,7 @@ import { ContactService } from "./contact.service.js";
 import { ContentController } from "./content.controller.js";
 import { ContentService } from "./content.service.js";
 import { PagesService } from "./pages.service.js";
+import { SitemapService } from "./sitemap.service.js";
 import { SocialPostsService } from "./social-posts.service.js";
 
 @Module({
@@ -23,6 +24,12 @@ import { SocialPostsService } from "./social-posts.service.js";
     AdminPagesController,
     AdminFaqController,
   ],
-  providers: [ContentService, PagesService, SocialPostsService, ContactService],
+  providers: [
+    ContentService,
+    PagesService,
+    SocialPostsService,
+    ContactService,
+    SitemapService,
+  ],
 })
 export class ContentModule {}

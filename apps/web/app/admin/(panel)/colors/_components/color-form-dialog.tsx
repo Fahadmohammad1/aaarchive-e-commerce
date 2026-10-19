@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useReturnFocus } from "@/lib/a11y/use-return-focus";
 import { ApiError } from "@/lib/api/api-error";
 import type { AdminColor } from "@/lib/color/color-schemas";
 import { useSaveColor } from "@/lib/color/use-colors";
@@ -32,6 +33,7 @@ export function ColorFormDialog({
   onOpenChange: (open: boolean) => void;
   item: AdminColor | null;
 }) {
+  const returnFocus = useReturnFocus();
   const t = getAdminMessages();
   const save = useSaveColor();
   const [formError, setFormError] = React.useState<string | null>(null);
@@ -68,7 +70,7 @@ export function ColorFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent {...returnFocus} className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>
             {item ? t.catalog.editColor : t.catalog.newColor}

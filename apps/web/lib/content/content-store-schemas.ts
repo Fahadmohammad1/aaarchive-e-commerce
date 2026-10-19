@@ -146,3 +146,11 @@ export const publicSettingsSchema = z.object({
   }),
 });
 export type StorePublicSettings = z.infer<typeof publicSettingsSchema>;
+
+const sitemapRow = z.object({ slug: z.string(), updatedAt: z.string() });
+export const sitemapSchema = z.object({
+  products: z.array(sitemapRow),
+  categories: z.array(sitemapRow),
+  collections: z.array(sitemapRow),
+  pages: z.array(sitemapRow),
+});

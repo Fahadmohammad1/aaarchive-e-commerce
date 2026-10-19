@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useReturnFocus } from "@/lib/a11y/use-return-focus";
 import { ApiError } from "@/lib/api/api-error";
 import { errorText } from "@/lib/i18n/error-text";
 import { getAdminMessages } from "@/lib/i18n/i18n-admin";
@@ -32,6 +33,7 @@ export function SizeFormDialog({
   onOpenChange: (open: boolean) => void;
   item: AdminSize | null;
 }) {
+  const returnFocus = useReturnFocus();
   const t = getAdminMessages();
   const save = useSaveSize();
   const [formError, setFormError] = React.useState<string | null>(null);
@@ -67,7 +69,7 @@ export function SizeFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent {...returnFocus} className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>
             {item ? t.catalog.editSize : t.catalog.newSize}

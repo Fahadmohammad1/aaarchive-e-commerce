@@ -90,25 +90,34 @@ enum SocialPlatform {
 // ── People ───────────────────────────────────────────────────────────────
 
 model User {
-  id               String    @id @default(cuid())
-  name             String
-  email            String?   @unique
+  id                String    @id @default(cuid())
+  name              String
+  email             String?   @unique
   /// Normalised 01XXXXXXXXX (@aaarchive/shared/phone).
-  phone            String?   @unique
-  passwordHash     String?
-  googleId         String?   @unique
-  role             Role      @default(CUSTOMER)
-  isActive         Boolean   @default(true)
+  phone             String?   @unique
+  passwordHash      String?
+  googleId          String?   @unique
+  role              Role      @default(CUSTOMER)
+  isActive          Boolean   @default(true)
   /// Consecutive failed logins; reset on success (rules.md §8.2).
-  failedLoginCount Int       @default(0)
+  failedLoginCount  Int       @default(0)
   /// Set after too many failed logins; login is refused until then.
-  lockedUntil      DateTime?
+  lockedUntil       DateTime?
   /// Bumped on logout-everywhere, password change or deactivation: every
   /// access token carrying an older value is rejected immediately.
-  tokenVersion     Int       @default(0)
-  lastLoginAt      DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  tokenVersion      Int       @default(0)
+  lastLoginAt       DateTime?
+  /// Two-factor sign-in (rules.md §8.2): AES-256-GCM encrypted base32 key.
+  totpSecret        String?
+  /// Key waiting for its first code during setup (encrypted).
+  totpPendingSecret String?
+  totpEnabledAt     DateTime?
+  /// Last accepted time step, so a code cannot be used twice.
+  totpLastStep      Int?
+  /// SHA-256 hashes of the unused one-time backup codes.
+  totpBackupCodes   String[]  @default([])
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   addresses        Address[]
   orders           Order[]

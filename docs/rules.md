@@ -20,7 +20,7 @@ Breaking any of these is a bug, however good the rest of the change is.
 4. **Money is integer taka** in the DB, API and UI, displayed only through `formatTaka()` (`৳1,250`).
 5. **Phones are normalised** with `normalizeBdPhone()` before storing or comparing, and masked with `maskBdPhone()` wherever a customer sees an order.
 6. **Every admin endpoint checks auth and role in the API.** Hiding a button is not security.
-7. **Free tiers only.** No paid service, plan upgrade or paid add-on without the user's explicit approval. **Never deploy on Vercel Hobby** (non-commercial licence).
+7. **Free tiers only.** No paid service, plan upgrade or paid add-on without the user's explicit approval. **Never deploy the live store on Vercel Hobby** (non-commercial licence). *Exception (owner, 2026-10-20):* Vercel Hobby may host the project **for testing only**: test data, no real customers or orders, `SITE_NOINDEX=1`. Real orders require moving off it first (architecture §8.1–8.2).
 8. **Secrets live only in `.env` files**, which are git-ignored. Never in code, docs, `memory.md`, commit messages, logs or chat output.
 9. **The six docs stay current.** Every task ends with `memory.md` updated (see `AGENTS.md`).
 10. **Everything customer-facing is editable from the dashboard** (PRD §6.7). Never hard-code copy, images, links, prices, contact numbers or menu items in storefront code — they come from the API (catalog tables, `ContentBlock`, `Page`, `FaqItem`, `Setting`). Only interface wording lives in `lib/i18n/`. A new storefront section ships with its dashboard form and its schema in `@aaarchive/shared/content`.
@@ -127,7 +127,7 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 - **Public, SEO-relevant pages** (home, shop, category, collection, product, content) fetch on the server through `lib/<module>/<module>-api.ts`, cached with `"use cache"` + `cacheLife` + `cacheTag`. Product **stock status** is fetched uncached inside `<Suspense>`.
 - **Everything client-side uses TanStack Query**: admin screens, account pages, cart validation, coupon apply, checkout submit, order tracking, search-as-you-type.
 - When a server-rendered page also needs the data in a Client Component, prefetch on the server with `queryClient.prefetchQuery` and pass it down with `<HydrationBoundary>`. Do not fetch twice.
-- **Storefront JS budget (2026-10-19).** Storefront client code never imports Zod at runtime: browser-side public reads (`lib/product/product-search-api.ts`) use `import type` and skip parsing (the server fetchers validate the same responses); URL helpers used by Client Components live in Zod-free files (`listing-query.ts`, not `listing-params.ts`). Storefront code never imports `lib/i18n/i18n-admin.ts`, `en-admin.ts` or `error-text.ts`. Dialogs, sheets and overlays that open on a tap (menu, search, filters, size chart, zoom, cart drawer) load with `next/dynamic({ ssr: false })` on first use. **Clarified 2026-10-19:** the `/checkout` and `/track-order` route chunks *may* use Zod (React Hook Form + the shared `checkoutSchema` / `trackOrderSchema`, as architecture §3.1 describes); everything they share with other storefront pages (header, cart store, cart drawer, `lib/cart`, `lib/order`, `lib/settings`, `*-store-api.ts`) stays Zod-free.
+- **Storefront JS budget (2026-10-19).** Storefront client code never imports Zod at runtime: browser-side public reads (`lib/product/product-search-api.ts`) use `import type` and skip parsing (the server fetchers validate the same responses); URL helpers used by Client Components live in Zod-free files (`listing-query.ts`, not `listing-params.ts`). Storefront code never imports `lib/i18n/i18n-admin.ts`, `en-admin.ts` or `error-text.ts`. Dialogs, sheets and overlays that open on a tap (menu, search, filters, size chart, zoom, cart drawer) load with `next/dynamic({ ssr: false })` on first use. **Clarified 2026-10-19:** the `/checkout` route chunk *may* use Zod (React Hook Form + the shared `checkoutSchema`, as architecture §3.1 describes). `/track-order` is Zod-free since 2026-10-20 because every footer prefetches it (it validates with `normalizeBdPhone` / `normalizeOrderNumber`). Everything checkout shares with other storefront pages (header, cart store, cart drawer, `lib/cart`, `lib/order`, `lib/settings`, `*-store-api.ts`) stays Zod-free.
 
 **TanStack Query**
 
@@ -144,6 +144,7 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 - Customise shadcn through **variants** (cva) or `className` at the call site. Keep edits to `components/ui/*` to theming and added variants, and list added variants in `design.md` §12.1.
 - Mobile-first: design at 375px, then scale up. Tap targets ≥ 44px.
 - Accessibility: semantic HTML, labelled controls, visible focus (2px accent outline), keyboard-operable menus/sliders/modals, `prefers-reduced-motion` respected, decorative elements `aria-hidden`.
+- **Dialogs return focus (2026-10-20):** a `Dialog` / `Sheet` / `AlertDialog` opened from state (no `*Trigger` inside it) spreads `useReturnFocus()` (`lib/a11y/use-return-focus.ts`) on its content, so closing it puts focus back on the button that opened it. Never `autoFocus` inside such a dialog: pass the element as `useReturnFocus(ref)`.
 - Every image has `alt` (product name + colour by default), explicit dimensions or aspect ratio (no CLS), and `priority` only for the LCP image.
 - Every public page sets a unique title, description and Open Graph image. Cart, checkout, account and admin pages are `noindex`.
 
@@ -175,7 +176,7 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 ### 5.1 API
 
 - Every error response has the shape `{ statusCode, message, code?, details? }` (`AllExceptionsFilter`).
-- Throw Nest `HttpException`s with a stable **`code`** for anything the UI must react to: `VALIDATION_ERROR`, `OUT_OF_STOCK`, `COUPON_INVALID`, `COUPON_EXPIRED`, `PHONE_BLOCKED`, `RATE_LIMITED`, `TURNSTILE_FAILED`, `TRXID_ALREADY_USED`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `SLUG_TAKEN`, `NAME_TAKEN`, `CATEGORY_IN_USE`, `SIZE_IN_USE`, `COLOR_IN_USE`, `MEDIA_NOT_FOUND`, `MEDIA_IN_USE`, and since Phase 4: `COUPON_NOT_STARTED`, `COUPON_MIN_ORDER` (`details.minOrder`), `COUPON_NOT_APPLICABLE`, `COUPON_LIMIT_REACHED`, `ITEM_UNAVAILABLE`, `QTY_LIMIT`, `ZONE_UNAVAILABLE`, `PAYMENT_METHOD_UNAVAILABLE`, `ORDER_NOT_FOUND`, `ZONE_IN_USE`, `COUPON_IN_USE`, `CODE_TAKEN`, and since Phase 5: `INVALID_TRANSITION`, `STATUS_CHANGED`, `ORDER_NOT_EDITABLE`, `PAYMENT_ALREADY_DECIDED`, `PHONE_ALREADY_BLOCKED`, `INVALID_TRACKING_URL`, and since Phase 6: `PRODUCT_NOT_FOUND`, `CONTACT_UNAVAILABLE`, `EMAIL_TAKEN`, `CANNOT_CHANGE_SELF`, `LAST_OWNER`. Add new codes to this list.
+- Throw Nest `HttpException`s with a stable **`code`** for anything the UI must react to: `VALIDATION_ERROR`, `OUT_OF_STOCK`, `COUPON_INVALID`, `COUPON_EXPIRED`, `PHONE_BLOCKED`, `RATE_LIMITED`, `TURNSTILE_FAILED`, `TRXID_ALREADY_USED`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `SLUG_TAKEN`, `NAME_TAKEN`, `CATEGORY_IN_USE`, `SIZE_IN_USE`, `COLOR_IN_USE`, `MEDIA_NOT_FOUND`, `MEDIA_IN_USE`, and since Phase 4: `COUPON_NOT_STARTED`, `COUPON_MIN_ORDER` (`details.minOrder`), `COUPON_NOT_APPLICABLE`, `COUPON_LIMIT_REACHED`, `ITEM_UNAVAILABLE`, `QTY_LIMIT`, `ZONE_UNAVAILABLE`, `PAYMENT_METHOD_UNAVAILABLE`, `ORDER_NOT_FOUND`, `ZONE_IN_USE`, `COUPON_IN_USE`, `CODE_TAKEN`, and since Phase 5: `INVALID_TRANSITION`, `STATUS_CHANGED`, `ORDER_NOT_EDITABLE`, `PAYMENT_ALREADY_DECIDED`, `PHONE_ALREADY_BLOCKED`, `INVALID_TRACKING_URL`, and since Phase 6: `PRODUCT_NOT_FOUND`, `CONTACT_UNAVAILABLE`, `EMAIL_TAKEN`, `CANNOT_CHANGE_SELF`, `LAST_OWNER`, and since Phase 7: `INVALID_TOTP_CODE`, `MFA_EXPIRED`, `TOTP_ALREADY_ON`, `TOTP_SETUP_MISSING`. Add new codes to this list.
 - Unexpected errors: log the full error server-side and return a bare 500 (`INTERNAL_ERROR`). Never return stack traces, SQL or Prisma messages.
 - Never log passwords, tokens, full card/wallet data, or full phone numbers alongside names. Log order numbers and ids instead.
 - Status codes: 400 validation, 401 not logged in, 403 wrong role, 404 not found, 409 conflict (duplicate TrxID, slug), 422 business rule (out of stock, coupon), 429 rate limit.
@@ -212,11 +213,12 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 |---|---|---|
 | `packages/shared` | `bun test` | Every exported helper and schema |
 | `apps/api` | Vitest (unit `*.spec.ts`, e2e `test/*.e2e-spec.ts`) | Every business rule: price/discount/delivery calculation, coupon rules, stock decrement and restore, order status transitions, rate limits/blocklist, stock-status mapping, and an e2e check that public product responses contain no stock numbers |
-| `apps/web` | none yet | Manual check at 375px and desktop. Add Playwright for the checkout flow in Phase 7 (needs approval) |
+| `apps/web` | Playwright (`e2e/*.spec.ts`, approved 2026-10-20) | The checkout flow (COD order → track) and "no stock number in the product page". Plus a manual check at 375px and desktop |
 
 - A bug fix in business logic comes with a test that fails before the fix.
 - Tests never hit the real Supabase database.
 - **Local DB e2e (2026-10-19):** run `bunx prisma dev -n <name> -p <port> -P <dbPort> --shadow-db-port <port>` in the **foreground or as a background job** (`--detach` hangs in `starting_up`), apply migrations with `DIRECT_URL=<its URL> bunx prisma migrate deploy`, then `TEST_DATABASE_URL=<its URL> bunx vitest run --config ./vitest.config.e2e.ts --no-file-parallelism` (that server is single-connection PGlite: parallel files mix up prepared statements). Add `TEST_DB_SINGLE_CONNECTION=1` there: the two race tests (last unit, simultaneous status change) need real concurrent connections and are skipped with it (2026-10-19). CI uses a real Postgres, runs them, and may run files in parallel.
+- **Playwright locally (2026-10-20):** seed the test product with `bun run test/fixtures/storefront-fixture.ts` (apps/api, refuses Supabase URLs), build both apps (`API_PROXY_TARGET=http://localhost:4100/api/v1` for the web build), then `E2E_DATABASE_URL=<local URL> bun run --filter @aaarchive/web test:e2e`. `PW_CHROMIUM_PATH` points at an installed Chromium; `E2E_NO_SERVER=1` reuses servers you started.
 
 ---
 
@@ -248,7 +250,7 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 - Login: rate-limited per IP **and** per account (e.g. 5 attempts / 15 min), Turnstile, generic error ("Email or password is incorrect") so accounts cannot be enumerated.
 - Logout and password change revoke all refresh tokens of that user. Deactivating a staff user ends their sessions immediately.
 - `/auth/refresh` and every state-changing cookie-authenticated request check the `Origin` header against the site origin (CSRF defence on top of SameSite).
-- Owner accounts: two-factor authentication (TOTP) — **deferred** by the owner (2026-10-18); re-decide before launch (Phase 7).
+- Two-factor sign-in (TOTP, `otplib`) — **built** (owner decision 2026-10-20): any dashboard user can turn it on, Owners are nudged on the dashboard. Secrets encrypted at rest with `TOTP_ENCRYPTION_KEY` (required in production), codes cannot be replayed, 10 single-use hashed backup codes, wrong codes count toward the lockout, turning it off needs password + code and ends every session.
 
 ### 8.3 Authorization
 
@@ -283,13 +285,14 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 ### 8.7 Logging & monitoring
 
 - Log security events (failed logins, lockouts, 403s on admin routes, rate-limit hits, refresh-token reuse) without personal data (no full phones, no tokens).
-- Sentry for errors; uptime monitor on `/api/v1/health`; alert the owner by email.
+- Sentry for errors — **API only** for now (owner, 2026-10-20), initialised only when `SENTRY_DSN` is set, no request bodies, cookies or user data sent, no tracing. Uptime monitor on `/api/v1/health` (left open by `ProxySecretMiddleware` for it); alert the owner by email.
+- **CSP keeps `'unsafe-inline'` for scripts (decided 2026-10-20):** a nonce would make every page dynamic and lose the static shell. Revisit if Next ships static-friendly hashes.
 
 ### 8.8 Deployment (Phase 7)
 
 - HTTPS only. API reachable **only** through the website in production (`API_PROXY_SECRET` set; ideally the API host also restricts inbound traffic to the web host).
 - `TRUST_PROXY` set to the real number of proxies, verified by checking that rate limits see distinct visitor IPs.
-- Supabase: Data API disabled, strong DB password, SSL enforced, Security Advisor clean, daily backups + tested restore.
+- Supabase: Data API disabled, strong DB password, SSL enforced, Security Advisor clean, daily backups + tested restore (`.github/workflows/backup.yml`, encrypted; every run test-restores the dump — architecture §8.3).
 - Before launch: OWASP ZAP baseline scan (free) against staging, securityheaders.com grade A, `bun audit` clean, all secrets rotated from development values.
 
 ### 8.9 Dependencies

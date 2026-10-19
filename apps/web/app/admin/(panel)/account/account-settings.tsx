@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import * as authApi from "@/lib/auth/auth-api";
 import { authErrorText } from "@/lib/auth/auth-errors";
 import { getAdminMessages } from "@/lib/i18n/i18n-admin";
+import { TwoFactorCard } from "./two-factor-card";
 
 export function AccountSettings() {
   const t = getAdminMessages();
@@ -51,6 +52,8 @@ export function AccountSettings() {
   return (
     <div className="flex max-w-xl flex-col gap-6">
       <h1 className="font-semibold text-2xl">{t.account}</h1>
+
+      <TwoFactorCard />
 
       <Card>
         <CardHeader>

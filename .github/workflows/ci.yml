@@ -68,3 +68,56 @@ jobs:
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/aaarchive_ci
         run: bun run test:e2e
 
+
+  browser-e2e:
+    name: Checkout in a browser (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: check
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: aaarchive_e2e
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/aaarchive_e2e
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/aaarchive_e2e
+      E2E_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/aaarchive_e2e
+      # Next reads the API address for its /api/v1 rewrite at build time.
+      API_PROXY_TARGET: http://localhost:4100/api/v1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: bun install --frozen-lockfile
+      - name: Database with reference data and the test product
+        working-directory: apps/api
+        run: |
+          bunx prisma migrate deploy
+          bunx prisma db seed
+          bun run test/fixtures/storefront-fixture.ts
+      - run: bun run --filter @aaarchive/api build
+      - run: bun run --filter @aaarchive/web build
+      - name: Install Chromium
+        working-directory: apps/web
+        run: bunx playwright install --with-deps chromium
+      - name: Checkout flow
+        working-directory: apps/web
+        run: bun run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: apps/web/test-results
+          retention-days: 7

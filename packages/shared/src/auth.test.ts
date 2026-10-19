@@ -32,3 +32,16 @@ test("change password must actually change it", () => {
     }).success,
   ).toBe(false);
 });
+
+test("two-factor codes: 6 digits or a backup code, spaces and case ignored", async () => {
+  const { totpCodeSchema, loginResponseSchema } = await import("./auth.js");
+  expect(totpCodeSchema.parse(" 123 456 ")).toBe("123456");
+  expect(totpCodeSchema.parse("ab12-cd34")).toBe("AB12-CD34");
+  expect(totpCodeSchema.safeParse("12345").success).toBe(false);
+  expect(
+    loginResponseSchema.parse({ mfaRequired: true, mfaToken: "t" }),
+  ).toEqual({
+    mfaRequired: true,
+    mfaToken: "t",
+  });
+});

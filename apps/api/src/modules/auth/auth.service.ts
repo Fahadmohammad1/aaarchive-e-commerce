@@ -2,6 +2,7 @@ import type {
   AuthUser,
   ChangePasswordInput,
   LoginInput,
+  MfaChallenge,
   SessionResponse,
 } from "@aaarchive/shared/auth";
 import {
@@ -11,14 +12,21 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { JwtService } from "@nestjs/jwt";
 import { hash, verify } from "@node-rs/argon2";
 import type { RequestUser } from "../../common/auth/request-user.js";
 import type { Env } from "../../config/env.schema.js";
 import { PrismaService } from "../../prisma/prisma.service.js";
 import { checkNewPassword } from "./password-policy.js";
 import { type IssuedRefresh, TokenService } from "./token.service.js";
+import { TotpService } from "./totp.service.js";
 
 type SessionResult = { session: SessionResponse; refresh: IssuedRefresh };
+export type LoginResult = SessionResult | { mfa: MfaChallenge };
+
+/** Audience of the short-lived "password passed, code needed" token. */
+const MFA_AUDIENCE = "aaarchive-mfa";
+const MFA_TTL_SECONDS = 300;
 
 const USER_SELECT = {
   id: true,
@@ -30,6 +38,10 @@ const USER_SELECT = {
   passwordHash: true,
   failedLoginCount: true,
   lockedUntil: true,
+  totpEnabledAt: true,
+  totpSecret: true,
+  totpLastStep: true,
+  totpBackupCodes: true,
 } as const;
 
 @Injectable()
@@ -43,6 +55,8 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tokens: TokenService,
+    private readonly totp: TotpService,
+    private readonly jwt: JwtService,
     config: ConfigService<Env, true>,
   ) {
     this.maxAttempts = config.get("LOGIN_MAX_ATTEMPTS", { infer: true });
@@ -51,7 +65,7 @@ export class AuthService {
   }
 
   /** Same error for every failure: wrong email, wrong password, locked or inactive. */
-  async login(input: LoginInput, userAgent?: string): Promise<SessionResult> {
+  async login(input: LoginInput, userAgent?: string): Promise<LoginResult> {
     const user = await this.prisma.user.findUnique({
       where: { email: input.email },
       select: USER_SELECT,
@@ -85,6 +99,72 @@ export class AuthService {
       });
     }
 
+    // Two-factor on: the password step passed, now a code is needed.
+    if (user.totpEnabledAt) {
+      const mfaToken = await this.jwt.signAsync(
+        { sub: user.id, tv: user.tokenVersion, purpose: "mfa" },
+        { audience: MFA_AUDIENCE, expiresIn: MFA_TTL_SECONDS },
+      );
+      return { mfa: { mfaRequired: true, mfaToken } };
+    }
+    return this.completeLogin(user, userAgent);
+  }
+
+  /** Second step (POST /auth/login/totp): the code from the authenticator app. */
+  async loginWithTotp(
+    mfaToken: string,
+    code: string,
+    userAgent?: string,
+  ): Promise<SessionResult> {
+    const payload = await this.jwt
+      .verifyAsync<{ sub: string; tv: number; purpose: string }>(mfaToken, {
+        audience: MFA_AUDIENCE,
+      })
+      .catch(() => null);
+    if (payload?.purpose !== "mfa") {
+      throw new UnauthorizedException({
+        message: "Sign in again",
+        code: "MFA_EXPIRED",
+      });
+    }
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: USER_SELECT,
+    });
+    const locked =
+      !!user?.lockedUntil && user.lockedUntil.getTime() > Date.now();
+    if (
+      !user?.isActive ||
+      locked ||
+      user.tokenVersion !== payload.tv ||
+      !user.totpEnabledAt
+    ) {
+      throw new UnauthorizedException({
+        message: "Sign in again",
+        code: "MFA_EXPIRED",
+      });
+    }
+    if (!(await this.totp.consume(user, code))) {
+      // Wrong codes count towards the same lockout as wrong passwords.
+      await this.recordFailure(user.id, user.failedLoginCount);
+      throw new UnauthorizedException({
+        message: "That code is not right. Try the newest code from your app.",
+        code: "INVALID_TOTP_CODE",
+      });
+    }
+    return this.completeLogin(user, userAgent);
+  }
+
+  private async completeLogin(
+    user: {
+      id: string;
+      name: string;
+      email: string | null;
+      role: AuthUser["role"];
+      tokenVersion: number;
+    },
+    userAgent?: string,
+  ): Promise<SessionResult> {
     await this.prisma.user.update({
       where: { id: user.id },
       data: { failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date() },

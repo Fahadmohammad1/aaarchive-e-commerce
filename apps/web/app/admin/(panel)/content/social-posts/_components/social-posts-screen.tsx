@@ -34,6 +34,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useReturnFocus } from "@/lib/a11y/use-return-focus";
 import type { AdminSocialPost } from "@/lib/content/content-admin-schemas";
 import {
   useSocialPostMutations,
@@ -160,6 +161,7 @@ function PostDialog({
   onOpenChange: (o: boolean) => void;
   item: AdminSocialPost | null;
 }) {
+  const returnFocus = useReturnFocus();
   const t = getAdminMessages();
   const tc = t.content;
   const { save } = useSocialPostMutations();
@@ -207,7 +209,10 @@ function PostDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
+      <DialogContent
+        {...returnFocus}
+        className="max-h-[90dvh] overflow-y-auto sm:max-w-md"
+      >
         <DialogHeader>
           <DialogTitle>{item ? tc.editPost : tc.newPost}</DialogTitle>
         </DialogHeader>

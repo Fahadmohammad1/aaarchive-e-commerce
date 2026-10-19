@@ -91,7 +91,7 @@ Known override: **`architecture.md` §2 supersedes PRD §8.1/§8.3.** The backen
 - **All UI strings live in `apps/web/lib/i18n/`.** Bangla UI is coming in Release 2.
 - **Mobile performance:** LCP < 2.5s, CLS < 0.1, storefront JS < 150 KB gzipped, Lighthouse mobile ≥ 85.
 - **Accessibility:** WCAG 2.1 AA contrast, keyboard-operable UI, visible focus, `prefers-reduced-motion` respected.
-- **Never deploy to Vercel Hobby** (non-commercial). **No paid services** without the user's explicit approval.
+- **Never run the live store on Vercel Hobby** (non-commercial). Testing-only hosting there is allowed: test data, no real orders, `SITE_NOINDEX=1` (owner, 2026-10-20; `docs/architecture.md` §8). **No paid services** without the user's explicit approval.
 
 ## Commands (run from the repo root)
 

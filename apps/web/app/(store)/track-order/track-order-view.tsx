@@ -1,12 +1,11 @@
 "use client";
 
-import { trackOrderSchema } from "@aaarchive/shared/checkout";
 import { formatTaka } from "@aaarchive/shared/money";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { normalizeOrderNumber } from "@aaarchive/shared/order-number";
+import { normalizeBdPhone } from "@aaarchive/shared/phone-format";
 import { ArrowUpRight } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
-import type { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { format, getMessages } from "@/lib/i18n/i18n";
 import { storeErrorText } from "@/lib/i18n/store-error-text";
@@ -18,8 +17,7 @@ import {
   inputClass,
 } from "../checkout/_components/checkout-field";
 
-type FormInput = z.input<typeof trackOrderSchema>;
-type FormValues = z.output<typeof trackOrderSchema>;
+type FormInput = { phone: string; orderNumber: string };
 
 /** The normal path; Cancelled/Returned end the line where they happened. */
 const FLOW = ["PENDING", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED"];
@@ -37,12 +35,28 @@ export function TrackOrderView() {
   const t = getMessages().track;
   const params = useSearchParams();
   const track = useTrackOrder();
-  const form = useForm<FormInput, unknown, FormValues>({
-    resolver: zodResolver(trackOrderSchema),
+  // Same rules as trackOrderSchema, checked without Zod: this page is
+  // prefetched from every footer, so it must stay light (rules.md §4.2).
+  const form = useForm<FormInput>({
     defaultValues: { phone: "", orderNumber: params.get("order") ?? "" },
   });
   const { errors } = form.formState;
-  const onSubmit = form.handleSubmit((values) => track.mutate(values));
+  const onSubmit = form.handleSubmit((values) => {
+    const phone = normalizeBdPhone(values.phone);
+    const orderNumber = normalizeOrderNumber(values.orderNumber);
+    if (!phone)
+      form.setError("phone", {
+        message: values.phone.trim() ? "INVALID_BD_PHONE" : "REQUIRED",
+      });
+    if (!orderNumber) {
+      form.setError("orderNumber", {
+        message: values.orderNumber.trim()
+          ? "INVALID_ORDER_NUMBER"
+          : "REQUIRED",
+      });
+    }
+    if (phone && orderNumber) track.mutate({ phone, orderNumber });
+  });
 
   return (
     <div className="site-container flex flex-col items-center gap-8 py-12 md:py-20">

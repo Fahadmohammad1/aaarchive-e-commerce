@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useReturnFocus } from "@/lib/a11y/use-return-focus";
 import { ApiError } from "@/lib/api/api-error";
 import { errorText, fieldErrorText } from "@/lib/i18n/error-text";
 import { format } from "@/lib/i18n/i18n";
@@ -127,6 +128,7 @@ function StaffDialog({
   member: StaffMember | null;
   self: boolean;
 }) {
+  const returnFocus = useReturnFocus();
   const t = getAdminMessages();
   const ts = t.staffPage;
   const create = useCreateStaff();
@@ -206,7 +208,7 @@ function StaffDialog({
   const pending = create.isPending || update.isPending;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent {...returnFocus} className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
             {member ? format(ts.editTitle, { name: member.name }) : ts.newTitle}

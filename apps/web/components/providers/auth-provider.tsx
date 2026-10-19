@@ -24,7 +24,9 @@ type Status = "loading" | "authenticated" | "guest";
 type AuthContextValue = {
   status: Status;
   user: AuthUser | null;
-  login: (input: LoginInput) => Promise<void>;
+  /** Signs in; returns a two-factor token when a code is needed next. */
+  login: (input: LoginInput) => Promise<{ mfaToken: string } | null>;
+  loginWithTotp: (mfaToken: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
   logoutEverywhere: () => Promise<void>;
   /** Applies a session returned by another call (e.g. change password). */
@@ -114,7 +116,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       applySession,
       login: async (input) => {
-        applySession(await authApi.login(input));
+        const result = await authApi.login(input);
+        if ("mfaRequired" in result) return { mfaToken: result.mfaToken };
+        applySession(result);
+        return null;
+      },
+      loginWithTotp: async (mfaToken, code) => {
+        applySession(await authApi.loginWithTotp({ mfaToken, code }));
       },
       logout: async () => {
         await authApi.logout().catch(() => undefined);

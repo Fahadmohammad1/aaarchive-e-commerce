@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useReturnFocus } from "@/lib/a11y/use-return-focus";
 import type { AdminFaq } from "@/lib/content/content-admin-schemas";
 import { useFaq, useFaqMutations } from "@/lib/content/use-content";
 import { errorText } from "@/lib/i18n/error-text";
@@ -143,6 +144,7 @@ function FaqDialog({
   onOpenChange: (o: boolean) => void;
   item: AdminFaq | null;
 }) {
+  const returnFocus = useReturnFocus();
   const t = getAdminMessages();
   const tc = t.content;
   const { save } = useFaqMutations();
@@ -179,7 +181,10 @@ function FaqDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
+      <DialogContent
+        {...returnFocus}
+        className="max-h-[90dvh] overflow-y-auto sm:max-w-lg"
+      >
         <DialogHeader>
           <DialogTitle>{item ? tc.editQuestion : tc.newQuestion}</DialogTitle>
         </DialogHeader>

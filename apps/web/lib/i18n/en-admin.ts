@@ -28,6 +28,39 @@ export const enAdmin = {
   noAccess: "This account cannot use the dashboard.",
   backToStore: "Back to the store",
   roles: { OWNER: "Owner", STAFF: "Staff", CUSTOMER: "Customer" },
+  twoFactor: {
+    title: "Two-factor sign-in",
+    intro:
+      "Sign in with your password and a 6-digit code from an authenticator app (Google Authenticator, Microsoft Authenticator, 2FAS…). Strongly recommended for owners.",
+    on: "On",
+    off: "Off",
+    backupLeft: "{count} backup codes left",
+    start: "Turn on",
+    step1:
+      "1. Add Aaarchive to your authenticator app: open the link on your phone, or type the key by hand.",
+    openApp: "Open in authenticator app",
+    key: "Key",
+    copyKey: "Copy key",
+    copied: "Copied",
+    step2: "2. Type the 6-digit code the app shows.",
+    confirm: "Turn on two-factor",
+    backupTitle: "Save your backup codes",
+    backupIntro:
+      "Each code signs you in once if you lose your phone. Keep them somewhere safe (not on the same phone). They are shown only now.",
+    copyCodes: "Copy codes",
+    done: "I have saved them",
+    turnOff: "Turn off",
+    turnOffTitle: "Turn off two-factor sign-in",
+    turnOffIntro:
+      "Enter your password and a current code. You will be signed out on all devices.",
+    codeLabel: "Authentication code",
+    codeHint:
+      "6 digits from your authenticator app, or a backup code (XXXX-XXXX).",
+    verify: "Verify",
+    back: "Use a different account",
+    ownerNudge:
+      "Protect the owner account: turn on two-factor sign-in under Account.",
+  },
   shell: {
     openMenu: "Open menu",
     collapse: "Collapse sidebar",
@@ -815,6 +848,11 @@ export const enAdmin = {
   },
   errors: {
     INVALID_CREDENTIALS: "Email or password is incorrect.",
+    INVALID_TOTP_CODE:
+      "That code is not right. Try the newest code from your app.",
+    MFA_EXPIRED: "That took too long. Sign in again.",
+    TOTP_ALREADY_ON: "Two-factor sign-in is already on.",
+    TOTP_SETUP_MISSING: "Start the setup again.",
     TURNSTILE_FAILED: "Please complete the security check.",
     RATE_LIMITED: "Too many attempts. Please wait a few minutes and try again.",
     INVALID_CURRENT_PASSWORD: "Your current password is incorrect.",

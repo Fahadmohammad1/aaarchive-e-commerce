@@ -9,8 +9,12 @@ export const STOCK_STATUSES = [
 export const stockStatusSchema = z.enum(STOCK_STATUSES);
 export type StockStatus = z.infer<typeof stockStatusSchema>;
 
-export const DEFAULT_LOW_STOCK_THRESHOLD = 3;
-export const DEFAULT_MAX_QTY_PER_VARIANT = 5;
+import {
+  DEFAULT_LOW_STOCK_THRESHOLD,
+  DEFAULT_MAX_QTY_PER_VARIANT,
+} from "./stock-limits.js";
+
+export { DEFAULT_LOW_STOCK_THRESHOLD, DEFAULT_MAX_QTY_PER_VARIANT };
 
 /** Server-side only: turns a stock number into the public status. */
 export function stockStatusFor(

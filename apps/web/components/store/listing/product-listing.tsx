@@ -132,6 +132,8 @@ export async function ProductListing({
             </div>
           ) : (
             <>
+              {/* Keeps heading order h1 → h2 → card h3 for screen readers. */}
+              <h2 className="sr-only">{t.productsHeading}</h2>
               <ProductGrid products={page.data} priorityCount={2} />
               {/* Keyed by the filters so a new query starts from page 2 again. */}
               <LoadMore

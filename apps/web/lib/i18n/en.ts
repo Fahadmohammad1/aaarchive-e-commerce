@@ -45,6 +45,7 @@ export const en = {
   },
   listing: {
     shopTitle: "Shop all",
+    productsHeading: "Products",
     shopIntro: "Every piece in the archive.",
     breadcrumb: "Breadcrumb",
     results: "{count} products",

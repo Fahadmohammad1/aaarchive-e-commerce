@@ -4,6 +4,9 @@ import {
   type LoginInput,
   loginSchema,
   ROLES,
+  totpDisableSchema,
+  totpEnableSchema,
+  totpLoginSchema,
 } from "@aaarchive/shared/auth";
 import {
   Body,
@@ -18,6 +21,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { Throttle } from "@nestjs/throttler";
 import type { Request, Response } from "express";
+import type { z } from "zod";
 import {
   CurrentUser,
   Public,
@@ -30,6 +34,7 @@ import type { Env } from "../../config/env.schema.js";
 import { REFRESH_COOKIE, refreshCookieOptions } from "./auth.constants.js";
 import { AuthService } from "./auth.service.js";
 import type { IssuedRefresh } from "./token.service.js";
+import { TotpService } from "./totp.service.js";
 import { TurnstileService } from "./turnstile.service.js";
 
 const FIFTEEN_MINUTES = 15 * 60_000;
@@ -42,6 +47,7 @@ export class AuthController {
   constructor(
     private readonly auth: AuthService,
     private readonly turnstile: TurnstileService,
+    private readonly totp: TotpService,
     config: ConfigService<Env, true>,
   ) {
     this.production = config.get("NODE_ENV", { infer: true }) === "production";
@@ -58,12 +64,71 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     await this.turnstile.verify(body.turnstileToken, req.ip);
-    const { session, refresh } = await this.auth.login(
-      body,
+    const result = await this.auth.login(body, req.header("user-agent"));
+    // Two-factor on: no cookie yet, the code step follows.
+    if ("mfa" in result) return result.mfa;
+    this.setRefreshCookie(res, result.refresh);
+    return result.session;
+  }
+
+  /** Second sign-in step: the authenticator (or backup) code. */
+  @Public()
+  @Post("login/totp")
+  @HttpCode(200)
+  @Throttle({ default: { limit: 10, ttl: FIFTEEN_MINUTES } })
+  async loginTotp(
+    @Body(new ZodValidationPipe(totpLoginSchema))
+    body: z.output<typeof totpLoginSchema>,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { session, refresh } = await this.auth.loginWithTotp(
+      body.mfaToken,
+      body.code,
       req.header("user-agent"),
     );
     this.setRefreshCookie(res, refresh);
     return session;
+  }
+
+  @Get("totp")
+  @Roles(...ROLES)
+  totpStatus(@CurrentUser() user: RequestUser) {
+    return this.totp.status(user.id);
+  }
+
+  @Post("totp/setup")
+  @HttpCode(200)
+  @Roles(...ROLES)
+  @Throttle({ default: { limit: 10, ttl: FIFTEEN_MINUTES } })
+  totpSetup(@CurrentUser() user: RequestUser) {
+    return this.totp.setup(user.id);
+  }
+
+  @Post("totp/enable")
+  @HttpCode(200)
+  @Roles(...ROLES)
+  @Throttle({ default: { limit: 10, ttl: FIFTEEN_MINUTES } })
+  totpEnable(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(totpEnableSchema))
+    body: z.output<typeof totpEnableSchema>,
+  ) {
+    return this.totp.enable(user.id, body.code);
+  }
+
+  @Post("totp/disable")
+  @HttpCode(204)
+  @Roles(...ROLES)
+  @Throttle({ default: { limit: 5, ttl: FIFTEEN_MINUTES } })
+  async totpDisable(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(totpDisableSchema))
+    body: z.output<typeof totpDisableSchema>,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    await this.totp.disable(user.id, body.password, body.code);
+    this.clearRefreshCookie(res);
   }
 
   @Public()

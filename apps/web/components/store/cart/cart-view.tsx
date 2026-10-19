@@ -1,7 +1,7 @@
 "use client";
 
 import { formatTaka } from "@aaarchive/shared/money";
-import { DEFAULT_MAX_QTY_PER_VARIANT } from "@aaarchive/shared/stock";
+import { DEFAULT_MAX_QTY_PER_VARIANT } from "@aaarchive/shared/stock-limits";
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";

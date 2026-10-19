@@ -31,7 +31,11 @@ export function LoginForm() {
   const t = getAdminMessages();
   const router = useRouter();
   const params = useSearchParams();
-  const { status, login } = useAuth();
+  const { status, login, loginWithTotp } = useAuth();
+  // Set after the password step when the account has two-factor on.
+  const [mfaToken, setMfaToken] = React.useState<string | null>(null);
+  const [code, setCode] = React.useState("");
+  const [verifying, setVerifying] = React.useState(false);
   const [formError, setFormError] = React.useState<string | null>(null);
   const [turnstileToken, setTurnstileToken] = React.useState<string | null>(
     null,
@@ -53,7 +57,14 @@ export function LoginForm() {
   const onSubmit = form.handleSubmit(async (values) => {
     setFormError(null);
     try {
-      await login({ ...values, turnstileToken: turnstileToken ?? undefined });
+      const challenge = await login({
+        ...values,
+        turnstileToken: turnstileToken ?? undefined,
+      });
+      if (challenge) {
+        setMfaToken(challenge.mfaToken);
+        return;
+      }
       router.replace(next);
     } catch (error) {
       setFormError(authErrorText(error));
@@ -64,6 +75,25 @@ export function LoginForm() {
 
   const needsTurnstile = Boolean(turnstileSiteKey) && !turnstileToken;
 
+  const submitCode = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!mfaToken || !code.trim()) return;
+    setFormError(null);
+    setVerifying(true);
+    try {
+      await loginWithTotp(mfaToken, code);
+      router.replace(next);
+    } catch (error) {
+      setFormError(authErrorText(error));
+      setCode("");
+      // An expired challenge means starting again from the password.
+      if ((error as { code?: string })?.code === "MFA_EXPIRED")
+        setMfaToken(null);
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   return (
     <Card className="w-full max-w-sm">
       <CardHeader className="justify-items-center gap-3 text-center">
@@ -72,68 +102,122 @@ export function LoginForm() {
         <CardDescription>{t.signInIntro}</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="email">{t.email}</Label>
-            <Input
-              id="email"
-              type="email"
-              autoComplete="username"
-              inputMode="email"
-              autoFocus
-              aria-invalid={Boolean(errors.email)}
-              aria-describedby={errors.email ? "email-error" : undefined}
-              {...form.register("email")}
-            />
-            {errors.email && (
-              <p id="email-error" className="text-destructive text-sm">
-                {t.errors.INVALID_EMAIL}
+        {mfaToken ? (
+          <form
+            onSubmit={submitCode}
+            noValidate
+            className="flex flex-col gap-4"
+          >
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="totp-code">{t.twoFactor.codeLabel}</Label>
+              <Input
+                id="totp-code"
+                autoComplete="one-time-code"
+                inputMode="text"
+                autoFocus
+                maxLength={12}
+                className="h-11 text-center font-mono text-lg tracking-widest"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+              />
+              <p className="text-muted-foreground text-xs">
+                {t.twoFactor.codeHint}
+              </p>
+            </div>
+            {formError && (
+              <p
+                role="alert"
+                className="border border-destructive px-3 py-2 text-destructive text-sm"
+              >
+                {formError}
               </p>
             )}
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="password">{t.password}</Label>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              aria-invalid={Boolean(errors.password)}
-              aria-describedby={errors.password ? "password-error" : undefined}
-              {...form.register("password")}
-            />
-            {errors.password && (
-              <p id="password-error" className="text-destructive text-sm">
-                {t.errors.REQUIRED}
-              </p>
-            )}
-          </div>
-
-          <TurnstileWidget ref={turnstile} onToken={setTurnstileToken} />
-
-          {formError && (
-            <p
-              role="alert"
-              className="border border-destructive px-3 py-2 text-destructive text-sm"
+            <Button
+              type="submit"
+              size="lg"
+              className="h-10"
+              disabled={verifying || !code.trim()}
             >
-              {formError}
-            </p>
-          )}
+              {verifying ? t.signingIn : t.twoFactor.verify}
+            </Button>
+            <button
+              type="button"
+              className="min-h-11 text-muted-foreground text-sm hover:text-foreground"
+              onClick={() => {
+                setMfaToken(null);
+                setCode("");
+                setFormError(null);
+              }}
+            >
+              {t.twoFactor.back}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="email">{t.email}</Label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="username"
+                inputMode="email"
+                autoFocus
+                aria-invalid={Boolean(errors.email)}
+                aria-describedby={errors.email ? "email-error" : undefined}
+                {...form.register("email")}
+              />
+              {errors.email && (
+                <p id="email-error" className="text-destructive text-sm">
+                  {t.errors.INVALID_EMAIL}
+                </p>
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="password">{t.password}</Label>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                aria-invalid={Boolean(errors.password)}
+                aria-describedby={
+                  errors.password ? "password-error" : undefined
+                }
+                {...form.register("password")}
+              />
+              {errors.password && (
+                <p id="password-error" className="text-destructive text-sm">
+                  {t.errors.REQUIRED}
+                </p>
+              )}
+            </div>
 
-          <Button
-            type="submit"
-            size="lg"
-            className="h-10"
-            disabled={isSubmitting || needsTurnstile}
-          >
-            {isSubmitting ? t.signingIn : t.signIn}
-          </Button>
-          <Link
-            href="/"
-            className="text-center text-muted-foreground text-sm hover:text-foreground"
-          >
-            {t.backToStore}
-          </Link>
-        </form>
+            <TurnstileWidget ref={turnstile} onToken={setTurnstileToken} />
+
+            {formError && (
+              <p
+                role="alert"
+                className="border border-destructive px-3 py-2 text-destructive text-sm"
+              >
+                {formError}
+              </p>
+            )}
+
+            <Button
+              type="submit"
+              size="lg"
+              className="h-10"
+              disabled={isSubmitting || needsTurnstile}
+            >
+              {isSubmitting ? t.signingIn : t.signIn}
+            </Button>
+            <Link
+              href="/"
+              className="text-center text-muted-foreground text-sm hover:text-foreground"
+            >
+              {t.backToStore}
+            </Link>
+          </form>
+        )}
       </CardContent>
     </Card>
   );

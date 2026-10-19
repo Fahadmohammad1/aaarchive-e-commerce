@@ -28,3 +28,7 @@ apps/api/src/generated/
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json
+
+# Playwright (apps/web/e2e)
+test-results/
+playwright-report/

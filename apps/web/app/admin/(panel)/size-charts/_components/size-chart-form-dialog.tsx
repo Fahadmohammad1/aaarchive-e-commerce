@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useReturnFocus } from "@/lib/a11y/use-return-focus";
 import { ApiError } from "@/lib/api/api-error";
 import { errorText } from "@/lib/i18n/error-text";
 import { getAdminMessages } from "@/lib/i18n/i18n-admin";
@@ -42,6 +43,7 @@ export function SizeChartFormDialog({
   onOpenChange: (open: boolean) => void;
   item: AdminSizeChart | null;
 }) {
+  const returnFocus = useReturnFocus();
   const t = getAdminMessages();
   const save = useSaveSizeChart();
   const [formError, setFormError] = React.useState<string | null>(null);
@@ -77,7 +79,7 @@ export function SizeChartFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl">
+      <DialogContent {...returnFocus} className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>
             {item ? t.catalog.editSizeChart : t.catalog.newSizeChart}
