@@ -28,7 +28,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -93,7 +93,7 @@ jobs:
       # Next reads the API address for its /api/v1 rewrite at build time.
       API_PROXY_TARGET: http://localhost:4100/api/v1
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.3
