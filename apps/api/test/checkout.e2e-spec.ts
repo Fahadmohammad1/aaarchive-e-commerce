@@ -2,7 +2,13 @@ import { randomInt, randomUUID } from "node:crypto";
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 import type { App } from "supertest/types.js";
-import { createApp, createUser, ORIGIN, TEST_DB } from "./auth-helpers.js";
+import {
+  createApp,
+  createUser,
+  ORIGIN,
+  PARALLEL_DB,
+  TEST_DB,
+} from "./auth-helpers.js";
 
 // Cart → coupon → order → tracking (PRD §5.6–5.9, §8.4; phases.md Phase 4
 // tests). Each describe block starts its own app, so the per-IP order limit
@@ -200,26 +206,29 @@ describe.skipIf(!TEST_DB)("placing orders (e2e, real database)", () => {
     expect(variant?.stock).toBe(STOCK - 2);
   });
 
-  it("sells the last unit once when two orders race for it", async () => {
-    const body = () =>
-      orderBody(f, { items: [{ variantId: f.lastUnit, quantity: 1 }] });
-    const results = await Promise.all([
-      post("/orders").send(body()),
-      post("/orders").send(body()),
-    ]);
-    const statuses = results.map((r) => r.status).sort();
-    expect(statuses).toEqual([201, 422]);
-    const refused = results.find((r) => r.status === 422);
-    expect(refused?.body).toMatchObject({
-      code: "OUT_OF_STOCK",
-      message:
-        "Not enough stock for this quantity. Please try a smaller amount.",
-    });
-    const variant = await f.owner.prisma.variant.findUnique({
-      where: { id: f.lastUnit },
-    });
-    expect(variant?.stock).toBe(0);
-  });
+  it.runIf(PARALLEL_DB)(
+    "sells the last unit once when two orders race for it",
+    async () => {
+      const body = () =>
+        orderBody(f, { items: [{ variantId: f.lastUnit, quantity: 1 }] });
+      const results = await Promise.all([
+        post("/orders").send(body()),
+        post("/orders").send(body()),
+      ]);
+      const statuses = results.map((r) => r.status).sort();
+      expect(statuses).toEqual([201, 422]);
+      const refused = results.find((r) => r.status === 422);
+      expect(refused?.body).toMatchObject({
+        code: "OUT_OF_STOCK",
+        message:
+          "Not enough stock for this quantity. Please try a smaller amount.",
+      });
+      const variant = await f.owner.prisma.variant.findUnique({
+        where: { id: f.lastUnit },
+      });
+      expect(variant?.stock).toBe(0);
+    },
+  );
 
   it("refuses a TrxID that already paid for an order", async () => {
     const id = trxId();

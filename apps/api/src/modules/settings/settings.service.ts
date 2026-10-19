@@ -1,4 +1,6 @@
 import {
+  type CourierSettings,
+  courierSettingsSchema,
   type DeliverySettings,
   deliverySettingsSchema,
   type PaymentSettings,
@@ -44,6 +46,20 @@ export class SettingsService {
 
   delivery(): Promise<DeliverySettings> {
     return this.read("delivery", deliverySettingsSchema);
+  }
+
+  couriers(): Promise<CourierSettings> {
+    return this.read("couriers", courierSettingsSchema);
+  }
+
+  /** Whole list replaced (OWNER; validated by the controller). */
+  async saveCouriers(value: CourierSettings): Promise<CourierSettings> {
+    await this.prisma.setting.upsert({
+      where: { key: "couriers" },
+      update: { value },
+      create: { key: "couriers", value },
+    });
+    return value;
   }
 
   async publicSettings(): Promise<PublicSettings> {

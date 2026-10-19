@@ -189,6 +189,17 @@ function TrackResult({ order }: { order: PublicOrder }) {
               <dd className="font-mono">{order.courier.trackingNumber}</dd>
             </div>
           )}
+          {order.courier.trackingUrl && (
+            <a
+              href={order.courier.trackingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 flex min-h-11 items-center justify-between border border-line-strong px-3 uppercase type-mono-label hover:border-foreground"
+            >
+              {format(tt.trackParcel, { courier: order.courier.name })}
+              <ArrowUpRight aria-hidden strokeWidth={1.5} className="size-4" />
+            </a>
+          )}
         </dl>
       )}
 

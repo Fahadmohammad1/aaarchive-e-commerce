@@ -67,6 +67,9 @@ const SETTINGS: Record<string, unknown> = {
     codAdvanceDeliveryCharge: false,
   },
   tracking: { ga4Id: "", metaPixelId: "", clarityId: "" },
+  // Courier services and their tracking-page patterns: the owner fills them
+  // in under Delivery zones → Couriers.
+  couriers: { couriers: [] },
 };
 
 // Starting text for the editable sections that need no photo (PRD §6.7).

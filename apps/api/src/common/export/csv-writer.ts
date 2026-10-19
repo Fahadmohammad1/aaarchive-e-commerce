@@ -24,8 +24,27 @@ export function csvField(cell: ExportCell): string {
   return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
-export function csvLine(cells: ExportCell[]): string {
-  return `${cells.map(csvField).join(",")}\r\n`;
+/**
+ * Excel drops the leading 0 of a phone number when it opens a CSV
+ * (01712… → 1712…). A text formula `="01712…"` keeps it in Excel, Google
+ * Sheets and LibreOffice. Only all-digit values get it, so nothing a
+ * customer typed can become a formula.
+ */
+export function csvPhone(cell: ExportCell): string {
+  if (typeof cell === "string" && /^\d+$/.test(cell)) {
+    return `"=""${cell}"""`;
+  }
+  return csvField(cell);
+}
+
+export function csvLine(
+  cells: ExportCell[],
+  types?: ReadonlyArray<ExportColumn<unknown>["type"]>,
+): string {
+  const fields = cells.map((cell, i) =>
+    types?.[i] === "phone" ? csvPhone(cell) : csvField(cell),
+  );
+  return `${fields.join(",")}\r\n`;
 }
 
 /** BOM + header, then one line per row, as chunks to stream. */
@@ -34,9 +53,13 @@ export async function* csvChunks<T>(
   rows: AsyncIterable<T>,
 ): AsyncGenerator<string> {
   yield CSV_BOM + csvLine(columns.map((c) => c.header));
+  const types = columns.map((c) => c.type);
   let buffer = "";
   for await (const row of rows) {
-    buffer += csvLine(columns.map((c) => cellOf(c, row)));
+    buffer += csvLine(
+      columns.map((c) => cellOf(c, row)),
+      types,
+    );
     if (buffer.length > 64_000) {
       yield buffer;
       buffer = "";

@@ -27,6 +27,7 @@ import {
   useZones,
 } from "@/lib/delivery-zone/use-delivery-zones";
 import { getAdminMessages } from "@/lib/i18n/i18n-admin";
+import { CouriersCard } from "./couriers-card";
 import { ZoneFormDialog } from "./zone-form-dialog";
 
 export function ZonesScreen() {
@@ -126,6 +127,8 @@ export function ZonesScreen() {
           </TableBody>
         </Table>
       )}
+
+      <CouriersCard />
 
       {canEdit && (
         <>

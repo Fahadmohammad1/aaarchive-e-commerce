@@ -91,6 +91,7 @@ Keywords: *cinematic · editorial · raw · warm-dark · label/tag aesthetic · 
 | `--success` | `#7DBE8A` | In stock, verified, delivered |
 | `--warning` | `#F2C14E` | Low stock, pending (same as accent) |
 | `--danger` | `#E5604D` | Out of stock, errors, cancelled |
+| `--paper` / `--ink` / `--ink-muted` | `#FFFFFF` / `#140707` / `#5C514B` | Printed documents only (invoice, packing slip, added 2026-10-19): utilities `bg-paper`, `text-ink`, `text-ink-muted` |
 
 ### 2.2 Usage rules
 
@@ -608,6 +609,7 @@ The admin prioritises **speed and clarity** over editorial style.
 
 - Stock cells: number shown; low stock in accent, zero in `--danger`.
 - Mobile admin: usable for order handling on a phone (staff will confirm orders by phone) — order list as cards, big tap targets for "Confirmed / No answer / Cancel".
+- *Built (2026-10-19, Phase 5):* order/payment statuses are outline badges (Pending + Pending verification in accent, Delivered/Paid/Verified in `--success`, Cancelled/Returned/Rejected in `--danger`). Order detail: on phones the "Next step" card (one 48px button per allowed status; Cancel/Return as outline-danger; each opens a short confirm dialog, Shipped asks courier + tracking) and the customer card (Call + WhatsApp, 48px) come first, then the three call outcomes as 48px outline buttons and a note box; items, payment (TrxID in larger mono, Verify / Reject 48px) and history (filled dots for status changes, hollow for notes/calls/payments) follow. Orders list on phones: card per order with a checkbox; a sticky bar appears with the bulk status select and print buttons when orders are selected. Dashboard home: two period cards (orders, revenue, pending), payments-to-check with a Review button, orders by status (links), best sellers, low stock (accent; zero in `--danger`). Invoices and packing slips are ink on `--paper`, one per printed page, dashboard chrome hidden in print.
 
 ---
 

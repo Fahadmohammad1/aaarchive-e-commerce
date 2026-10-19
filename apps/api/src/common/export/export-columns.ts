@@ -1,7 +1,8 @@
 // One column definition per export, shared by the CSV and Excel writers
 // (docs/architecture.md §4.8).
 
-export type ExportCellType = "text" | "number" | "money" | "date";
+/** "phone": digits kept as text with their leading 0 (01712…), even in CSV. */
+export type ExportCellType = "text" | "number" | "money" | "date" | "phone";
 
 export type ExportColumn<T> = {
   header: string;

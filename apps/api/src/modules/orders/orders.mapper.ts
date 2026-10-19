@@ -1,4 +1,5 @@
 import { maskBdPhone } from "@aaarchive/shared/phone";
+import { type Courier, courierTrackingUrl } from "@aaarchive/shared/settings";
 import type { Prisma } from "../../generated/prisma/client.js";
 
 // PUBLIC order shapes for the success page and tracking (PRD §5.8, §5.9).
@@ -75,11 +76,19 @@ export type PublicOrder = {
   } | null;
   /** What the courier collects; 0 for prepaid orders. */
   payOnDelivery: number;
-  courier: { name: string; trackingNumber: string | null } | null;
+  courier: {
+    name: string;
+    trackingNumber: string | null;
+    /** The courier's tracking page, when its link pattern is set. */
+    trackingUrl: string | null;
+  } | null;
   timeline: Array<{ status: string; at: string }>;
 };
 
-export function toPublicOrder(row: PublicOrderRow): PublicOrder {
+export function toPublicOrder(
+  row: PublicOrderRow,
+  couriers: readonly Courier[] = [],
+): PublicOrder {
   const wallet = row.payments.find((p) => p.method !== "COD");
   const advance =
     row.paymentMethod === "COD" && wallet && wallet.status !== "REJECTED"
@@ -117,7 +126,15 @@ export function toPublicOrder(row: PublicOrderRow): PublicOrder {
     payOnDelivery: row.paymentMethod === "COD" ? row.total - advance : 0,
     // Shown once the order has shipped (PRD §5.9).
     courier: row.courierName
-      ? { name: row.courierName, trackingNumber: row.trackingNumber }
+      ? {
+          name: row.courierName,
+          trackingNumber: row.trackingNumber,
+          trackingUrl: courierTrackingUrl(
+            couriers,
+            row.courierName,
+            row.trackingNumber,
+          ),
+        }
       : null,
     timeline: row.events
       .filter((e) => e.to)

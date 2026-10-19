@@ -213,7 +213,8 @@ export class OrdersService {
         code: "ORDER_NOT_FOUND",
       });
     }
-    return toPublicOrder(order);
+    const { couriers } = await this.settings.couriers();
+    return toPublicOrder(order, couriers);
   }
 
   private async assertNotBlocked(input: CheckoutValues) {

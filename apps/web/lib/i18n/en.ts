@@ -233,6 +233,7 @@ export const en = {
     items: "Items",
     courier: "Courier",
     trackingNumber: "Tracking number",
+    trackParcel: "Track parcel on {courier}",
     payment: "Payment",
     statuses: {
       PENDING: "Order placed",

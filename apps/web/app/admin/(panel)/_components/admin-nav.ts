@@ -1,5 +1,6 @@
 import type { Role } from "@aaarchive/shared/auth";
 import {
+  Ban,
   FolderTree,
   Layers,
   LayoutDashboard,
@@ -14,6 +15,7 @@ import {
   Truck,
   Type,
   Users,
+  Wallet,
 } from "lucide-react";
 import type { getAdminMessages } from "@/lib/i18n/i18n-admin";
 
@@ -37,7 +39,8 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   {
     items: [
       { label: "dashboard", href: "/admin", icon: LayoutDashboard },
-      { label: "orders", href: "/admin/orders", icon: ShoppingBag, soon: true },
+      { label: "orders", href: "/admin/orders", icon: ShoppingBag },
+      { label: "payments", href: "/admin/payments", icon: Wallet },
     ],
   },
   {
@@ -54,7 +57,8 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   {
     label: "sales",
     items: [
-      { label: "customers", href: "/admin/customers", icon: Users, soon: true },
+      { label: "customers", href: "/admin/customers", icon: Users },
+      { label: "blocklist", href: "/admin/blocked-phones", icon: Ban },
       { label: "coupons", href: "/admin/coupons", icon: TicketPercent },
       { label: "zones", href: "/admin/zones", icon: Truck },
     ],

@@ -40,7 +40,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-dvh">
       <aside
         className={cn(
-          "sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 md:flex motion-reduce:transition-none",
+          "sticky top-0 hidden h-dvh shrink-0 flex-col border-r print:hidden border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 md:flex motion-reduce:transition-none",
           collapsed ? "w-16" : "w-60",
         )}
       >
@@ -87,8 +87,11 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <AdminTopBar />
-        <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-6 md:px-6 md:py-8">
+        {/* Invoices and packing slips print without the dashboard chrome. */}
+        <div className="print:hidden">
+          <AdminTopBar />
+        </div>
+        <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-6 md:px-6 md:py-8 print:max-w-none print:p-0">
           {children}
         </main>
       </div>

@@ -4,12 +4,17 @@ Living log of where the project stands. **Every agent updates this at the end of
 
 ## Current status
 
-- **Phase:** 4 — Cart, checkout & order placement: built and verified locally (2026-10-19). Next: Phase 5 (order management).
-- **In progress:** — (Phase 4 done; open items from earlier phases listed under Next up)
-- **File currently being worked on:** — (next: Phase 5 `apps/api/src/modules/orders/admin-orders.controller.ts`)
+- **Phase:** 5 — Order management: built and verified locally (2026-10-19). Next: Phase 6 (home, content & settings).
+- **In progress:** — (Phase 5 done; open items from earlier phases under Next up)
+- **File currently being worked on:** — (next: Phase 6 `apps/api/src/modules/content/`)
 
 ## Completed
 
+- **2026-10-19** [shared][api][web][repo] — Follow-ups to Phase 5 (user answers): (1) user rule: the agent applies finished, additive migrations to Supabase with `db:deploy` at the end of a task (rules.md §10, AGENTS.md) — applied `20261019040000_order_event_edit`, Supabase is up to date; (2) CSV phone guard: export type `phone` → `="01712…"` in CSV (`csv-writer.ts`, orders/customers/payments exports, `export.spec.ts`); (3) several couriers: `couriers` setting (`@aaarchive/shared/settings`), `GET|PUT /admin/settings/couriers`, Couriers editor on `/admin/zones` (`couriers-card.tsx`), courier suggestions in the Shipped dialog, "Track parcel on …" link on `/track-order`; seed adds an empty `couriers` row. Tests: shared 100, API unit 50, e2e 48 (+1 courier test). Browser-checked the editor at 375px/1440px.
+- **2026-10-19** [shared][api][web] — Phase 5: order management.
+  - Shared: `order.ts` (status flow `ORDER_TRANSITIONS`/`canTransition()`, status/bulk/note/edit schemas, admin list + export queries, `dhakaRange()`, payment verify/reject/list schemas), new `customer.ts` (list/export queries, `successRate()`, blocklist schemas). 98 shared tests.
+  - API: `admin-orders.*` (list, detail, conditional status change with stock restore and COD→Paid on delivery, bulk status, notes/calls, edit before shipping with stock diff, status emails), `orders-export.service.ts` (orders + order items), modules `payments` (list, verify/reject, export), `customers` (raw-SQL list by phone, detail, blocklist CRUD, export), `reports` (dashboard summary, Dhaka periods). Migration `20261019040000_order_event_edit` (adds `OrderEventType.EDIT`) — **not applied to Supabase yet**. Tests: `reports.service.spec` (50 unit), `test/order-management.e2e-spec.ts` (8). `TEST_DB_SINGLE_CONNECTION=1` skips the two race tests on local PGlite (rules §7).
+  - Web: `/admin` dashboard home, `/admin/orders` (+ `[id]`, `print`), `/admin/payments`, `/admin/customers` (+ `[phone]`), `/admin/blocked-phones`; libs `order-api/-schemas/-keys`, `use-admin-orders`, `lib/payment`, `lib/customer`, `lib/report`; storefront order calls renamed to `order-store-api.ts`. `ExportMenu` takes a `label`; `ConfirmDeleteDialog` takes `title`/`description`/`confirmLabel`; admin chrome hidden in print; `--paper`/`--ink` tokens + print CSS. Browser-checked as STAFF at 375px and 1440px (full flow, dashboard numbers, invoice print); all four exports download.
 - **2026-10-19** [shared][api][web] — Phase 4: cart, checkout, orders.
   - Shared: `checkout.ts` (cart items, cart validate, coupon apply, `checkoutSchema` with COD/BKASH/NAGAD payment union + COD `advance`, `trxIdSchema`, 64 `BD_DISTRICTS`, `orderNumberSchema`, `trackOrderSchema`), `coupon.ts` (schemas, `couponIssues()`, pure `couponDiscount()`), `delivery.ts` (zone schemas, `deliveryChargeFor()`), `settings.ts` (default-filled payments/stock/delivery schemas, `walletAvailable()`). 90 shared tests.
   - API: modules `settings` (global, `GET /settings/public`), `delivery-zones` (public list + `/admin/zones`), `cart` (`PricingService` — single pricing path — and `POST /cart/validate`), `coupons` (admin CRUD + export, `POST /coupons/apply`), `orders` (`POST /orders`, `POST /orders/track`, `claimStock()`, public mapper, confirmation mail), `mail` (Resend via fetch). `TurnstileService` exported from AuthModule; env `RESEND_API_KEY`, `MAIL_FROM`. Tests: `cart.mapper.spec`, `orders.mapper.spec`, `claim-stock.spec` (48 unit) and `test/checkout.e2e-spec.ts` (9; all 40 e2e pass on local Postgres).
@@ -148,6 +153,8 @@ Living log of where the project stands. **Every agent updates this at the end of
 
 ## Decisions
 
+- **2026-10-19** [api] Status flow read from PRD §6.4's diagram: Shipped may still go to Cancelled (stock restored) as well as Returned; Delivered is final (no Delivered → Returned). Delivering a COD order marks it Paid; verifying a COD advance makes it Partially paid (Paid if already delivered); rejecting a payment makes the order Unpaid. Staff (Order Manager) can do everything in orders, payments, customers, blocklist and their exports.
+- **2026-10-19** [api] Revenue on the dashboard = orders Delivered or Paid (not cancelled/returned), by order date in Dhaka time; open unpaid orders are "pending". Customer success rate = delivered ÷ (delivered + cancelled + returned).
 - **2026-10-19** [web] Zod is allowed in the `/checkout` and `/track-order` route chunks only (shared schemas, architecture §3.1); shared storefront code stays Zod-free (rules.md §4.2 clarified).
 - **2026-10-19** [api] Coupon rules: minimum order is checked on the whole subtotal, the discount comes only from in-scope lines; per-phone uses count non-cancelled orders with the code; a coupon that fails at checkout is dropped by the web rather than blocking the order. Free delivery (setting) compares subtotal − discount with the threshold. Over-cap quantities are lowered by cart validate but refused (`QTY_LIMIT`) by `POST /orders`.
 - **2026-10-19** [web] The success page reads the placed order from sessionStorage only; there is no public "get order by number" endpoint (IDOR) — elsewhere customers track with phone + number.
@@ -176,6 +183,7 @@ Living log of where the project stands. **Every agent updates this at the end of
 
 ## Blockers / open questions
 
+- **2026-10-19** Owner to add the couriers actually used and their tracking-page patterns under Delivery zones → Couriers (none are set yet).
 - **2026-10-19** [api] While setting up the browser check, `prisma db seed` ran once against the Supabase DB from `apps/api/.env` (`DIRECT_URL`) instead of the local one. The seed only creates missing rows (upserts with `update: {}`, Owner skipped if present), so nothing was changed or removed, but missing sizes/colours/zones/settings/content rows would have been added there.
 - **2026-10-19** Local `prisma dev` also listens on 127.0.0.1:4000, so the API must use another `PORT` (e.g. 4100 + `API_PROXY_TARGET`) while it runs.
 - **2026-10-19** [web] Storefront JS over budget (169–179 KB vs 150 KB gzipped). Lighthouse not installed here; metrics measured by hand look good.

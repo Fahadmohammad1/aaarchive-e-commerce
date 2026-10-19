@@ -77,6 +77,8 @@ enum OrderEventType {
   NOTE
   CALL
   PAYMENT
+  /// Items, address or charges changed before shipping (PRD §6.4).
+  EDIT
 }
 
 enum SocialPlatform {

@@ -42,6 +42,10 @@
   /* brand */
   --cream: #e4ddc0;
   --cream-foreground: #140707;
+  /* Printed documents (invoice, packing slip): ink on white paper. */
+  --paper: #ffffff;
+  --ink: #140707;
+  --ink-muted: #5c514b;
   --ember: #c4412b;
   --ember-deep: #5e1310;
 
@@ -123,6 +127,9 @@ html:has(.admin) {
   --color-ring: var(--ring);
   --color-cream: var(--cream);
   --color-cream-foreground: var(--cream-foreground);
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
   --color-ember: var(--ember);
   --color-ember-deep: var(--ember-deep);
   --color-success: var(--success);
@@ -325,5 +332,17 @@ html:has(.admin) {
     transition-duration: 0.01ms !important;
     /* biome-ignore lint/complexity/noImportantStyles: reduced motion must override every component transition */
     scroll-behavior: auto !important;
+  }
+}
+
+/* Printed pages (admin invoices / packing slips) are ink on white paper. */
+@media print {
+  html,
+  body {
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .grain-overlay {
+    display: none;
   }
 }

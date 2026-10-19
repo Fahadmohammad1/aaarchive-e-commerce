@@ -13,6 +13,13 @@ if (TEST_DB) process.env.DATABASE_URL = TEST_DB;
 
 export const ORIGIN = "http://localhost:3000";
 
+/**
+ * Local `prisma dev` (PGlite) serves one connection: two transactions at the
+ * same time mix up prepared statements there. Set TEST_DB_SINGLE_CONNECTION=1
+ * locally to skip the race tests; CI's real Postgres runs them.
+ */
+export const PARALLEL_DB = process.env.TEST_DB_SINGLE_CONNECTION !== "1";
+
 /** A route with no auth decorators: OWNER/STAFF only by default. */
 @Controller("__probe")
 class ProbeController {

@@ -40,6 +40,10 @@ export type PublicOrder = {
     status: "PENDING" | "VERIFIED" | "REJECTED";
   } | null;
   payOnDelivery: number;
-  courier: { name: string; trackingNumber: string | null } | null;
+  courier: {
+    name: string;
+    trackingNumber: string | null;
+    trackingUrl: string | null;
+  } | null;
   timeline: Array<{ status: string; at: string }>;
 };

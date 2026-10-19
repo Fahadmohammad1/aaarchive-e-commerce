@@ -23,11 +23,14 @@ import { CategoriesModule } from "./modules/categories/categories.module.js";
 import { CollectionsModule } from "./modules/collections/collections.module.js";
 import { ColorsModule } from "./modules/colors/colors.module.js";
 import { CouponsModule } from "./modules/coupons/coupons.module.js";
+import { CustomersModule } from "./modules/customers/customers.module.js";
 import { DeliveryZonesModule } from "./modules/delivery-zones/delivery-zones.module.js";
 import { MailModule } from "./modules/mail/mail.module.js";
 import { MediaModule } from "./modules/media/media.module.js";
 import { OrdersModule } from "./modules/orders/orders.module.js";
+import { PaymentsModule } from "./modules/payments/payments.module.js";
 import { ProductsModule } from "./modules/products/products.module.js";
+import { ReportsModule } from "./modules/reports/reports.module.js";
 import { RevalidationModule } from "./modules/revalidation/revalidation.module.js";
 import { SettingsModule } from "./modules/settings/settings.module.js";
 import { SizeChartsModule } from "./modules/size-charts/size-charts.module.js";
@@ -80,6 +83,9 @@ import { PrismaModule } from "./prisma/prisma.module.js";
     CartModule,
     CouponsModule,
     OrdersModule,
+    PaymentsModule,
+    CustomersModule,
+    ReportsModule,
   ],
   // Order matters: rate limit → authentication → role. Every route is
   // OWNER/STAFF-only unless it says @Public() or @Roles(...) (rules.md §8.3).

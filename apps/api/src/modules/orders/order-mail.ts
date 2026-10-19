@@ -71,3 +71,42 @@ export function orderConfirmationMail(
     text,
   };
 }
+
+const STATUS_LINE: Partial<Record<string, string>> = {
+  CONFIRMED: "Your order is confirmed. We are getting it ready.",
+  SHIPPED: "Your order is on its way.",
+  DELIVERED: "Your order was delivered. Thank you for shopping with Aaarchive.",
+};
+
+/** Confirmed / shipped / delivered (PRD §11). */
+export function orderStatusMail(o: {
+  orderNumber: string;
+  name: string;
+  to: string;
+  status: string;
+  courierName: string | null;
+  trackingNumber: string | null;
+}): Mail {
+  const lines = [
+    `Hi ${o.name},`,
+    "",
+    `${STATUS_LINE[o.status] ?? ""} (${o.orderNumber})`,
+    ...(o.courierName
+      ? [
+          "",
+          `Courier: ${o.courierName}${o.trackingNumber ? ` — tracking number ${o.trackingNumber}` : ""}`,
+        ]
+      : []),
+    "",
+    "Aaarchive",
+  ];
+  const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;color:#1a1714;line-height:1.5">${lines
+    .map((l) => (l ? `<p>${esc(l)}</p>` : ""))
+    .join("")}</body></html>`;
+  return {
+    to: o.to,
+    subject: `Aaarchive order ${o.orderNumber}`,
+    html,
+    text: lines.join("\n"),
+  };
+}

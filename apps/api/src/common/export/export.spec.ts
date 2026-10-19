@@ -1,7 +1,14 @@
 import { PassThrough } from "node:stream";
 import ExcelJS from "exceljs";
 import type { Response } from "express";
-import { CSV_BOM, csvChunks, csvField, guardFormula } from "./csv-writer.js";
+import {
+  CSV_BOM,
+  csvChunks,
+  csvField,
+  csvLine,
+  csvPhone,
+  guardFormula,
+} from "./csv-writer.js";
 import { ExportService, paginate } from "./export.service.js";
 import {
   cellOf,
@@ -60,6 +67,16 @@ describe("export cells", () => {
     expect(csvField('Hoodie, "Classic"')).toBe('"Hoodie, ""Classic"""');
     expect(csvField(-250)).toBe("-250");
     expect(csvField(null)).toBe("");
+  });
+
+  it("keeps the leading 0 of phone numbers for spreadsheets", () => {
+    expect(csvPhone("01712345689")).toBe('"=""01712345689"""');
+    // Anything that is not plain digits is written as normal guarded text.
+    expect(csvPhone("=1+1")).toBe("'=1+1");
+    expect(csvPhone(null)).toBe("");
+    expect(csvLine(["01712345689", "01712345689"], ["phone", "text"])).toBe(
+      '"=""01712345689""",01712345689\r\n',
+    );
   });
 
   it("writes a BOM, a header and one CRLF line per row", async () => {

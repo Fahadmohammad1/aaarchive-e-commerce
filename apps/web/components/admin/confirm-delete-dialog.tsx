@@ -21,12 +21,19 @@ type ConfirmDeleteDialogProps = {
   onCancel: () => void;
   /** Rejects with the API error, which is shown in the dialog. */
   onConfirm: () => Promise<unknown>;
+  /** Wording for confirmations that are not a delete (e.g. unblock). */
+  title?: string;
+  description?: string;
+  confirmLabel?: string;
 };
 
 export function ConfirmDeleteDialog({
   name,
   onCancel,
   onConfirm,
+  title,
+  description,
+  confirmLabel,
 }: ConfirmDeleteDialogProps) {
   const t = getAdminMessages().common;
   const [pending, setPending] = React.useState(false);
@@ -44,9 +51,11 @@ export function ConfirmDeleteDialog({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            {format(t.deleteConfirm, { name: name ?? "" })}
+            {title ?? format(t.deleteConfirm, { name: name ?? "" })}
           </AlertDialogTitle>
-          <AlertDialogDescription>{t.deleteCannotUndo}</AlertDialogDescription>
+          <AlertDialogDescription>
+            {description ?? t.deleteCannotUndo}
+          </AlertDialogDescription>
         </AlertDialogHeader>
         {error !== null && (
           <p role="alert" className="text-destructive text-sm">
@@ -72,7 +81,7 @@ export function ConfirmDeleteDialog({
               }
             }}
           >
-            {pending ? t.deleting : t.delete}
+            {pending ? t.deleting : (confirmLabel ?? t.delete)}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

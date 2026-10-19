@@ -175,7 +175,7 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 ### 5.1 API
 
 - Every error response has the shape `{ statusCode, message, code?, details? }` (`AllExceptionsFilter`).
-- Throw Nest `HttpException`s with a stable **`code`** for anything the UI must react to: `VALIDATION_ERROR`, `OUT_OF_STOCK`, `COUPON_INVALID`, `COUPON_EXPIRED`, `PHONE_BLOCKED`, `RATE_LIMITED`, `TURNSTILE_FAILED`, `TRXID_ALREADY_USED`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `SLUG_TAKEN`, `NAME_TAKEN`, `CATEGORY_IN_USE`, `SIZE_IN_USE`, `COLOR_IN_USE`, `MEDIA_NOT_FOUND`, `MEDIA_IN_USE`, and since Phase 4: `COUPON_NOT_STARTED`, `COUPON_MIN_ORDER` (`details.minOrder`), `COUPON_NOT_APPLICABLE`, `COUPON_LIMIT_REACHED`, `ITEM_UNAVAILABLE`, `QTY_LIMIT`, `ZONE_UNAVAILABLE`, `PAYMENT_METHOD_UNAVAILABLE`, `ORDER_NOT_FOUND`, `ZONE_IN_USE`, `COUPON_IN_USE`, `CODE_TAKEN`. Add new codes to this list.
+- Throw Nest `HttpException`s with a stable **`code`** for anything the UI must react to: `VALIDATION_ERROR`, `OUT_OF_STOCK`, `COUPON_INVALID`, `COUPON_EXPIRED`, `PHONE_BLOCKED`, `RATE_LIMITED`, `TURNSTILE_FAILED`, `TRXID_ALREADY_USED`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `SLUG_TAKEN`, `NAME_TAKEN`, `CATEGORY_IN_USE`, `SIZE_IN_USE`, `COLOR_IN_USE`, `MEDIA_NOT_FOUND`, `MEDIA_IN_USE`, and since Phase 4: `COUPON_NOT_STARTED`, `COUPON_MIN_ORDER` (`details.minOrder`), `COUPON_NOT_APPLICABLE`, `COUPON_LIMIT_REACHED`, `ITEM_UNAVAILABLE`, `QTY_LIMIT`, `ZONE_UNAVAILABLE`, `PAYMENT_METHOD_UNAVAILABLE`, `ORDER_NOT_FOUND`, `ZONE_IN_USE`, `COUPON_IN_USE`, `CODE_TAKEN`, and since Phase 5: `INVALID_TRANSITION`, `STATUS_CHANGED`, `ORDER_NOT_EDITABLE`, `PAYMENT_ALREADY_DECIDED`, `PHONE_ALREADY_BLOCKED`, `INVALID_TRACKING_URL`. Add new codes to this list.
 - Unexpected errors: log the full error server-side and return a bare 500 (`INTERNAL_ERROR`). Never return stack traces, SQL or Prisma messages.
 - Never log passwords, tokens, full card/wallet data, or full phone numbers alongside names. Log order numbers and ids instead.
 - Status codes: 400 validation, 401 not logged in, 403 wrong role, 404 not found, 409 conflict (duplicate TrxID, slug), 422 business rule (out of stock, coupon), 429 rate limit.
@@ -216,7 +216,7 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 
 - A bug fix in business logic comes with a test that fails before the fix.
 - Tests never hit the real Supabase database.
-- **Local DB e2e (2026-10-19):** run `bunx prisma dev -n <name> -p <port> -P <dbPort> --shadow-db-port <port>` in the **foreground or as a background job** (`--detach` hangs in `starting_up`), apply migrations with `DIRECT_URL=<its URL> bunx prisma migrate deploy`, then `TEST_DATABASE_URL=<its URL> bunx vitest run --config ./vitest.config.e2e.ts --no-file-parallelism` (that server is single-connection PGlite: parallel files mix up prepared statements). CI uses a real Postgres and may run in parallel.
+- **Local DB e2e (2026-10-19):** run `bunx prisma dev -n <name> -p <port> -P <dbPort> --shadow-db-port <port>` in the **foreground or as a background job** (`--detach` hangs in `starting_up`), apply migrations with `DIRECT_URL=<its URL> bunx prisma migrate deploy`, then `TEST_DATABASE_URL=<its URL> bunx vitest run --config ./vitest.config.e2e.ts --no-file-parallelism` (that server is single-connection PGlite: parallel files mix up prepared statements). Add `TEST_DB_SINGLE_CONNECTION=1` there: the two race tests (last unit, simultaneous status change) need real concurrent connections and are skipped with it (2026-10-19). CI uses a real Postgres, runs them, and may run files in parallel.
 
 ---
 
@@ -266,7 +266,7 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 - The API never fetches a URL supplied by a user (no SSRF). Images are uploaded to the API (`POST /admin/media`), which validates and re-encodes them before storing in Supabase Storage. Short-lived upload — the API only signs.
 - Uploads: jpg/png/webp only (checked by decoding with `sharp`, not by name or MIME header), ≤ 8 MB in, ≤ 40 megapixels, all metadata stripped, re-encoded to WebP; the bucket accepts only `image/webp` ≤ 2 MB; storage keys are random ids, never user file names.
 - Money and stock are computed on the server; stock numbers never leave admin routes.
-- Exports: CSV-injection guard; same role checks as the screen.
+- Exports: CSV-injection guard; same role checks as the screen. Phone columns use the `phone` export type so CSVs keep the leading 0 (user, 2026-10-19).
 
 ### 8.5 Abuse of the shop
 
@@ -328,7 +328,7 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 **Ask first**
 
 - Installing or removing any dependency.
-- Schema changes that drop or rename data, and any migration against a non-local database.
+- Schema changes that drop or rename data, and any migration against a non-local database — **except** (user, 2026-10-19): after finishing a task that adds migrations, the agent applies them to the project's Supabase database itself with `bun run --filter @aaarchive/api db:deploy` (`prisma migrate deploy`, additive migrations only) and reports it. Destructive migrations still need approval first; `migrate dev`/`db push` never run against Supabase.
 - Changing an API response shape the web already uses.
 - Editing `PRD.md`, or changing a decision recorded in `architecture.md`.
 - Anything that costs money, changes hosting, or touches DNS / production.

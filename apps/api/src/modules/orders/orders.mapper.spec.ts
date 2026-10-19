@@ -46,7 +46,14 @@ describe("toPublicOrder", () => {
     };
     expect(toPublicOrder(prepaid)).toMatchObject({
       payOnDelivery: 0,
-      courier: { name: "Pathao", trackingNumber: "PT123" },
+      courier: { name: "Pathao", trackingNumber: "PT123", trackingUrl: null },
     });
+    // With the courier's link pattern set in Settings → Couriers.
+    const couriers = [
+      { name: "pathao", trackingUrl: "https://track.example/{tracking}" },
+    ];
+    expect(toPublicOrder(prepaid, couriers).courier?.trackingUrl).toBe(
+      "https://track.example/PT123",
+    );
   });
 });

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Last updated** | 19 October 2026 |
-| **Current phase** | **Phase 4 — Cart, checkout & order placement** — built and verified locally (2026-10-19); next Phase 5. Open from earlier phases: API hosting (0), a real photo upload on Supabase (2), storefront JS budget + PDP delivery info (3) |
+| **Current phase** | **Phase 5 — Order management** — built and verified locally (2026-10-19); next Phase 6. Open from earlier phases: API hosting (0), a real photo upload on Supabase (2), storefront JS budget + PDP delivery info (3) |
 | **Related docs** | `PRD.md` (requirements) · `architecture.md` · `rules.md` · `design.md` · `memory.md` (day-to-day progress) |
 
 The build is split into **Phases 0–7**, which together deliver the MVP (PRD "Release 1"). Work after launch is grouped as **Release 2** and **Release 3** (PRD §4). "Phase" always means a build phase in this file. "Release" means a post-launch scope tier.
@@ -23,7 +23,7 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 | 2 | Admin dashboard & catalog management | 1.5 weeks | done except a real photo upload on Supabase |
 | 3 | Storefront catalog | 1.5 weeks | built; open: JS budget, PDP delivery info |
 | 4 | Cart, checkout & order placement | 1.5 weeks | built (2026-10-19); concurrency to confirm on CI Postgres |
-| 5 | Order management | 1.5 weeks | not started |
+| 5 | Order management | 1.5 weeks | built (2026-10-19) |
 | 6 | Home, content & settings | 1 week | not started |
 | 7 | Launch prep & launch | 1 week | not started |
 | — | Release 2 / Release 3 (post-launch) | — | backlog |
@@ -175,22 +175,24 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 
 **Goal:** staff can confirm, process, ship and close orders, verify payments and manage risky customers from the admin, including on a phone (PRD §6.1, §6.4, §6.5).
 
-- [ ] [api] Admin orders: list with filters (status, payment status, method, date range, zone) and search (number, phone, name), detail
-- [ ] [api] Status flow per PRD §6.4, with courier name + tracking number required for Shipped and stock restored on Cancelled/Returned. Every change becomes an `OrderEvent`
-- [ ] [api] Notes and call attempts ("No answer", "Confirmed", "Asked to call later")
-- [ ] [api] `POST /admin/payments/:id/verify | reject` with a note
-- [ ] [api] Edit order before shipping (items, quantities, address, delivery charge) with stock adjustment
-- [ ] [api] `customers`: list by phone (incl. guests) with totals and success rate, plus the phone blocklist CRUD
-- [ ] [api] `GET /admin/reports/summary`: today/month orders and revenue, orders by status, payments awaiting verification, low-stock top 10, best sellers
-- [ ] [api] Exports: orders, order items, customers, payments (PRD §6.9), each sharing the list endpoint's filter schema
-- [ ] [api] Tests: every allowed and forbidden status transition, stock restore, payment verification
-- [ ] [web] Orders list (cards on mobile) and order detail with status actions, payment panel, event timeline, notes, big tap targets for call outcomes
-- [ ] [web] Print-friendly invoice / packing slip and bulk actions (status change, print)
-- [ ] [web] Customers list/detail and blocklist screens
-- [ ] [web] Export menu on orders, customers and payments lists
-- [ ] [web] Dashboard home with real stats (replaces the Phase 2 placeholder)
+- [x] [api] Admin orders: list with filters (status, payment status, method, date range, zone) and search (number, phone, name), detail
+- [x] [api] Status flow per PRD §6.4, with courier name + tracking number required for Shipped and stock restored on Cancelled/Returned. Every change becomes an `OrderEvent`
+- [x] [api] Notes and call attempts ("No answer", "Confirmed", "Asked to call later")
+- [x] [api] `POST /admin/payments/:id/verify | reject` with a note
+- [x] [api] Edit order before shipping (items, quantities, address, delivery charge) with stock adjustment
+- [x] [api] `customers`: list by phone (incl. guests) with totals and success rate, plus the phone blocklist CRUD
+- [x] [api] `GET /admin/reports/summary`: today/month orders and revenue, orders by status, payments awaiting verification, low-stock top 10, best sellers
+- [x] [api] Exports: orders, order items, customers, payments (PRD §6.9), each sharing the list endpoint's filter schema
+- [x] [api] Tests: every allowed and forbidden status transition, stock restore, payment verification
+- [x] [web] Orders list (cards on mobile) and order detail with status actions, payment panel, event timeline, notes, big tap targets for call outcomes
+- [x] [web] Print-friendly invoice / packing slip and bulk actions (status change, print)
+- [x] [web] Customers list/detail and blocklist screens
+- [x] [web] Export menu on orders, customers and payments lists
+- [x] [web] Dashboard home with real stats (replaces the Phase 2 placeholder)
 
 **Exit criteria:** a test order goes Pending → Confirmed → Processing → Shipped → Delivered, and another is cancelled with its stock restored. A bKash payment is verified. The dashboard numbers match the orders. A staff member can do all of this on a phone.
+
+*Status 2026-10-19:* all hold on a local database. A STAFF account at 375px took AAR-24151 through to Delivered (COD → Paid), logged "No answer" and cancelled AAR-24152 (variant stock 20 − 3 ordered + 1 restored = 18, checked in the DB), verified the bKash payment of AAR-24153, and the dashboard showed revenue ৳5,120 = the delivered + the paid order. Invoice/slip print checked (print media). `test/order-management.e2e-spec.ts`: 8 tests pass locally; the simultaneous-change test runs only on CI's real Postgres (local PGlite is single-connection).
 
 ---
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
-import { placeOrder, trackOrder } from "./order-api";
+import { placeOrder, trackOrder } from "./order-store-api";
 
 export function usePlaceOrder() {
   return useMutation({ mutationFn: placeOrder });
