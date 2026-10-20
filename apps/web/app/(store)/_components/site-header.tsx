@@ -1,6 +1,6 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { Search, UserRound } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import * as React from "react";
@@ -104,6 +104,19 @@ export function SiteHeader({ logo }: { logo: React.ReactNode }) {
           {searchLoaded && (
             <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
           )}
+          {/* A plain link: the session only loads on /account pages (JS budget). */}
+          <Link
+            href="/account"
+            aria-label={t.header.account}
+            className="flex min-h-11 items-center gap-1.5 text-muted-foreground transition-colors type-mono-label hover:text-foreground"
+          >
+            <UserRound
+              aria-hidden
+              strokeWidth={1.5}
+              className="size-4 md:size-3.5"
+            />
+            <span className="hidden md:inline">{t.header.account}</span>
+          </Link>
           <Button asChild size="xs" className="h-6 px-2 type-mono-label">
             <Link
               href="/cart"

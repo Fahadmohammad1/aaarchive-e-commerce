@@ -74,6 +74,8 @@ Breaking any of these is a bug, however good the rest of the change is.
 | Rate limiting | Own `ThrottleGuard` + `@Throttle()` in `common/throttle/` (2026-10-20: replaced `@nestjs/throttler`, whose CommonJS build cannot load NestJS 12 on Vercel). **Never add a CommonJS `@nestjs/*` add-on** (architecture §8.1) |
 | Media | **Supabase Storage** via its S3 API (`@aws-sdk/client-s3`, storage-only access keys) + **`sharp`** for validation/resizing *(Phase 2, install after approval)* |
 | Email | Resend free tier, called through its HTTP API with `fetch` (no SDK) in `modules/mail/mail.service.ts`; skipped and logged when `RESEND_API_KEY`/`MAIL_FROM` are unset *(Phase 4)* |
+| Online payment | **SSLCommerz** HTTP API called with `fetch` (no SDK) in `modules/sslcommerz/` (owner, 2026-10-21). Off until the Owner turns it on; needs `SSLCOMMERZ_STORE_ID` / `SSLCOMMERZ_STORE_PASSWORD` |
+| Google sign-in (customers) | OAuth 2.0 code flow + PKCE with `fetch` (no SDK, no Passport) in `modules/account/google-oauth.service.ts`; needs `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` |
 | Excel export | **exceljs** 4.4 (MIT), server-side streaming writer *(installed 2026-10-19)*. CSV is written by our own helper. Never use the npm `xlsx` package (stale 0.18.x with known advisories) |
 | Tests | Vitest + supertest |
 
@@ -105,7 +107,7 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 | Heavy animation libraries on the storefront | CSS transitions / Web Animations API | JS budget < 150 KB |
 | `index.ts` barrel files | Import from the concrete file | Tree-shaking, clear ownership |
 | `import type` for anything Nest injects | Normal import | Nest DI needs the runtime class |
-| Paid SaaS, paid tiers, gateway SDKs, SMS providers | — | Out of MVP scope / budget |
+| Paid SaaS, paid tiers, gateway SDKs, SMS providers | — | Out of MVP scope / budget. *Exception (owner, 2026-10-21):* SSLCommerz, built with `fetch` and **off by default**; it charges per payment, so only the Owner switches it on |
 | Building exports in the browser from what the table shows | `GET /admin/<resource>/export` (architecture §4.8) | The page only holds one page of rows; the API applies filters, permissions and streaming |
 
 ---
@@ -128,7 +130,7 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 - **Public, SEO-relevant pages** (home, shop, category, collection, product, content) fetch on the server through `lib/<module>/<module>-api.ts`, cached with `"use cache"` + `cacheLife` + `cacheTag`. Product **stock status** is fetched uncached inside `<Suspense>`.
 - **Everything client-side uses TanStack Query**: admin screens, account pages, cart validation, coupon apply, checkout submit, order tracking, search-as-you-type.
 - When a server-rendered page also needs the data in a Client Component, prefetch on the server with `queryClient.prefetchQuery` and pass it down with `<HydrationBoundary>`. Do not fetch twice.
-- **Storefront JS budget (2026-10-19).** Storefront client code never imports Zod at runtime: browser-side public reads (`lib/product/product-search-api.ts`) use `import type` and skip parsing (the server fetchers validate the same responses); URL helpers used by Client Components live in Zod-free files (`listing-query.ts`, not `listing-params.ts`). Storefront code never imports `lib/i18n/i18n-admin.ts`, `en-admin.ts` or `error-text.ts`. Dialogs, sheets and overlays that open on a tap (menu, search, filters, size chart, zoom, cart drawer) load with `next/dynamic({ ssr: false })` on first use. **Clarified 2026-10-19:** the `/checkout` route chunk *may* use Zod (React Hook Form + the shared `checkoutSchema`, as architecture §3.1 describes). `/track-order` is Zod-free since 2026-10-20 because every footer prefetches it (it validates with `normalizeBdPhone` / `normalizeOrderNumber`). Everything checkout shares with other storefront pages (header, cart store, cart drawer, `lib/cart`, `lib/order`, `lib/settings`, `*-store-api.ts`) stays Zod-free.
+- **Storefront JS budget (2026-10-19).** Storefront client code never imports Zod at runtime: browser-side public reads (`lib/product/product-search-api.ts`) use `import type` and skip parsing (the server fetchers validate the same responses); URL helpers used by Client Components live in Zod-free files (`listing-query.ts`, not `listing-params.ts`). Storefront code never imports `lib/i18n/i18n-admin.ts`, `en-admin.ts` or `error-text.ts`. Dialogs, sheets and overlays that open on a tap (menu, search, filters, size chart, zoom, cart drawer) load with `next/dynamic({ ssr: false })` on first use. **Clarified 2026-10-19:** the `/checkout` route chunk *may* use Zod (React Hook Form + the shared `checkoutSchema`, as architecture §3.1 describes). `/track-order` is Zod-free since 2026-10-20 because every footer prefetches it (it validates with `normalizeBdPhone` / `normalizeOrderNumber`). **2026-10-21:** `/account/**` route chunks may use Zod too (RHF forms, `lib/account/`); the customer session (`AccountProvider`) is mounted only by `/account` and `/checkout`, never in the shared store layout, and the header's Account item is a plain link. Everything checkout shares with other storefront pages (header, cart store, cart drawer, `lib/cart`, `lib/order`, `lib/settings`, `*-store-api.ts`) stays Zod-free.
 
 **TanStack Query**
 
@@ -177,7 +179,7 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 ### 5.1 API
 
 - Every error response has the shape `{ statusCode, message, code?, details? }` (`AllExceptionsFilter`).
-- Throw Nest `HttpException`s with a stable **`code`** for anything the UI must react to: `VALIDATION_ERROR`, `OUT_OF_STOCK`, `COUPON_INVALID`, `COUPON_EXPIRED`, `PHONE_BLOCKED`, `RATE_LIMITED`, `TURNSTILE_FAILED`, `TRXID_ALREADY_USED`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `SLUG_TAKEN`, `NAME_TAKEN`, `CATEGORY_IN_USE`, `SIZE_IN_USE`, `COLOR_IN_USE`, `MEDIA_NOT_FOUND`, `MEDIA_IN_USE`, and since Phase 4: `COUPON_NOT_STARTED`, `COUPON_MIN_ORDER` (`details.minOrder`), `COUPON_NOT_APPLICABLE`, `COUPON_LIMIT_REACHED`, `ITEM_UNAVAILABLE`, `QTY_LIMIT`, `ZONE_UNAVAILABLE`, `PAYMENT_METHOD_UNAVAILABLE`, `ORDER_NOT_FOUND`, `ZONE_IN_USE`, `COUPON_IN_USE`, `CODE_TAKEN`, and since Phase 5: `INVALID_TRANSITION`, `STATUS_CHANGED`, `ORDER_NOT_EDITABLE`, `PAYMENT_ALREADY_DECIDED`, `PHONE_ALREADY_BLOCKED`, `INVALID_TRACKING_URL`, and since Phase 6: `PRODUCT_NOT_FOUND`, `CONTACT_UNAVAILABLE`, `EMAIL_TAKEN`, `CANNOT_CHANGE_SELF`, `LAST_OWNER`, and since Phase 7: `INVALID_TOTP_CODE`, `MFA_EXPIRED`, `TOTP_ALREADY_ON`, `TOTP_SETUP_MISSING`. Add new codes to this list.
+- Throw Nest `HttpException`s with a stable **`code`** for anything the UI must react to: `VALIDATION_ERROR`, `OUT_OF_STOCK`, `COUPON_INVALID`, `COUPON_EXPIRED`, `PHONE_BLOCKED`, `RATE_LIMITED`, `TURNSTILE_FAILED`, `TRXID_ALREADY_USED`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `SLUG_TAKEN`, `NAME_TAKEN`, `CATEGORY_IN_USE`, `SIZE_IN_USE`, `COLOR_IN_USE`, `MEDIA_NOT_FOUND`, `MEDIA_IN_USE`, and since Phase 4: `COUPON_NOT_STARTED`, `COUPON_MIN_ORDER` (`details.minOrder`), `COUPON_NOT_APPLICABLE`, `COUPON_LIMIT_REACHED`, `ITEM_UNAVAILABLE`, `QTY_LIMIT`, `ZONE_UNAVAILABLE`, `PAYMENT_METHOD_UNAVAILABLE`, `ORDER_NOT_FOUND`, `ZONE_IN_USE`, `COUPON_IN_USE`, `CODE_TAKEN`, and since Phase 5: `INVALID_TRANSITION`, `STATUS_CHANGED`, `ORDER_NOT_EDITABLE`, `PAYMENT_ALREADY_DECIDED`, `PHONE_ALREADY_BLOCKED`, `INVALID_TRACKING_URL`, and since Phase 6: `PRODUCT_NOT_FOUND`, `CONTACT_UNAVAILABLE`, `EMAIL_TAKEN`, `CANNOT_CHANGE_SELF`, `LAST_OWNER`, and since Phase 7: `INVALID_TOTP_CODE`, `MFA_EXPIRED`, `TOTP_ALREADY_ON`, `TOTP_SETUP_MISSING`, and since customer accounts / SSLCommerz (2026-10-21): `INVALID_TOKEN`, `PHONE_TAKEN`, `ADDRESS_LIMIT`, `GOOGLE_SIGN_IN_FAILED`, `PAYMENT_GATEWAY_ERROR`, `SSLCOMMERZ_NOT_CONFIGURED`, `PAYMENT_NOT_RECEIVED`. Add new codes to this list.
 - Unexpected errors: log the full error server-side and return a bare 500 (`INTERNAL_ERROR`). Never return stack traces, SQL or Prisma messages.
 - Never log passwords, tokens, full card/wallet data, or full phone numbers alongside names. Log order numbers and ids instead.
 - Status codes: 400 validation, 401 not logged in, 403 wrong role, 404 not found, 409 conflict (duplicate TrxID, slug), 422 business rule (out of stock, coupon), 429 rate limit.
@@ -253,11 +255,14 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 - `/auth/refresh` and every state-changing cookie-authenticated request check the `Origin` header against the site origin (CSRF defence on top of SameSite).
 - Two-factor sign-in (TOTP, `otplib`) — **built** (owner decision 2026-10-20): any dashboard user can turn it on, Owners are nudged on the dashboard. Secrets encrypted at rest with `TOTP_ENCRYPTION_KEY` (required in production), codes cannot be replayed, 10 single-use hashed backup codes, wrong codes count toward the lockout, turning it off needs password + code and ends every session.
 
+- **Customer accounts (2026-10-21):** customers use the same argon2id / lockout / rotating-refresh machinery, scoped to the `CUSTOMER` role, with their **own** refresh cookie (`aar_crt`, path `/api/v1/account/auth`). Customers cannot sign in at `/auth/login` and staff cannot sign in at `/account/auth/login` (same generic error). Two-factor endpoints are Owner/Staff only. Forgot-password always answers 204; reset links are single-use (30 min), stored hashed, and end every session. Google sign-in: state cookie + PKCE, ID-token claims checked (issuer, audience, expiry, `email_verified`); linking Google to an account whose email was never verified removes that account's password and sessions (pre-hijack defence); staff accounts never sign in with Google.
+
 ### 8.3 Authorization
 
 - Every `/admin/**` route has `JwtAuthGuard` + `RolesGuard` by default (opt-out is impossible without code review). Staff cannot reach settings, staff management or Owner-only exports.
 - Access is checked against the **record**, not just the route: no endpoint returns another customer's order or address because an id was guessed (IDOR). Public order tracking requires phone **and** order number, and masks the phone.
 - The UI hiding a button is never the protection.
+- **Guest orders join a customer account only with proof (user decision 2026-10-21):** the account's *verified* email, or the order's phone **and** number (`POST /account/orders/claim`). Never by phone alone (no SMS verification). An order already in another account answers 404 like a wrong number.
 
 ### 8.4 Input, output and data
 
@@ -276,6 +281,7 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 - Checkout: Turnstile, 3 orders/phone/hour, 10/IP/hour, COD blocklist, unique TrxID, server-side prices, quantity caps.
 - Coupon apply, order tracking, login, contact form: their own stricter rate limits.
 - Every money-moving or status change is written to `OrderEvent` with the user who did it.
+- **Online payment (SSLCommerz, 2026-10-21):** an order becomes Paid only after the API itself asks SSLCommerz's validation API (status VALID/VALIDATED, our `tran_id` = Payment id, exact amount in BDT). Whatever the browser posts to the return URLs is a hint to go and ask, never proof. Risky payments wait for staff; staff can never "verify" an online payment SSLCommerz has not confirmed (`PAYMENT_NOT_RECEIVED`). Unpaid online orders are cancelled after `SSLCOMMERZ_PAYMENT_WINDOW_MINUTES` (stock back, coupon use released); a payment arriving later is still recorded for a refund.
 
 ### 8.6 Secrets
 

@@ -10,7 +10,7 @@ import { JwtService } from "@nestjs/jwt";
 import type { Request } from "express";
 import { JWT_AUDIENCE, JWT_ISSUER } from "../../modules/auth/auth.constants.js";
 import { PrismaService } from "../../prisma/prisma.service.js";
-import { IS_PUBLIC } from "./auth.decorators.js";
+import { IS_PUBLIC, OPTIONAL_AUTH } from "./auth.decorators.js";
 import type { AccessTokenPayload, RequestUser } from "./request-user.js";
 
 /**
@@ -30,20 +30,35 @@ export class JwtAuthGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
-    if (isPublic) return true;
-
+    const targets = [context.getHandler(), context.getClass()];
     const request = context
       .switchToHttp()
       .getRequest<Request & { user?: RequestUser }>();
     const token = /^Bearer (.+)$/.exec(
       request.header("authorization") ?? "",
     )?.[1];
-    if (!token) throw unauthorized();
 
+    if (this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, targets)) {
+      // A guest is fine here; a valid token just tells us who it is.
+      if (
+        token &&
+        this.reflector.getAllAndOverride<boolean>(OPTIONAL_AUTH, targets)
+      ) {
+        request.user =
+          (await this.userFor(token).catch(() => null)) ?? undefined;
+      }
+      return true;
+    }
+
+    if (!token) throw unauthorized();
+    const user = await this.userFor(token);
+    if (!user) throw unauthorized();
+    request.user = user;
+    return true;
+  }
+
+  /** The live user behind an access token, or null when it no longer counts. */
+  private async userFor(token: string): Promise<RequestUser | null> {
     let payload: AccessTokenPayload;
     try {
       payload = await this.jwt.verifyAsync<AccessTokenPayload>(token, {
@@ -52,7 +67,7 @@ export class JwtAuthGuard implements CanActivate {
         audience: JWT_AUDIENCE,
       });
     } catch {
-      throw unauthorized();
+      return null;
     }
 
     const [user, liveSession] = await Promise.all([
@@ -79,17 +94,16 @@ export class JwtAuthGuard implements CanActivate {
       this.logger.warn(
         `Rejected access token for user ${payload.sub} (revoked or inactive)`,
       );
-      throw unauthorized();
+      return null;
     }
 
-    request.user = {
+    return {
       id: user.id,
       name: user.name,
       email: user.email,
       role: user.role,
       sessionId: payload.sid,
     };
-    return true;
   }
 }
 

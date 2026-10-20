@@ -3,6 +3,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { ArrowUpRight } from "lucide-react";
 import * as React from "react";
+import { CheckoutField, inputClass } from "@/components/store/store-field";
 import {
   type TurnstileHandle,
   TurnstileWidget,
@@ -12,10 +13,6 @@ import { Button } from "@/components/ui/button";
 import { sendContactMessage } from "@/lib/content/content-client-api";
 import { getMessages } from "@/lib/i18n/i18n";
 import { storeErrorText } from "@/lib/i18n/store-error-text";
-import {
-  CheckoutField,
-  inputClass,
-} from "../../checkout/_components/checkout-field";
 
 type Field = "name" | "contact" | "message";
 

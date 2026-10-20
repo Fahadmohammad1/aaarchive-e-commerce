@@ -350,6 +350,7 @@ Desktop wireframes are approximate; mobile behaviour listed under each.
 - Height 56px, transparent over the hero, then `--bg` with bottom hairline once scrolled.
 - Logo: the chrome wordmark image (`logo-wordmark.png`), 32px tall on mobile, 40px on desktop.
 - Add a search icon (mono-label "Search") left of Cart on desktop; inside the menu on mobile.
+- *Account (2026-10-21):* a `UserRound` icon link to `/account` between Search and Cart, muted like Search, with the mono-label "Account" from `md` up (icon only on phones, 44px tap target).
 
 ### 6.2 Hero
 
@@ -551,6 +552,8 @@ YOU MAY ALSO LIKE                       [‹][›]
   - **bKash** / **Nagad** — expands an instruction panel: store number in large mono with a `Copy` chip, exact amount, steps (1–3), then fields for sender number and TrxID.
   - Use official bKash/Nagad logos only as allowed by their brand guidelines; otherwise use text labels.
 - Delivery zone radio cards show charge and estimate: `INSIDE DHAKA · ৳70 · 1–2 days` (values from admin).
+- *Online payment (2026-10-21):* when switched on, a fourth radio card "Card / mobile banking" (note: pay through SSLCommerz); selected, a `--bg-sunken` box says the customer goes to SSLCommerz to pay the total. The button reads "Opening payment…" while redirecting. Coming back failed/cancelled shows the danger notice above the button; the cart is still there.
+- *Signed in (2026-10-21):* the form is pre-filled from the profile and the default address; with saved addresses, "Use a saved address" (native select, last option "New address") sits at the top of `// 02 DELIVERY`; for a new address a "Save this address to my account" checkbox (on by default) follows the note. Guests see one mono line above `// 01 CONTACT`: "Have an account? Sign in for faster checkout" (link).
 - *Built (2026-10-19):* inputs 48px on `--bg-raised`; zone cards 3-up from `sm`; district is a native select of the 64 districts; the wallet panel sits on `--bg-sunken` under its radio card with the number in 24px mono + accent `Copy` chip and the amount on the right; COD with "advance delivery charge" shows the same panel for the delivery charge. The phone's sticky bar shows `Place order … ৳total` (the chat buttons move up above it via `--buy-bar-h`).
 
 ### 7.5 Order success
@@ -559,6 +562,7 @@ YOU MAY ALSO LIKE                       [‹][›]
 - Message: "We'll call you on 017••••••89 to confirm your order."
 - If bKash/Nagad: "Payment pending verification" notice.
 - Summary panel + `Track Order ↗` and `Continue Shopping` buttons.
+- Back from SSLCommerz (`?payment=paid|review`): an accent-bordered notice "Payment received…" (or "…we are checking it") replaces the TrxID notice; the cart empties only now.
 - *Built (2026-10-19):* when the page is opened without this tab's order data (another device, new tab), it shows the number and a "track it with your phone number" line instead of the summary.
 
 ### 7.6 Track order
@@ -580,6 +584,15 @@ YOU MAY ALSO LIKE                       [‹][›]
 - **404:** giant outlined "404", short mono line, `Back to Shop ↗`.
 - **Error:** inline notice with `--danger` border and a retry button.
 
+### 7.9 Account (`/account`, 2026-10-21)
+
+- **Sign-in pages** (login, register, forgot/reset password, verify email): the Track order card — centred, `max-w-md`, `--bg-raised`, hairline border, display-md title + mono-micro intro. Optional "Continue with Google" outline button (44px) and an "or" hairline divider above the form; inputs are the checkout fields; primary full-width button with ↗; links under the card in mono-label (create account / sign in / "No account needed to order"). Notices: accent border for success, `--danger` border for errors.
+- **Signed-in pages:** `site-container`, display-lg "ACCOUNT" with "Hello, {name}" (mono-label, muted) and a "Sign out" text link on the right; line tabs Overview · My orders · Addresses (mono-label uppercase, 44px, 2px marigold underline on the active one, scroll sideways on phones). Loading: skeleton blocks of the same shape.
+- **Overview:** two columns from `lg` — Profile panel (name, phone, email read-only, unconfirmed-email notice with "Send the link again"), and Change password + Sign out on all devices panels. Panels: `--bg-raised`, hairline, display-sm title.
+- **My orders:** list rows on hairlines (whole row is the link): order number in mono, date · items in mono-micro, status as an outline mono-micro tag (accent; `--success` delivered; `--danger` cancelled/returned), total in mono. "Show more" outline button. Beside it (stacked on phones), the "Add an order" panel: phone + order number + outline button. Empty: dashed box + "Start shopping ↗".
+- **Order detail:** "← All orders" then the Track order result card (`components/store/order-result.tsx`).
+- **Addresses:** cards 2-up from `md`: recipient in display-sm, marigold "Default" chip, phone in mono, address lines in mono-micro, then Edit · Use as default · Delete (asks inline: "Delete this address? Delete / Cancel") on a hairline. "Add address" primary button in the header row; the form is a square storefront dialog (`--bg-raised`, `sm:max-w-xl`, fields 2-up from `sm`).
+
 ---
 
 ## 8. Admin dashboard design
@@ -594,6 +607,7 @@ The admin prioritises **speed and clarity** over editorial style.
 - Photo fields (`components/admin/image-picker.tsx`): 4:5 thumbnail, "Upload photo" / "Choose from library" (grid dialog) / remove, and an alt-text field once a photo is chosen. File pickers accept `.jpg`, `.jpeg`, `.png`, `.webp` (`MEDIA_ACCEPT_ATTR`); hint "JPG, JPEG, PNG or WebP, up to 8 MB."
 - *Sales analytics (`/admin/analytics`, Owner only, 2026-10-20):* sidebar "Analytics" (TrendingUp) first in the Sales group. Page header with the period picker on the right (native select: 7/30/90 days, this month, last month, this year, custom → two date inputs + "Show"); period lives in the URL. A caption line gives the dates, the comparison period and the update time. Then: **KPI tiles** (2 columns on phones, 4 on desktop; label in muted xs, value in mono 2xl, a change line with a TrendingUp/Down icon + "+12% vs previous period" in `--success`/`--destructive` (inverted for discounts and cancel/return rate; text and icon carry the direction, never colour alone), hint in `--fg-subtle`). **Daily chart:** single-series columns in `--primary`, ≤ 24px wide, 4px rounded top, hairline horizontal grid in `--border`, no y-axis line, tabs switch the measure (order value / revenue / orders; one axis, never two), crosshair tooltip with the full date + mono value, and a "Show as table" disclosure with every day. **Breakdowns:** panels with `BarList` (label left, mono value right, a 6px `--primary` bar on a `--bg-sunken` track below; rows that filter the orders list are links with the hover surface) for category, payment method, status, zone, size, colour, customers (first order vs ordered before); top products and coupons as dense tables. Chart configs carry labels only; colours come from tokens.
 - Grid editors (size charts, `size-charts/_components/size-chart-form-dialog.tsx`): a wide dialog (`sm:max-w-3xl`) with a table of small inputs (mono for values), editable column headers with a remove ✕, a remove ✕ per row, and "Add size" / "Add measurement" outline buttons below. The table scrolls sideways inside a bordered box on phones; invalid cells get the destructive border and one summary line below the table.
+- *Settings → Payments → Online payment (SSLCommerz), 2026-10-21:* a fieldset like the wallets: a status line (`--success` "Connected to the SSLCommerz sandbox / your live store", or muted "Not set up…" naming the env vars), the Enabled switch (`SwitchField` gained `disabled`: off and unconfigured = disabled), and a hint about the per-payment fee and the 45-minute window. Order detail: an SSLCommerz payment card hides sender/TrxID, shows "Waiting for the customer to pay online…" until SSLCommerz answers, and offers Verify/Reject only for payments SSLCommerz flagged as risky; automatic confirmations read "Verified by SSLCommerz".
 - Selects: `components/admin/native-select.tsx`, a styled native `<select>` (Input look, chevron icon) for filters and short lists; the browser supplies keyboard, screen-reader and phone-picker behaviour.
 - Product editor (`/admin/products/[id]`): back link, title + status badge + `/slug`, primary "Save product" and a ⋯ menu (Duplicate, View in store, Delete) on the right. Line tabs (Details · Pricing · Images · Variants · Size chart · SEO) scroll sideways on phones; a tab with an invalid field shows a small destructive dot, and saving jumps to the first such tab. Details has a right column (status, featured, category, collections, tags) on desktop. Images are cards (4:5 thumb, alt, colour, make main / move / remove; the first is badged "Main"). Variants is its own panel: "Add variants" with size/colour toggle chips (44px), then a table (swatch + colour + size, SKU, stock, own price, on-sale switch, delete); edited rows collect into a sticky "Save stock" bar. Stock numbers: low in marigold, zero in destructive.
 - Products list: search + filter selects (category, status, stock) + sort above the table; rows are fully clickable (link `::after`), 4:5 thumb, name with status/featured/sale badges; phones keep product + stock.

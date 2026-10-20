@@ -30,6 +30,7 @@ export const METHOD_LABEL: Record<string, string> = {
   COD: "Cash on Delivery",
   BKASH: "bKash",
   NAGAD: "Nagad",
+  SSLCOMMERZ: "Online (SSLCommerz)",
 };
 
 const orderInclude = {

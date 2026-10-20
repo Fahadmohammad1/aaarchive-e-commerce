@@ -22,7 +22,7 @@ import { formatDateTime } from "./format";
 
 export type PaymentRecord = {
   id: string;
-  method: "COD" | "BKASH" | "NAGAD";
+  method: "COD" | "BKASH" | "NAGAD" | "SSLCOMMERZ";
   amount: number;
   senderNumber: string | null;
   trxId: string | null;
@@ -32,7 +32,11 @@ export type PaymentRecord = {
   verifiedBy: string | null;
 };
 
-/** One bKash/Nagad record with Verify / Reject (PRD §6.4). */
+/**
+ * One bKash/Nagad record with Verify / Reject (PRD §6.4). SSLCommerz records
+ * are settled by SSLCommerz itself; staff only decide the ones it flagged as
+ * risky (they carry a note), never a session still waiting for payment.
+ */
 export function PaymentRecordCard({
   payment,
   isAdvance,
@@ -47,6 +51,9 @@ export function PaymentRecordCard({
   const [note, setNote] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
   const method = t.paymentMethod[payment.method];
+  const online = payment.method === "SSLCOMMERZ";
+  const awaitingOnline =
+    online && payment.status === "PENDING" && !payment.note;
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -91,24 +98,35 @@ export function PaymentRecordCard({
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
         <dt className="text-muted-foreground">{to.amount}</dt>
         <dd className="font-mono">{formatTaka(payment.amount)}</dd>
-        <dt className="text-muted-foreground">{to.sender}</dt>
-        <dd className="font-mono">{payment.senderNumber ?? "—"}</dd>
-        <dt className="text-muted-foreground">{to.trxId}</dt>
-        <dd className="font-mono text-base tracking-wide">
-          {payment.trxId ?? "—"}
-        </dd>
+        {!online && (
+          <>
+            <dt className="text-muted-foreground">{to.sender}</dt>
+            <dd className="font-mono">{payment.senderNumber ?? "—"}</dd>
+            <dt className="text-muted-foreground">{to.trxId}</dt>
+            <dd className="font-mono text-base tracking-wide">
+              {payment.trxId ?? "—"}
+            </dd>
+          </>
+        )}
       </dl>
+      {online && payment.note && payment.status === "PENDING" && (
+        <p className="text-muted-foreground text-xs">{payment.note}</p>
+      )}
+      {awaitingOnline && (
+        <p className="text-muted-foreground text-xs">{to.awaitingOnline}</p>
+      )}
       {payment.status !== "PENDING" && payment.verifiedAt && (
         <p className="text-muted-foreground text-xs">
           {format(to.checkedBy, {
             status: t.paymentRecord[payment.status],
-            name: payment.verifiedBy ?? "—",
+            // Online payments are confirmed by SSLCommerz, not a person.
+            name: payment.verifiedBy ?? (online ? "SSLCommerz" : "—"),
             date: formatDateTime(payment.verifiedAt),
           })}
           {payment.note && ` — ${payment.note}`}
         </p>
       )}
-      {payment.status === "PENDING" && (
+      {payment.status === "PENDING" && !awaitingOnline && (
         <div className="grid grid-cols-2 gap-2">
           <Button size="lg" className="h-12" onClick={() => setMode("verify")}>
             {to.verify}

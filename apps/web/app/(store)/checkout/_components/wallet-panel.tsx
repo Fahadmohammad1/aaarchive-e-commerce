@@ -3,8 +3,8 @@
 import { formatTaka } from "@aaarchive/shared/money";
 import * as React from "react";
 import type { UseFormRegisterReturn } from "react-hook-form";
+import { CheckoutField, inputClass } from "@/components/store/store-field";
 import { format, getMessages } from "@/lib/i18n/i18n";
-import { CheckoutField, inputClass } from "./checkout-field";
 
 /**
  * bKash / Nagad instructions (design §7.4): the store number in large mono

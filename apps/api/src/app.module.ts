@@ -14,6 +14,7 @@ import { ProxySecretMiddleware } from "./common/security/proxy-secret.middleware
 import { ThrottleGuard } from "./common/throttle/throttle.guard.js";
 import { validateEnv } from "./config/env.schema.js";
 import { HealthModule } from "./health/health.module.js";
+import { AccountModule } from "./modules/account/account.module.js";
 import { AuthModule } from "./modules/auth/auth.module.js";
 import { CartModule } from "./modules/cart/cart.module.js";
 import { CategoriesModule } from "./modules/categories/categories.module.js";
@@ -34,6 +35,7 @@ import { RevalidationModule } from "./modules/revalidation/revalidation.module.j
 import { SettingsModule } from "./modules/settings/settings.module.js";
 import { SizeChartsModule } from "./modules/size-charts/size-charts.module.js";
 import { SizesModule } from "./modules/sizes/sizes.module.js";
+import { SslcommerzModule } from "./modules/sslcommerz/sslcommerz.module.js";
 import { UsersModule } from "./modules/users/users.module.js";
 import { PrismaModule } from "./prisma/prisma.module.js";
 
@@ -50,7 +52,9 @@ import { PrismaModule } from "./prisma/prisma.module.js";
     ExportModule,
     SettingsModule,
     MailModule,
+    SslcommerzModule,
     AuthModule,
+    AccountModule,
     MediaModule,
     CategoriesModule,
     CollectionsModule,

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Last updated** | 19 October 2026 |
-| **Current phase** | **Phase 6 — Home, content & settings** — built and verified locally (2026-10-20); next Phase 7 (launch prep). Open from earlier phases: API hosting (0), a real photo upload on Supabase (2), storefront JS budget + PDP delivery info (3) |
+| **Current phase** | **Phase 7 — Launch prep** — local work done; customer accounts and SSLCommerz (off) added 2026-10-21. The rest needs the test deploy and the owner's accounts/content. Open from earlier phases: API hosting (0), a real photo upload on Supabase (2), storefront JS budget + PDP delivery info (3) |
 | **Related docs** | `PRD.md` (requirements) · `architecture.md` · `rules.md` · `design.md` · `memory.md` (day-to-day progress) |
 
 The build is split into **Phases 0–7**, which together deliver the MVP (PRD "Release 1"). Work after launch is grouped as **Release 2** and **Release 3** (PRD §4). "Phase" always means a build phase in this file. "Release" means a post-launch scope tier.
@@ -210,7 +210,7 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 - [x] [web] Admin screens: **one form per home section** (hero, archive index, look file with a click-to-place hotspot picker, latest entries + campaign, made to be kept, social), site content (announcement, menu links, footer), social posts, pages (rich text), FAQ, settings tabs (store + logo, payments, stock, SEO, tracking), staff
 - [x] [web] Storefront reads `GET /content/home` + `GET /content/site` + public settings (logo, contact links, SEO); sections without content are left out; delete `lib/content/home-fixtures.ts` and the hard-coded header/footer/menu data
 - [x] [web] 404 and error pages per `design.md` §7.8
-- [ ] [api][web] *(Only if PRD open question 6 = yes)* Customer accounts — **user decision 2026-10-20: guest-only at launch; moved to Release 2**: email/password + Google, My Orders, saved addresses, linking guest orders by phone
+- [x] [shared][api][web] Customer accounts — *2026-10-20 moved to Release 2; **back in Release 1 (owner, 2026-10-21)**, guest checkout kept*: email/password + Google, forgot/reset password, email confirmation, My Orders, saved addresses (fill checkout), linking guest orders by verified email or by phone + order number (not phone alone, rules.md §8.3) (2026-10-21)
 
 **Exit criteria:** every home section and content page is edited from the admin and shows on the storefront after revalidation. Settings changes (e.g. delivery charge) take effect at checkout.
 
@@ -226,6 +226,10 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 - [x] [web] `sitemap.ts`, `robots.ts`, canonical URLs on filtered listings, `Organization` JSON-LD (2026-10-20)
 - [x] [web] GA4, Meta Pixel, Microsoft Clarity wired through `lib/analytics/` (IDs from settings) (2026-10-20)
 - [x] [api] Facebook catalog feed `GET /feeds/facebook.xml` (2026-10-20)
+- [x] [shared][api][web] *(Owner request 2026-10-21)* SSLCommerz online payment, **off by default**: Owner switch in Settings → Payments (refused without credentials), validation-API confirmation, expiry of unpaid orders, risky payments to staff (2026-10-21)
+- [x] Owner approved the sales analytics page; PRD §4 / §6.9a updated (2026-10-21)
+- [ ] [repo] **Owner:** Google OAuth client (Google Cloud Console, free) → `GOOGLE_CLIENT_ID/SECRET` on the API; Resend (`RESEND_API_KEY`, `MAIL_FROM`) so verification and reset emails go out
+- [ ] [repo] **Owner, when wanted:** SSLCommerz sandbox store → `SSLCOMMERZ_STORE_ID/PASSWORD` on the API, test a payment on the test deploy; a live store + `SSLCOMMERZ_SANDBOX=false` only after moving off Vercel Hobby
 - [x] [web] Remove Unsplash placeholders (`lib/content/home-fixtures.ts`) and the `images.unsplash.com` pattern in `next.config.ts` (2026-10-20)
 - [ ] [web] Performance pass: LCP < 2.5s, CLS < 0.1, storefront JS < 150 KB gzipped, Lighthouse mobile ≥ 85 on home/category/product — *local pass done 2026-10-20 (81–84, JS 177–187 KB); re-measure on the test deploy; JS budget awaits the owner's decision (memory.md)*
 - [x] [web] Accessibility pass (WCAG 2.1 AA, keyboard, reduced motion) (2026-10-20)
@@ -247,8 +251,8 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 
 ## Backlog — Release 2 (after launch)
 
-From PRD §4: product reviews · "notify me" when back in stock · saved addresses and reorder (if accounts were skipped) · courier API (Steadfast / Pathao) · Bangla UI (`bn.ts`) · staff activity log · CSV import · abandoned-cart email · newsletter.
+From PRD §4: product reviews · "notify me" when back in stock · reorder · courier API (Steadfast / Pathao) · Bangla UI (`bn.ts`) · staff activity log · CSV import · abandoned-cart email · newsletter.
 
 ## Backlog — Release 3 (when growing, may be paid)
 
-From PRD §4: recommendations · payment gateway (SSLCommerz / bKash PGW / Nagad PGW) · automated fraud scoring · SMS notifications · advanced analytics · loyalty / referrals.
+From PRD §4: recommendations · bKash / Nagad payment gateways (SSLCommerz is built, off by default) · automated fraud scoring · SMS notifications · advanced analytics (cohorts, forecasting, margins) · loyalty / referrals.

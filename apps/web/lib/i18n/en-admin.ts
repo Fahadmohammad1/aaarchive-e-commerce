@@ -332,7 +332,12 @@ export const enAdmin = {
     REFUNDED: "Refunded",
     PARTIALLY_PAID: "Partially paid",
   },
-  paymentMethod: { COD: "Cash on Delivery", BKASH: "bKash", NAGAD: "Nagad" },
+  paymentMethod: {
+    COD: "Cash on Delivery",
+    BKASH: "bKash",
+    NAGAD: "Nagad",
+    SSLCOMMERZ: "Online (SSLCommerz)",
+  },
   paymentRecord: {
     PENDING: "To check",
     VERIFIED: "Verified",
@@ -410,6 +415,8 @@ export const enAdmin = {
     decisionNote: "Note",
     rejectNoteHint: "Why it was rejected, e.g. TrxID not found.",
     checkedBy: "{status} by {name}, {date}",
+    awaitingOnline:
+      "Waiting for the customer to pay online. Unpaid orders are cancelled automatically and their stock returned.",
     courier: "Courier",
     courierName: "Courier name",
     trackingNumber: "Tracking number",
@@ -800,6 +807,14 @@ export const enAdmin = {
     codAdvance: "Ask for the delivery charge in advance on COD orders",
     codAdvanceHint:
       "Customers then pay the delivery charge by bKash/Nagad before you ship.",
+    sslcommerz: "Online payment (SSLCommerz)",
+    sslcommerzMissing:
+      "Not set up. Add SSLCOMMERZ_STORE_ID and SSLCOMMERZ_STORE_PASSWORD to the API's environment, then turn it on here.",
+    sslcommerzSandbox:
+      "Connected to the SSLCommerz sandbox: test payments only, no real money.",
+    sslcommerzLive: "Connected to your live SSLCommerz store.",
+    sslcommerzHint:
+      "Customers pay by card, bKash, Nagad or internet banking on SSLCommerz's page. SSLCommerz charges a fee on each payment. Orders not paid within 45 minutes are cancelled and their stock returned.",
     lowStock: "Low-stock threshold",
     lowStockHint:
       "At or below this, products show “Only a few left”. A product can set its own.",
@@ -925,6 +940,9 @@ export const enAdmin = {
   },
   errors: {
     INVALID_CREDENTIALS: "Email or password is incorrect.",
+    SSLCOMMERZ_NOT_CONFIGURED:
+      "Add the SSLCommerz store ID and password on the server first.",
+    PAYMENT_NOT_RECEIVED: "This online payment has not been received.",
     INVALID_TOTP_CODE:
       "That code is not right. Try the newest code from your app.",
     MFA_EXPIRED: "That took too long. Sign in again.",

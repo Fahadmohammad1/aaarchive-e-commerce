@@ -15,12 +15,15 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 import { type FieldErrors, useForm } from "react-hook-form";
 import type { z } from "zod";
+import { useAccount } from "@/components/providers/account-provider";
+import { CheckoutField, inputClass } from "@/components/store/store-field";
 import {
   type TurnstileHandle,
   TurnstileWidget,
   turnstileSiteKey,
 } from "@/components/turnstile-widget";
 import { Button } from "@/components/ui/button";
+import { useAddresses, useProfile } from "@/lib/account/use-account";
 import { trackBeginCheckout, trackPurchase } from "@/lib/analytics/analytics";
 import { ApiError } from "@/lib/api/api-error";
 import { useCartHydrated, useCartStore } from "@/lib/cart/cart-store";
@@ -29,11 +32,10 @@ import { useCouponQuote } from "@/lib/cart/use-coupon-quote";
 import { useStoreZones } from "@/lib/delivery-zone/use-store-zones";
 import { format, getMessages } from "@/lib/i18n/i18n";
 import { storeErrorText } from "@/lib/i18n/store-error-text";
-import { saveLastOrder } from "@/lib/order/last-order";
+import { saveLastOrder, savePendingPurchase } from "@/lib/order/last-order";
 import { usePlaceOrder } from "@/lib/order/use-orders";
 import { usePublicSettings } from "@/lib/settings/use-public-settings";
 import { cn } from "@/lib/utils";
-import { CheckoutField, inputClass } from "./checkout-field";
 import { OrderSummary, type SummaryTotals } from "./order-summary";
 import { RadioCard } from "./radio-card";
 import { WalletPanel } from "./wallet-panel";
@@ -46,6 +48,7 @@ import { WalletPanel } from "./wallet-panel";
 const formSchema = checkoutSchema.omit({
   items: true,
   couponCode: true,
+  saveAddress: true,
   turnstileToken: true,
 });
 type FormInput = z.input<typeof formSchema>;
@@ -93,9 +96,16 @@ export function CheckoutForm() {
   const zones = useStoreZones();
   const settings = usePublicSettings();
   const place = usePlaceOrder();
+  const account = useAccount();
+  const signedIn = account.status === "authenticated";
+  const profile = useProfile();
+  const addresses = useAddresses(signedIn);
   const turnstile = React.useRef<TurnstileHandle>(null);
   const [token, setToken] = React.useState<string | null>(null);
   const [formError, setFormError] = React.useState<string | null>(null);
+  const [redirecting, setRedirecting] = React.useState(false);
+  const [savedChoice, setSavedChoice] = React.useState<string>("new");
+  const [saveAddress, setSaveAddress] = React.useState(true);
   const placed = React.useRef(false);
 
   const form = useForm<FormInput, unknown, FormValues>({
@@ -138,6 +148,7 @@ export function CheckoutForm() {
   const methods: Method[] = [
     ...(payments?.cod.enabled ? (["COD"] as const) : []),
     ...wallets,
+    ...(payments?.sslcommerz.enabled ? (["SSLCOMMERZ"] as const) : []),
   ];
   const needAdvance =
     method === "COD" &&
@@ -158,12 +169,52 @@ export function CheckoutForm() {
   const chooseMethod = (next: Method) => {
     form.setValue(
       "payment",
-      next === "COD"
-        ? { method: "COD" }
+      next === "COD" || next === "SSLCOMMERZ"
+        ? { method: next }
         : { method: next, senderNumber: "", trxId: "" },
       { shouldDirty: true },
     );
   };
+
+  // Back from SSLCommerz without paying: the order was cancelled, the cart kept.
+  React.useEffect(() => {
+    const result = new URLSearchParams(window.location.search).get("payment");
+    if (result === "failed") setFormError(tc.paymentFailed);
+    if (result === "cancelled") setFormError(tc.paymentCancelled);
+  }, [tc]);
+
+  // Signed in: fill the form from the default address (else the profile),
+  // once, without overwriting anything typed already.
+  const applyAddress = React.useCallback(
+    (a: NonNullable<typeof addresses.data>[number]) => {
+      const opts = { shouldValidate: true, shouldDirty: true } as const;
+      form.setValue("name", a.name, opts);
+      form.setValue("phone", a.phone, opts);
+      form.setValue("zoneId", a.zone.id, opts);
+      form.setValue("district", a.district, opts);
+      form.setValue("area", a.area, opts);
+      form.setValue("address", a.address, opts);
+    },
+    [form],
+  );
+  const prefilled = React.useRef(false);
+  React.useEffect(() => {
+    if (prefilled.current || !profile.data || !addresses.data) return;
+    prefilled.current = true;
+    if (form.formState.isDirty) return;
+    const fallback = form.getValues();
+    form.reset({
+      ...fallback,
+      name: profile.data.name,
+      phone: profile.data.phone ?? "",
+      email: profile.data.email,
+    });
+    const preferred = addresses.data.find((a) => a.isDefault);
+    if (preferred) {
+      setSavedChoice(preferred.id);
+      applyAddress(preferred);
+    }
+  }, [profile.data, addresses.data, form, applyAddress]);
 
   // The first available method is preselected once settings arrive.
   React.useEffect(() => {
@@ -236,20 +287,30 @@ export function CheckoutForm() {
         items: validation.items,
         // Only a coupon the API accepted; a bad code never blocks the order.
         couponCode: quote.data ? quote.data.code : undefined,
+        saveAddress: signedIn && savedChoice === "new" && saveAddress,
         turnstileToken: token ?? undefined,
       });
-      placed.current = true;
+      const purchaseItems = (cart?.items ?? []).map((i) => ({
+        id: i.variantId,
+        name: i.product.name,
+        price: i.unitPrice,
+        quantity: i.quantity,
+      }));
       saveLastOrder(order);
-      trackPurchase(
-        order.orderNumber,
-        order.total,
-        (cart?.items ?? []).map((i) => ({
-          id: i.variantId,
-          name: i.product.name,
-          price: i.unitPrice,
-          quantity: i.quantity,
-        })),
-      );
+      if (order.paymentUrl) {
+        // Pay on SSLCommerz's page. The cart stays until the payment is
+        // confirmed (the success page empties it and counts the purchase).
+        savePendingPurchase({
+          orderNumber: order.orderNumber,
+          total: order.total,
+          items: purchaseItems,
+        });
+        setRedirecting(true);
+        window.location.assign(order.paymentUrl);
+        return;
+      }
+      placed.current = true;
+      trackPurchase(order.orderNumber, order.total, purchaseItems);
       router.replace(`/order/success/${order.orderNumber}`);
       clearCart();
     } catch (error) {
@@ -355,6 +416,17 @@ export function CheckoutForm() {
           noValidate
           className="flex flex-col gap-10 md:col-span-7"
         >
+          {account.status === "guest" && (
+            <p className="-mb-4 text-muted-foreground type-mono-label">
+              {tc.signInPrompt}{" "}
+              <Link
+                href="/account/login?next=/checkout"
+                className="text-foreground underline underline-offset-4 hover:text-primary"
+              >
+                {tc.signInLink}
+              </Link>
+            </p>
+          )}
           <section aria-labelledby="sec-contact">
             <div id="sec-contact">{sectionTitle(1, tc.contact)}</div>
             <div className="grid gap-5 sm:grid-cols-2">
@@ -429,6 +501,36 @@ export function CheckoutForm() {
 
           <section aria-labelledby="sec-delivery" className="border-t pt-8">
             <div id="sec-delivery">{sectionTitle(2, tc.delivery)}</div>
+            {signedIn && (addresses.data?.length ?? 0) > 0 && (
+              <CheckoutField id="co-saved" label={tc.useSaved} className="mb-5">
+                <div className="relative">
+                  <select
+                    id="co-saved"
+                    value={savedChoice}
+                    onChange={(e) => {
+                      setSavedChoice(e.target.value);
+                      const chosen = addresses.data?.find(
+                        (a) => a.id === e.target.value,
+                      );
+                      if (chosen) applyAddress(chosen);
+                    }}
+                    className={cn(inputClass, "appearance-none pr-9")}
+                  >
+                    {addresses.data?.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {`${a.name} · ${a.area}, ${a.district}`}
+                      </option>
+                    ))}
+                    <option value="new">{tc.newAddress}</option>
+                  </select>
+                  <ChevronDown
+                    aria-hidden
+                    strokeWidth={1.5}
+                    className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground"
+                  />
+                </div>
+              </CheckoutField>
+            )}
             <fieldset className="mb-5 flex flex-col gap-2">
               <legend className="mb-2 text-muted-foreground uppercase type-mono-label">
                 {tc.zone}
@@ -544,6 +646,17 @@ export function CheckoutForm() {
                   {...form.register("note")}
                 />
               </CheckoutField>
+              {signedIn && savedChoice === "new" && (
+                <label className="flex min-h-11 items-center gap-3 type-mono-label sm:col-span-2">
+                  <input
+                    type="checkbox"
+                    checked={saveAddress}
+                    onChange={(e) => setSaveAddress(e.target.checked)}
+                    className="size-5 accent-primary"
+                  />
+                  {tc.saveAddress}
+                </label>
+              )}
             </div>
           </section>
 
@@ -570,13 +683,28 @@ export function CheckoutForm() {
                       onChange={(v) => chooseMethod(v as Method)}
                     >
                       <span className="uppercase type-mono-label">
-                        {m === "COD" ? tc.cod : walletInfo(m).label}
+                        {m === "COD"
+                          ? tc.cod
+                          : m === "SSLCOMMERZ"
+                            ? tc.online
+                            : walletInfo(m).label}
                       </span>
                       <span className="text-muted-foreground type-mono-micro">
-                        {m === "COD" ? tc.codNote : tc.walletNote}
+                        {m === "COD"
+                          ? tc.codNote
+                          : m === "SSLCOMMERZ"
+                            ? tc.onlineNote
+                            : tc.walletNote}
                       </span>
                     </RadioCard>
-                    {method === m && m !== "COD" && (
+                    {method === m && m === "SSLCOMMERZ" && (
+                      <p className="border border-border bg-sunken p-3 type-mono-micro">
+                        {format(tc.onlineRedirect, {
+                          amount: formatTaka(totals.total),
+                        })}
+                      </p>
+                    )}
+                    {method === m && m !== "COD" && m !== "SSLCOMMERZ" && (
                       <WalletPanel
                         idPrefix={`co-${m.toLowerCase()}`}
                         wallet={walletInfo(m).label}
@@ -675,10 +803,14 @@ export function CheckoutForm() {
 
           <Button
             type="submit"
-            disabled={isSubmitting || methods.length === 0}
+            disabled={isSubmitting || redirecting || methods.length === 0}
             className="hidden h-12 w-full justify-between rounded-none px-4 type-mono-label uppercase md:flex"
           >
-            {isSubmitting ? tc.placing : tc.placeOrder}
+            {redirecting
+              ? tc.redirecting
+              : isSubmitting
+                ? tc.placing
+                : tc.placeOrder}
             <span>{formatTaka(totals.total)}</span>
           </Button>
         </form>
@@ -696,10 +828,14 @@ export function CheckoutForm() {
         <Button
           type="submit"
           form="checkout-form"
-          disabled={isSubmitting || methods.length === 0}
+          disabled={isSubmitting || redirecting || methods.length === 0}
           className="h-12 w-full justify-between rounded-none px-4 type-mono-label uppercase"
         >
-          {isSubmitting ? tc.placing : tc.placeOrder}
+          {redirecting
+            ? tc.redirecting
+            : isSubmitting
+              ? tc.placing
+              : tc.placeOrder}
           <span>{formatTaka(totals.total)}</span>
         </Button>
       </div>

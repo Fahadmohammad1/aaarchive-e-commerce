@@ -117,7 +117,14 @@ describe.skipIf(!TEST_DB)("auth (e2e, real database)", () => {
     expect((await request(server).get("/api/v1/__probe")).status).toBe(401);
 
     const customer = await createUser(app, "CUSTOMER", PASSWORD);
-    const asCustomer = await login(customer.email, PASSWORD);
+    // Customers cannot use the dashboard's sign-in at all (PRD §5.10)…
+    expect((await login(customer.email, PASSWORD)).status).toBe(401);
+    // …and a customer session from the shop's door is still refused here.
+    const asCustomer = await post("/account/auth/login").send({
+      email: customer.email,
+      password: PASSWORD,
+    });
+    expect(asCustomer.status).toBe(200);
     const denied = await request(server)
       .get("/api/v1/__probe")
       .set("Authorization", `Bearer ${asCustomer.body.accessToken}`);

@@ -1,4 +1,5 @@
 import { formatTaka } from "@aaarchive/shared/money";
+import { escapeHtml as esc } from "../mail/escape-html.js";
 import type { Mail } from "../mail/mail.service.js";
 import type { PublicOrder } from "./orders.mapper.js";
 
@@ -6,17 +7,8 @@ const METHOD: Record<PublicOrder["paymentMethod"], string> = {
   COD: "Cash on Delivery",
   BKASH: "bKash",
   NAGAD: "Nagad",
+  SSLCOMMERZ: "Online payment",
 };
-
-/** Customer text is escaped: names and product names come from people. */
-function esc(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
 
 /** Order confirmation (PRD §5.8, §11). Plain and short: customers rarely read email. */
 export function orderConfirmationMail(
@@ -37,7 +29,10 @@ export function orderConfirmationMail(
   const payment =
     order.paymentMethod === "COD"
       ? `Pay ${formatTaka(order.payOnDelivery)} to the courier on delivery.`
-      : `${METHOD[order.paymentMethod]} payment received for checking. We will confirm it shortly.`;
+      : order.paymentMethod === "SSLCOMMERZ"
+        ? // Sent only once SSLCommerz confirmed the payment.
+          `Your online payment of ${formatTaka(order.total)} was received.`
+        : `${METHOD[order.paymentMethod]} payment received for checking. We will confirm it shortly.`;
   const closing = "We will call you to confirm your order.";
 
   const text = [

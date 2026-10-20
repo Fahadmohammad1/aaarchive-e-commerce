@@ -47,11 +47,13 @@ describe.skipIf(!TEST_DB)("order management (e2e, real database)", () => {
       .set("Origin", ORIGIN)
       .set("Authorization", `Bearer ${token}`);
 
-  const signIn = async (email: string) => {
+  /** Staff sign in at the dashboard door, customers at the shop's (PRD §5.10). */
+  const signIn = async (email: string, door = "/auth/login") => {
     const res = await request(app.getHttpServer())
-      .post("/api/v1/auth/login")
+      .post(`/api/v1${door}`)
       .set("Origin", ORIGIN)
       .send({ email, password: PASSWORD });
+    if (!res.body.accessToken) throw new Error(`Sign-in failed: ${res.status}`);
     return res.body.accessToken as string;
   };
 
@@ -88,7 +90,7 @@ describe.skipIf(!TEST_DB)("order management (e2e, real database)", () => {
     const customer = await createUser(app, "CUSTOMER", PASSWORD, DOMAIN);
     userIds.push(owner.id, staff.id, customer.id);
     staffToken = await signIn(staff.email);
-    customerToken = await signIn(customer.email);
+    customerToken = await signIn(customer.email, "/account/auth/login");
 
     const category = await db().category.create({
       data: { name: `E2E ${run} Orders`, slug: `e2e-${run}-orders` },

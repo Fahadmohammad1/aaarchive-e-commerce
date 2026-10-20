@@ -27,7 +27,7 @@ export type PublicOrder = {
   deliveryCharge: number;
   total: number;
   couponCode: string | null;
-  paymentMethod: "COD" | "BKASH" | "NAGAD";
+  paymentMethod: "COD" | "BKASH" | "NAGAD" | "SSLCOMMERZ";
   paymentStatus:
     | "UNPAID"
     | "PENDING_VERIFICATION"
@@ -47,3 +47,6 @@ export type PublicOrder = {
   } | null;
   timeline: Array<{ status: string; at: string }>;
 };
+
+/** POST /orders: online payment adds the SSLCommerz page to send the customer to. */
+export type PlacedOrder = PublicOrder & { paymentUrl?: string };

@@ -4,6 +4,7 @@ import {
   type LoginInput,
   loginSchema,
   ROLES,
+  STAFF_ROLES,
   totpDisableSchema,
   totpEnableSchema,
   totpLoginSchema,
@@ -92,14 +93,14 @@ export class AuthController {
   }
 
   @Get("totp")
-  @Roles(...ROLES)
+  @Roles(...STAFF_ROLES)
   totpStatus(@CurrentUser() user: RequestUser) {
     return this.totp.status(user.id);
   }
 
   @Post("totp/setup")
   @HttpCode(200)
-  @Roles(...ROLES)
+  @Roles(...STAFF_ROLES)
   @Throttle({ default: { limit: 10, ttl: FIFTEEN_MINUTES } })
   totpSetup(@CurrentUser() user: RequestUser) {
     return this.totp.setup(user.id);
@@ -107,7 +108,7 @@ export class AuthController {
 
   @Post("totp/enable")
   @HttpCode(200)
-  @Roles(...ROLES)
+  @Roles(...STAFF_ROLES)
   @Throttle({ default: { limit: 10, ttl: FIFTEEN_MINUTES } })
   totpEnable(
     @CurrentUser() user: RequestUser,
@@ -119,7 +120,7 @@ export class AuthController {
 
   @Post("totp/disable")
   @HttpCode(204)
-  @Roles(...ROLES)
+  @Roles(...STAFF_ROLES)
   @Throttle({ default: { limit: 5, ttl: FIFTEEN_MINUTES } })
   async totpDisable(
     @CurrentUser() user: RequestUser,

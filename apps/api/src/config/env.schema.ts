@@ -68,6 +68,31 @@ export const envSchema = z.object({
   // Sender on a domain verified in Resend, e.g. "Aaarchive <orders@example.com>".
   MAIL_FROM: z.string().min(3).optional(),
 
+  // ── Customer accounts: Google sign-in (PRD §5.10) ──
+  // OAuth client from Google Cloud Console (free). Unset = the Google button is
+  // hidden. Authorised redirect URI: <FRONTEND_ORIGIN>/api/v1/account/auth/google/callback
+  GOOGLE_CLIENT_ID: z.string().min(1).optional(),
+  GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
+
+  // ── SSLCommerz online payment (owner, 2026-10-21) ──
+  // Unset = online payment cannot be switched on in Settings → Payments.
+  // Sandbox credentials: https://developer.sslcommerz.com/registration/
+  SSLCOMMERZ_STORE_ID: z.string().min(1).optional(),
+  SSLCOMMERZ_STORE_PASSWORD: z.string().min(1).optional(),
+  // "true" = sandbox (test payments only). Set "false" only with a live store.
+  SSLCOMMERZ_SANDBOX: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((v) => v === "true"),
+  // Minutes an online-payment order waits for payment before it is cancelled
+  // and its stock returned.
+  SSLCOMMERZ_PAYMENT_WINDOW_MINUTES: z.coerce
+    .number()
+    .int()
+    .min(15)
+    .max(240)
+    .default(45),
+
   // Sentry error monitoring (read directly in src/instrument.ts). Optional.
   SENTRY_DSN: z.url().optional(),
 

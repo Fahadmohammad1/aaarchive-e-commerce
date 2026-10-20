@@ -26,6 +26,14 @@ export const paymentSettingsSchema = z.object({
   nagad: walletSchema.default({ enabled: true, number: "", instructions: "" }),
   /** COD orders must pay the delivery charge in advance by bKash/Nagad (PRD §5.8). */
   codAdvanceDeliveryCharge: z.boolean().default(false),
+  /**
+   * Online payment through SSLCommerz (owner, 2026-10-21): off by default. The
+   * merchant credentials are API env vars; the API refuses to switch it on
+   * without them.
+   */
+  sslcommerz: z
+    .object({ enabled: z.boolean().default(false) })
+    .default({ enabled: false }),
 });
 export type PaymentSettings = z.output<typeof paymentSettingsSchema>;
 

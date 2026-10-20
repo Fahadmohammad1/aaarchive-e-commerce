@@ -69,9 +69,15 @@ function toAdminPayment(p: AdminPaymentRow) {
   };
 }
 
-/** Filters shared by the list and its export. Only bKash/Nagad records exist. */
+/**
+ * Filters shared by the list and its export: bKash/Nagad records, and
+ * SSLCommerz payments once SSLCommerz has confirmed one (a session still
+ * waiting, or abandoned, has nothing for staff to check).
+ */
 export function paymentWhere(f: PaymentFilters): Prisma.PaymentWhereInput {
-  const where: Prisma.PaymentWhereInput = {};
+  const where: Prisma.PaymentWhereInput = {
+    NOT: { method: "SSLCOMMERZ", gatewayValId: null },
+  };
   if (f.status) where.status = f.status;
   if (f.method) where.method = f.method;
   const range = dhakaRange(f.from, f.to);
@@ -131,6 +137,8 @@ export class PaymentsService {
       where: { id },
       select: {
         status: true,
+        method: true,
+        gatewayValId: true,
         orderId: true,
         order: {
           select: {
@@ -146,6 +154,14 @@ export class PaymentsService {
       throw new NotFoundException({
         message: "Payment not found",
         code: "NOT_FOUND",
+      });
+    }
+    // An online payment is decided by SSLCommerz; staff only settle the ones
+    // it flagged as risky (confirmed, held for review).
+    if (payment.method === "SSLCOMMERZ" && !payment.gatewayValId) {
+      throw new ConflictException({
+        message: "This online payment has not been received",
+        code: "PAYMENT_NOT_RECEIVED",
       });
     }
     const order = payment.order;

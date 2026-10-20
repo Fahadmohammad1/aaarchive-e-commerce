@@ -52,6 +52,8 @@ enum PaymentMethod {
   COD
   BKASH
   NAGAD
+  /// Online card / mobile banking through SSLCommerz (off until the Owner turns it on).
+  SSLCOMMERZ
 }
 
 /// State of one manual bKash/Nagad payment record.
@@ -81,6 +83,12 @@ enum OrderEventType {
   EDIT
 }
 
+/// What a one-time emailed link is for (customer accounts, PRD §5.10).
+enum AccountTokenPurpose {
+  VERIFY_EMAIL
+  RESET_PASSWORD
+}
+
 enum SocialPlatform {
   FACEBOOK
   INSTAGRAM
@@ -97,6 +105,9 @@ model User {
   phone             String?   @unique
   passwordHash      String?
   googleId          String?   @unique
+  /// Customers: set when they open the emailed link or sign in with Google.
+  /// Only a verified email links guest orders placed with it (PRD §5.10).
+  emailVerifiedAt   DateTime?
   role              Role      @default(CUSTOMER)
   isActive          Boolean   @default(true)
   /// Consecutive failed logins; reset on success (rules.md §8.2).
@@ -127,8 +138,27 @@ model User {
   contentBlocks    ContentBlock[]
   refreshTokens    RefreshToken[]
   mediaAssets      MediaAsset[]
+  accountTokens    AccountToken[]
 
   @@index([role])
+}
+
+/// One-time emailed links (verify email, reset password). Only a SHA-256 hash
+/// of the token is stored; a token works once and expires.
+model AccountToken {
+  id        String              @id @default(cuid())
+  userId    String
+  purpose   AccountTokenPurpose
+  tokenHash String              @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+  @@index([expiresAt])
 }
 
 model Address {
@@ -489,6 +519,9 @@ model Payment {
   verifiedById String?
   verifiedAt   DateTime?
   note         String?
+  /// SSLCommerz: the validation id of the confirmed payment (checked with
+  /// SSLCommerz's validation API, never taken from the browser).
+  gatewayValId String?             @unique
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
 
@@ -498,6 +531,7 @@ model Payment {
   @@index([orderId])
   @@index([status])
   @@index([verifiedById])
+  @@index([method, status])
 }
 
 /// Status history, notes, call attempts and payment actions on an order.

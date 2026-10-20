@@ -10,9 +10,13 @@ export type PublicSettings = {
     bkash: Wallet;
     nagad: Wallet;
     codAdvanceDeliveryCharge: boolean;
+    /** Online payment (SSLCommerz): on only when switched on and configured. */
+    sslcommerz: { enabled: boolean };
   };
   delivery: { freeDeliveryThreshold: number | null };
   stock: { maxQtyPerVariant: number };
+  /** Customer accounts: whether "Continue with Google" works. */
+  accounts: { google: boolean };
 };
 
 export function getPublicSettings(

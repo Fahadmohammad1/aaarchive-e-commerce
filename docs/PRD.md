@@ -29,7 +29,7 @@ The business is just starting, so the MVP is built and run **entirely on free to
 
 ### 1.2 Non-goals (MVP)
 
-- Payment gateway integration (SSLCommerz, bKash PGW, Nagad PGW)
+- Payment gateway integration (bKash PGW, Nagad PGW). *SSLCommerz is built but **off by default** (owner, 21 Oct 2026, §5.8): the Owner can switch it on once a merchant account exists.*
 - SMS / OTP notifications
 - Multi-vendor marketplace
 - Multi-currency or international shipping
@@ -92,10 +92,10 @@ Releases are scope tiers. The build of Release 1 is broken into Phases 0–7 in 
 | Area | Release 1 — MVP | Release 2 (after launch) | Release 3 (when growing, may be paid) |
 |---|---|---|---|
 | Catalog | Categories, collections, variants, size chart, search, filters | Product reviews, "notify me" when back in stock | Recommendations |
-| Checkout | Guest checkout, COD, manual bKash/Nagad, coupons, delivery zones | Saved addresses, reorder | Payment gateway |
+| Checkout | Guest checkout, COD, manual bKash/Nagad, coupons, delivery zones, saved addresses (signed-in customers), SSLCommerz online payment (built, off by default) | Reorder | bKash / Nagad payment gateways |
 | Orders | Status flow, tracking page, invoices, manual tracking number | Courier API (Steadfast / Pathao) | Automated fraud scoring |
 | Customers | Optional account (email/Google), order history | Bangla UI | SMS notifications |
-| Admin | Products, stock, orders, coupons, payments, basic reports, settings, **CSV/Excel export** | Staff activity log, CSV import | Advanced analytics |
+| Admin | Products, stock, orders, coupons, payments, basic reports, **sales analytics (Owner)**, settings, **CSV/Excel export** | Staff activity log, CSV import | Advanced analytics (cohorts, forecasting, profit and margin) |
 | Marketing | Meta Pixel, GA4, Clarity, FB catalog feed, SEO | Abandoned cart (email), newsletter | Loyalty / referrals |
 
 ---
@@ -215,7 +215,11 @@ Single page, no account required.
    - Customer enters: sender bKash number and **Transaction ID (TrxID)**.
    - Order is created with payment status **Pending Verification**.
 3. **Nagad (manual)** — same as bKash.
-
+4. **Online payment (SSLCommerz)** — *added 21 Oct 2026 at the owner's request; off until the Owner turns it on in Settings → Payments, which needs the merchant credentials on the server.*
+   - The order is created first (stock held, payment status Unpaid), then the customer pays on SSLCommerz's page (card, bKash, Nagad, internet banking).
+   - The order becomes **Paid** only when the API confirms the payment with SSLCommerz's validation API (amount, currency and transaction must match). Payments SSLCommerz flags as risky wait for staff (Pending Verification).
+   - A failed or cancelled payment cancels the order, returns its stock and releases its coupon use; the cart stays so the customer can retry. Orders not paid within 45 minutes (setting on the server) are cancelled the same way.
+   - SSLCommerz charges a fee per payment, so it is a paid service: switching it on is the Owner's decision.
 **Validation and protection**
 
 - Cloudflare Turnstile (free) on the checkout form.
@@ -238,9 +242,12 @@ Single page, no account required.
 
 ### 5.10 Customer account (optional)
 
-- Sign up / log in with email + password or Google (free OAuth).
-- My Orders (list + details), saved addresses, profile.
-- Guest orders placed with the same phone number are linked to the account after login.
+*In Release 1 (owner, 21 Oct 2026). Guest checkout stays: an account is never required to order.*
+
+- Sign up / log in with email + password or Google (free OAuth; shown only once the Google credentials are set on the server). Forgot password by emailed link.
+- My Orders (list + details, same view as tracking), saved addresses (up to 10, one default) that fill checkout, profile (name, phone), change password, sign out on all devices.
+- Orders placed while signed in join the account. Guest orders join it in two ways: automatically when they were placed with the account's **verified** email, or when the customer **adds an order with its phone number + order number** (the tracking proof). *Linking by phone number alone was dropped (21 Oct 2026): without SMS verification anyone could type someone else's number and see their orders (rules.md §8.3).*
+- Customer sessions are separate from the dashboard's: customers cannot sign in to `/admin`, and staff accounts cannot sign in on the shop.
 
 ### 5.11 Content pages
 
@@ -350,11 +357,15 @@ Rules:
 
 - Store info: name (Aaarchive), logo, contact phone, WhatsApp number, email, address, social links.
 - Delivery zones: name, charge, estimated days; free-delivery threshold (optional).
-- Payments: enable/disable COD, bKash, Nagad; bKash/Nagad numbers and instructions; "advance delivery charge for COD" toggle.
+- Payments: enable/disable COD, bKash, Nagad, SSLCommerz (online; only when its credentials are set on the server); bKash/Nagad numbers and instructions; "advance delivery charge for COD" toggle.
 - Stock: default low-stock threshold, max quantity per variant per order.
 - Size chart templates.
 - Tracking IDs: Meta Pixel ID, GA4 ID, Clarity ID.
 - Staff users and roles (Owner only).
+
+### 6.9a Sales analytics (Owner only)
+
+*Approved by the owner, 21 Oct 2026.* `/admin/analytics`: pick a period (presets or custom dates); KPI tiles compared with the previous period (orders, sales, revenue, average order, units, discounts, cancel/return rate), a daily chart, and breakdowns by category, product, payment method, status, delivery zone, size, colour, coupon and new vs returning customers. Same money rules as the dashboard home (§6.1). No stock numbers.
 
 ### 6.9 Export to CSV / Excel
 
@@ -386,7 +397,8 @@ Requirements:
 ## 7. Data model (high level)
 
 ```
-User            id, name, email, phone, passwordHash?, role (CUSTOMER|STAFF|OWNER), createdAt
+User            id, name, email, phone, passwordHash?, googleId?, emailVerifiedAt?, role (CUSTOMER|STAFF|OWNER), createdAt
+AccountToken    id, userId, purpose (VERIFY_EMAIL|RESET_PASSWORD), tokenHash, expiresAt, usedAt?
 Address         id, userId, name, phone, zoneId, district, area, address, isDefault
 Category        id, name, slug, image, description, sortOrder, showOnHome
 Collection      id, name, slug, image, description, sortOrder, isActive
@@ -408,8 +420,8 @@ Order           id, orderNumber, userId?, customerName, phone, altPhone?, email?
                 courierName?, trackingNumber?, createdAt, updatedAt
 OrderItem       id, orderId, variantId, productName, sizeName, colorName, sku,
                 unitPrice, quantity, lineTotal          (snapshot at order time)
-Payment         id, orderId, method, amount, senderNumber?, trxId? (unique), status,
-                verifiedById?, verifiedAt?, note?
+Payment         id, orderId, method (BKASH|NAGAD|SSLCOMMERZ), amount, senderNumber?, trxId? (unique), status,
+                verifiedById?, verifiedAt?, note?, gatewayValId? (unique, SSLCommerz)
 OrderEvent      id, orderId, type (STATUS|NOTE|CALL|PAYMENT), from?, to?, note?, byUserId, createdAt
 BlockedPhone    id, phone, reason, createdById, createdAt
 SocialPost      id, image, link, label, platform, sortOrder
@@ -662,6 +674,6 @@ Release 1 (MVP) is built in eight phases. Tasks, exit criteria and progress are 
 3. Delivery zones and charges (e.g., Inside Dhaka / Dhaka Suburbs / Outside Dhaka — or based on the warehouse city).
 4. Enable "advance delivery charge for COD" at launch, or only if fake orders become a problem?
 5. Exchange policy details: exchange window (e.g., 3 days), who pays return delivery.
-6. Will customer accounts be in MVP, or guest-only at first?
+6. ~~Will customer accounts be in MVP, or guest-only at first?~~ — In Release 1 (owner, 21 Oct 2026), guest checkout kept (§5.10).
 7. Max quantity per variant per order (default 5).
 8. Bangla UI timeline.

@@ -8,6 +8,7 @@ type SwitchFieldProps = {
   label: string;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
+  disabled?: boolean;
 };
 
 /** A labelled on/off setting with a 44px tap target. */
@@ -16,13 +17,19 @@ export function SwitchField({
   label,
   checked,
   onCheckedChange,
+  disabled,
 }: SwitchFieldProps) {
   return (
     <div className="flex min-h-11 items-center justify-between gap-4">
       <Label htmlFor={id} className="font-normal">
         {label}
       </Label>
-      <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} />
+      <Switch
+        id={id}
+        checked={checked}
+        onCheckedChange={onCheckedChange}
+        disabled={disabled}
+      />
     </div>
   );
 }

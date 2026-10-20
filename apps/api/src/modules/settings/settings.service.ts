@@ -16,7 +16,9 @@ import {
   Logger,
   NotFoundException,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { z } from "zod";
+import type { Env } from "../../config/env.schema.js";
 import { PrismaService } from "../../prisma/prisma.service.js";
 import {
   collectMediaIds,
@@ -26,6 +28,7 @@ import {
 } from "../content/content-media.js";
 import { MediaService } from "../media/media.service.js";
 import { RevalidationService } from "../revalidation/revalidation.service.js";
+import { SslcommerzService } from "../sslcommerz/sslcommerz.service.js";
 
 type SettingValue<K extends SettingKey> = z.output<(typeof settingSchemas)[K]>;
 
@@ -47,9 +50,13 @@ export type PublicSettings = {
     bkash: { enabled: boolean; number: string; instructions: string };
     nagad: { enabled: boolean; number: string; instructions: string };
     codAdvanceDeliveryCharge: boolean;
+    /** On only when the Owner switched it on and the API has credentials. */
+    sslcommerz: { enabled: boolean };
   };
   delivery: { freeDeliveryThreshold: number | null };
   stock: { maxQtyPerVariant: number };
+  /** Customer accounts (PRD §5.10): whether "Continue with Google" works. */
+  accounts: { google: boolean };
 };
 
 /**
@@ -60,12 +67,20 @@ export type PublicSettings = {
 @Injectable()
 export class SettingsService {
   private readonly logger = new Logger(SettingsService.name);
+  private readonly googleConfigured: boolean;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly media: MediaService,
     private readonly revalidation: RevalidationService,
-  ) {}
+    private readonly sslcommerz: SslcommerzService,
+    config: ConfigService<Env, true>,
+  ) {
+    this.googleConfigured = Boolean(
+      config.get("GOOGLE_CLIENT_ID", { infer: true }) &&
+        config.get("GOOGLE_CLIENT_SECRET", { infer: true }),
+    );
+  }
 
   async get<K extends SettingKey>(key: K): Promise<SettingValue<K>> {
     const schema: z.ZodType = settingSchemas[key];
@@ -104,7 +119,18 @@ export class SettingsService {
       this.media,
       collectMediaIds(values),
     );
-    return { settings: values, media: Object.fromEntries(mediaMap) };
+    return {
+      settings: values,
+      media: Object.fromEntries(mediaMap),
+      // Set on the server (env), shown read-only next to their switches.
+      integrations: {
+        sslcommerz: {
+          configured: this.sslcommerz.configured,
+          sandbox: this.sslcommerz.sandbox,
+        },
+        google: { configured: this.googleConfigured },
+      },
+    };
   }
 
   /** Replaces one setting (OWNER). Unknown keys are 404; values are validated. */
@@ -123,6 +149,17 @@ export class SettingsService {
         message: "Invalid setting",
         code: "VALIDATION_ERROR",
         details: z.flattenError(parsed.error),
+      });
+    }
+    // Online payment cannot be offered without merchant credentials.
+    if (
+      settingKey === "payments" &&
+      (parsed.data as PaymentSettings).sslcommerz.enabled &&
+      !this.sslcommerz.configured
+    ) {
+      throw new BadRequestException({
+        message: "Add the SSLCommerz store credentials on the server first",
+        code: "SSLCOMMERZ_NOT_CONFIGURED",
       });
     }
     for (const id of collectMediaIds(parsed.data)) {
@@ -188,9 +225,13 @@ export class SettingsService {
         bkash: wallet(payments.bkash),
         nagad: wallet(payments.nagad),
         codAdvanceDeliveryCharge: payments.codAdvanceDeliveryCharge,
+        sslcommerz: {
+          enabled: payments.sslcommerz.enabled && this.sslcommerz.configured,
+        },
       },
       delivery: { freeDeliveryThreshold: delivery.freeDeliveryThreshold },
       stock: { maxQtyPerVariant: stock.maxQtyPerVariant },
+      accounts: { google: this.googleConfigured },
     };
   }
 }

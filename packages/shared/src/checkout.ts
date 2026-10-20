@@ -165,6 +165,8 @@ export const checkoutPaymentSchema = z.discriminatedUnion("method", [
   }),
   z.strictObject({ method: z.literal("BKASH"), ...walletPaymentFields }),
   z.strictObject({ method: z.literal("NAGAD"), ...walletPaymentFields }),
+  /** Online payment: the customer pays on SSLCommerz's page after the order is created. */
+  z.strictObject({ method: z.literal("SSLCOMMERZ") }),
 ]);
 export type CheckoutPayment = z.infer<typeof checkoutPaymentSchema>;
 
@@ -181,6 +183,8 @@ export const checkoutSchema = z.strictObject({
   couponCode: z.preprocess(blankToUndefined, couponCodeSchema.optional()),
   payment: checkoutPaymentSchema,
   items: cartItemsSchema,
+  /** Signed-in customers: keep this address in their account (ignored for guests). */
+  saveAddress: z.boolean().optional(),
   /** Cloudflare Turnstile token; the API verifies it (skipped locally). */
   turnstileToken: z.string().max(4096).optional(),
 });

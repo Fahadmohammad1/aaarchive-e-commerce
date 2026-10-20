@@ -26,7 +26,8 @@ export const PAYMENT_STATUSES = [
 export const paymentStatusSchema = z.enum(PAYMENT_STATUSES);
 export type PaymentStatus = z.infer<typeof paymentStatusSchema>;
 
-export const PAYMENT_METHODS = ["COD", "BKASH", "NAGAD"] as const;
+/** SSLCommerz = online card / mobile-banking payment, off until the Owner turns it on. */
+export const PAYMENT_METHODS = ["COD", "BKASH", "NAGAD", "SSLCOMMERZ"] as const;
 export const paymentMethodSchema = z.enum(PAYMENT_METHODS);
 export type PaymentMethod = z.infer<typeof paymentMethodSchema>;
 
@@ -240,6 +241,10 @@ export type OrderEditInput = z.input<typeof orderEditSchema>;
 
 // ── Payments (PRD §6.4): manual bKash/Nagad checks ─────────────────────────
 
+/** Methods that create a Payment record: the wallets and SSLCommerz (online). */
+export const PAYMENT_RECORD_METHODS = ["BKASH", "NAGAD", "SSLCOMMERZ"] as const;
+export type PaymentRecordMethod = (typeof PAYMENT_RECORD_METHODS)[number];
+
 export const PAYMENT_RECORD_STATUSES = [
   "PENDING",
   "VERIFIED",
@@ -261,7 +266,7 @@ const paymentFilterFields = {
   /** Order number, TrxID or sender number. */
   q: z.string().trim().max(60).optional(),
   status: z.enum(PAYMENT_RECORD_STATUSES).optional(),
-  method: z.enum(["BKASH", "NAGAD"]).optional(),
+  method: z.enum(PAYMENT_RECORD_METHODS).optional(),
   from: daySchema.optional(),
   to: daySchema.optional(),
 };
@@ -273,7 +278,7 @@ export const paymentListQuerySchema = z.strictObject({
 export type PaymentListQuery = {
   q?: string;
   status?: PaymentRecordStatus;
-  method?: "BKASH" | "NAGAD";
+  method?: PaymentRecordMethod;
   from?: string;
   to?: string;
   page?: number;

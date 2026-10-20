@@ -89,7 +89,11 @@ export function toPublicOrder(
   row: PublicOrderRow,
   couriers: readonly Courier[] = [],
 ): PublicOrder {
-  const wallet = row.payments.find((p) => p.method !== "COD");
+  // Online (SSLCommerz) payments are not wallet payments; paymentStatus tells.
+  const wallet = row.payments.find(
+    (p): p is typeof p & { method: "BKASH" | "NAGAD" } =>
+      p.method === "BKASH" || p.method === "NAGAD",
+  );
   const advance =
     row.paymentMethod === "COD" && wallet && wallet.status !== "REJECTED"
       ? wallet.amount
@@ -115,14 +119,13 @@ export function toPublicOrder(
     couponCode: row.couponCode,
     paymentMethod: row.paymentMethod,
     paymentStatus: row.paymentStatus,
-    walletPayment:
-      wallet && wallet.method !== "COD"
-        ? {
-            method: wallet.method,
-            amount: wallet.amount,
-            status: wallet.status,
-          }
-        : null,
+    walletPayment: wallet
+      ? {
+          method: wallet.method,
+          amount: wallet.amount,
+          status: wallet.status,
+        }
+      : null,
     payOnDelivery: row.paymentMethod === "COD" ? row.total - advance : 0,
     // Shown once the order has shipped (PRD §5.9).
     courier: row.courierName

@@ -20,9 +20,11 @@ import {
   UnprocessableEntityException,
 } from "@nestjs/common";
 import type { z } from "zod";
+import type { RequestUser } from "../../common/auth/request-user.js";
 import { isUniqueViolation } from "../../common/prisma/prisma-errors.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import { PrismaService } from "../../prisma/prisma.service.js";
+import { AddressesService } from "../account/addresses.service.js";
 import { TurnstileService } from "../auth/turnstile.service.js";
 import {
   type PricedLine,
@@ -34,12 +36,22 @@ import { DeliveryZonesService } from "../delivery-zones/delivery-zones.service.j
 import { MailService } from "../mail/mail.service.js";
 import { RevalidationService } from "../revalidation/revalidation.service.js";
 import { SettingsService } from "../settings/settings.service.js";
+import { SslcommerzService } from "../sslcommerz/sslcommerz.service.js";
 import { orderConfirmationMail } from "./order-mail.js";
 import {
   type PublicOrder,
   publicOrderSelect,
   toPublicOrder,
 } from "./orders.mapper.js";
+
+/** The public shape plus the payment record's id (SSLCommerz's tran_id). */
+const placedOrderSelect = {
+  ...publicOrderSelect,
+  payments: {
+    ...publicOrderSelect.payments,
+    select: { ...publicOrderSelect.payments.select, id: true },
+  },
+} as const;
 
 /** Orders per phone per hour (PRD §5.8); the per-IP limit is on the route. */
 export const ORDERS_PER_PHONE_PER_HOUR = 3;
@@ -59,12 +71,16 @@ export function outOfStock(variantIds: string[]) {
 type PaymentPlan = {
   paymentStatus: "UNPAID" | "PENDING_VERIFICATION";
   record: {
-    method: "BKASH" | "NAGAD";
+    method: "BKASH" | "NAGAD" | "SSLCOMMERZ";
     amount: number;
-    senderNumber: string;
-    trxId: string;
+    /** Wallets only; SSLCommerz is confirmed by its validation API. */
+    senderNumber: string | null;
+    trxId: string | null;
   } | null;
 };
+
+/** POST /orders answer. Online payment adds the SSLCommerz page to go to. */
+export type PlacedOrder = PublicOrder & { paymentUrl?: string };
 
 @Injectable()
 export class OrdersService {
@@ -79,6 +95,8 @@ export class OrdersService {
     private readonly turnstile: TurnstileService,
     private readonly mail: MailService,
     private readonly revalidation: RevalidationService,
+    private readonly sslcommerz: SslcommerzService,
+    private readonly addresses: AddressesService,
   ) {}
 
   /**
@@ -89,15 +107,24 @@ export class OrdersService {
   async place(
     input: z.output<typeof checkoutSchema>,
     ip: string | undefined,
-  ): Promise<PublicOrder> {
+    user?: RequestUser,
+  ): Promise<PlacedOrder> {
     await this.turnstile.verify(input.turnstileToken, ip);
+    // Unpaid online orders past their window give their stock back first.
+    void this.sslcommerz.expireStale();
+    // A signed-in customer's order joins their account (PRD §5.10).
+    const userId = user?.role === "CUSTOMER" ? user.id : null;
 
     const [payments, stockSettings, delivery] = await Promise.all([
       this.settings.payments(),
       this.settings.stock(),
       this.settings.delivery(),
     ]);
-    assertMethodAvailable(input.payment.method, payments);
+    assertMethodAvailable(
+      input.payment.method,
+      payments,
+      this.sslcommerz.configured,
+    );
     await this.assertNotBlocked(input);
     await this.assertPhoneRate(input.phone);
 
@@ -143,17 +170,18 @@ export class OrdersService {
     const total = subtotal - discount + deliveryCharge;
     const plan = paymentPlan(input, payments, total, deliveryCharge);
 
-    if (plan.record) await this.assertTrxIdUnused(plan.record.trxId);
+    if (plan.record?.trxId) await this.assertTrxIdUnused(plan.record.trxId);
 
-    const order = await this.prisma
+    const { paymentId, ...order } = await this.prisma
       .$transaction(async (tx) => {
         await claimStock(tx, lines);
         if (applied) await claimCoupon(tx, applied.coupon.id);
         const [{ n }] = await tx.$queryRaw<{ n: bigint }[]>`
           select nextval('order_number_seq') as n`;
-        return tx.order.create({
+        const created = await tx.order.create({
           data: {
             orderNumber: `AAR-${n}`,
+            userId,
             customerName: input.name,
             phone: input.phone,
             altPhone: input.altPhone ?? null,
@@ -185,8 +213,10 @@ export class OrdersService {
             ...(plan.record ? { payments: { create: plan.record } } : {}),
             events: { create: { type: "STATUS", to: "PENDING" } },
           },
-          select: publicOrderSelect,
+          select: placedOrderSelect,
         });
+        // The order's one payment record; SSLCommerz uses its id as tran_id.
+        return { ...created, paymentId: created.payments[0]?.id ?? null };
       })
       .catch((error: unknown) => {
         // Two orders racing with the same TrxID: the unique index decides.
@@ -196,7 +226,22 @@ export class OrdersService {
 
     this.logger.log(`Order placed: ${order.orderNumber}`);
     const result = toPublicOrder(order);
-    void this.afterPlaced(result, input, lines);
+    void this.afterPlaced(result, input, lines, userId);
+
+    if (input.payment.method === "SSLCOMMERZ" && paymentId) {
+      const paymentUrl = await this.sslcommerz.startPayment({
+        orderNumber: order.orderNumber,
+        paymentId,
+        total,
+        itemCount: lines.reduce((sum, l) => sum + l.quantity, 0),
+        customerName: input.name,
+        email: input.email ?? null,
+        phone: input.phone,
+        address: input.address,
+        district: input.district,
+      });
+      return { ...result, paymentUrl };
+    }
     return result;
   }
 
@@ -261,6 +306,7 @@ export class OrdersService {
     order: PublicOrder,
     input: CheckoutValues,
     lines: PricedLine[],
+    userId: string | null,
   ) {
     try {
       // A variant that just sold out changes listings ("Out of Stock").
@@ -275,7 +321,19 @@ export class OrdersService {
           ...[...slugs].map(cacheTags.product),
         ]);
       }
-      if (input.email) {
+      if (userId && input.saveAddress) {
+        await this.addresses.saveFromCheckout(userId, {
+          name: input.name,
+          phone: input.phone,
+          zoneId: input.zoneId,
+          district: input.district,
+          area: input.area,
+          address: input.address,
+          isDefault: false,
+        });
+      }
+      // Online payment: the confirmation goes out once SSLCommerz confirms it.
+      if (input.email && input.payment.method !== "SSLCOMMERZ") {
         await this.mail.send(
           orderConfirmationMail(order, input.name, input.email),
           order.orderNumber,
@@ -325,11 +383,14 @@ async function claimCoupon(tx: Prisma.TransactionClient, couponId: string) {
 function assertMethodAvailable(
   method: CheckoutValues["payment"]["method"],
   payments: PaymentSettings,
+  sslcommerzConfigured = false,
 ) {
   const available =
     method === "COD"
       ? payments.cod.enabled
-      : walletAvailable(method === "BKASH" ? payments.bkash : payments.nagad);
+      : method === "SSLCOMMERZ"
+        ? payments.sslcommerz.enabled && sslcommerzConfigured
+        : walletAvailable(method === "BKASH" ? payments.bkash : payments.nagad);
   if (!available) {
     throw new UnprocessableEntityException({
       message: "This payment method is not available right now",
@@ -346,6 +407,18 @@ function paymentPlan(
   deliveryCharge: number,
 ): PaymentPlan {
   const p = input.payment;
+  if (p.method === "SSLCOMMERZ") {
+    // Paid on SSLCommerz's page after the order exists (sslcommerz.service).
+    return {
+      paymentStatus: "UNPAID",
+      record: {
+        method: "SSLCOMMERZ",
+        amount: total,
+        senderNumber: null,
+        trxId: null,
+      },
+    };
+  }
   if (p.method !== "COD") {
     return {
       paymentStatus: "PENDING_VERIFICATION",

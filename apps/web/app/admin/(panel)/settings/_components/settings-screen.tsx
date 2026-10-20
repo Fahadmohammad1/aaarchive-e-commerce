@@ -124,10 +124,21 @@ function StoreTab({ initial, media }: { initial: unknown; media: Media }) {
   );
 }
 
-function PaymentsTab({ initial }: { initial: unknown }) {
+function PaymentsTab({
+  initial,
+  sslcommerz,
+}: {
+  initial: unknown;
+  sslcommerz: { configured: boolean; sandbox: boolean };
+}) {
   const t = getAdminMessages().settingsPage;
   const { form, submit, saving, message } = useSettingForm("payments", initial);
-  const toggle = (name: string, id: string, label: string) => (
+  const toggle = (
+    name: string,
+    id: string,
+    label: string,
+    disabled = false,
+  ) => (
     <Controller
       control={form.control}
       name={name}
@@ -137,6 +148,7 @@ function PaymentsTab({ initial }: { initial: unknown }) {
           label={label}
           checked={Boolean(field.value)}
           onCheckedChange={field.onChange}
+          disabled={disabled}
         />
       )}
     />
@@ -176,6 +188,31 @@ function PaymentsTab({ initial }: { initial: unknown }) {
           <p className="text-muted-foreground text-xs">{t.walletOffHint}</p>
         </fieldset>
       ))}
+      {/* Online payment (owner, 2026-10-21): off until the Owner turns it on. */}
+      <fieldset className="flex flex-col gap-3 rounded-md border p-4">
+        <legend className="px-1 font-medium">{t.sslcommerz}</legend>
+        <p
+          className={
+            sslcommerz.configured
+              ? "text-sm text-success"
+              : "text-muted-foreground text-sm"
+          }
+        >
+          {!sslcommerz.configured
+            ? t.sslcommerzMissing
+            : sslcommerz.sandbox
+              ? t.sslcommerzSandbox
+              : t.sslcommerzLive}
+        </p>
+        {toggle(
+          "sslcommerz.enabled",
+          "pay-ssl",
+          t.enabled,
+          // Switching off always works; on needs the credentials.
+          !sslcommerz.configured && !form.watch("sslcommerz.enabled"),
+        )}
+        <p className="text-muted-foreground text-xs">{t.sslcommerzHint}</p>
+      </fieldset>
       <SaveRow saving={saving} message={message} />
     </form>
   );
@@ -363,7 +400,10 @@ export function SettingsScreen() {
             <StoreTab initial={data.settings.store} media={data.media} />
           </TabsContent>
           <TabsContent value="payments">
-            <PaymentsTab initial={data.settings.payments} />
+            <PaymentsTab
+              initial={data.settings.payments}
+              sslcommerz={data.integrations.sslcommerz}
+            />
           </TabsContent>
           <TabsContent value="stock">
             <StockTab

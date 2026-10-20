@@ -3,22 +3,42 @@
 import { formatTaka } from "@aaarchive/shared/money";
 import { ArrowUpRight, Check } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
+import { trackPurchase } from "@/lib/analytics/analytics";
+import { useCartStore } from "@/lib/cart/cart-store";
 import { format, getMessages } from "@/lib/i18n/i18n";
-import { readLastOrder } from "@/lib/order/last-order";
+import { readLastOrder, takePendingPurchase } from "@/lib/order/last-order";
 import type { PublicOrder } from "@/lib/order/order-types";
 
-/** Order placed (design §7.5). Details come from this tab's session only. */
+/**
+ * Order placed (design §7.5). Details come from this tab's session only.
+ * Back from SSLCommerz, `?payment=paid|review` says the API recorded the
+ * payment (it only redirects here after asking SSLCommerz).
+ */
 export function SuccessView({ orderNumber }: { orderNumber: string }) {
   const t = getMessages();
   const ts = t.success;
+  const payment = useSearchParams().get("payment");
+  const paidOnline = payment === "paid" || payment === "review";
+  const clearCart = useCartStore((s) => s.clear);
   const [order, setOrder] = React.useState<PublicOrder | null>(null);
   const [copied, setCopied] = React.useState(false);
 
   React.useEffect(() => {
     setOrder(readLastOrder(orderNumber));
   }, [orderNumber]);
+
+  // Online payment: the cart was kept in case the payment failed; now it
+  // was paid, empty it and count the purchase (once per order).
+  React.useEffect(() => {
+    if (!paidOnline) return;
+    const purchase = takePendingPurchase(orderNumber);
+    if (!purchase) return;
+    clearCart();
+    trackPurchase(purchase.orderNumber, purchase.total, purchase.items);
+  }, [paidOnline, orderNumber, clearCart]);
 
   return (
     <div className="site-container flex flex-col items-center gap-8 py-12 text-center md:py-20">
@@ -58,13 +78,22 @@ export function SuccessView({ orderNumber }: { orderNumber: string }) {
           <p className="text-center type-mono-label">
             {format(ts.call, { phone: order.phone })}
           </p>
-          {order.paymentStatus === "PENDING_VERIFICATION" && (
+          {paidOnline ? (
             <p
               role="status"
               className="border border-primary p-3 type-mono-label"
             >
-              {ts.pending}
+              {payment === "paid" ? ts.paidOnline : ts.reviewOnline}
             </p>
+          ) : (
+            order.paymentStatus === "PENDING_VERIFICATION" && (
+              <p
+                role="status"
+                className="border border-primary p-3 type-mono-label"
+              >
+                {ts.pending}
+              </p>
+            )
           )}
           {order.payOnDelivery > 0 && (
             <p className="text-center text-muted-foreground type-mono-micro">

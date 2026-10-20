@@ -24,3 +24,38 @@ export function readLastOrder(orderNumber: string): PublicOrder | null {
     return null;
   }
 }
+
+// Online payment: the purchase only counts once SSLCommerz sends the customer
+// back paid, so the analytics event waits here until then (this tab only).
+
+const PENDING_KEY = "aaarchive-pending-purchase";
+
+export type PendingPurchase = {
+  orderNumber: string;
+  total: number;
+  items: Array<{ id: string; name: string; price: number; quantity: number }>;
+};
+
+export function savePendingPurchase(purchase: PendingPurchase) {
+  try {
+    sessionStorage.setItem(PENDING_KEY, JSON.stringify(purchase));
+  } catch {
+    // Without storage the event is simply not sent.
+  }
+}
+
+/** Returns the waiting purchase for this order once, then forgets it. */
+export function takePendingPurchase(
+  orderNumber: string,
+): PendingPurchase | null {
+  try {
+    const raw = sessionStorage.getItem(PENDING_KEY);
+    if (!raw) return null;
+    const purchase = JSON.parse(raw) as PendingPurchase;
+    if (purchase.orderNumber !== orderNumber) return null;
+    sessionStorage.removeItem(PENDING_KEY);
+    return purchase;
+  } catch {
+    return null;
+  }
+}

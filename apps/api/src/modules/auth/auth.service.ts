@@ -1,9 +1,11 @@
-import type {
-  AuthUser,
-  ChangePasswordInput,
-  LoginInput,
-  MfaChallenge,
-  SessionResponse,
+import {
+  type AuthUser,
+  type ChangePasswordInput,
+  type LoginInput,
+  type MfaChallenge,
+  type Role,
+  type SessionResponse,
+  STAFF_ROLES,
 } from "@aaarchive/shared/auth";
 import {
   BadRequestException,
@@ -21,7 +23,14 @@ import { checkNewPassword } from "./password-policy.js";
 import { type IssuedRefresh, TokenService } from "./token.service.js";
 import { TotpService } from "./totp.service.js";
 
-type SessionResult = { session: SessionResponse; refresh: IssuedRefresh };
+export type SessionResult = {
+  session: SessionResponse;
+  refresh: IssuedRefresh;
+};
+
+/** Who may use a sign-in door: the dashboard's or the customers' (PRD §5.10). */
+export type RoleScope = readonly Role[];
+export const CUSTOMER_SCOPE: RoleScope = ["CUSTOMER"];
 export type LoginResult = SessionResult | { mfa: MfaChallenge };
 
 /** Audience of the short-lived "password passed, code needed" token. */
@@ -64,12 +73,21 @@ export class AuthService {
     this.dummyHash = hash("timing-equaliser-not-a-real-password");
   }
 
-  /** Same error for every failure: wrong email, wrong password, locked or inactive. */
-  async login(input: LoginInput, userAgent?: string): Promise<LoginResult> {
-    const user = await this.prisma.user.findUnique({
+  /**
+   * Same error for every failure: wrong email, wrong password, locked,
+   * inactive, or an account of the other kind (a customer at the dashboard
+   * door or staff at the shop's), so neither door reveals the other's accounts.
+   */
+  async login(
+    input: LoginInput,
+    userAgent?: string,
+    scope: RoleScope = STAFF_ROLES,
+  ): Promise<LoginResult> {
+    const found = await this.prisma.user.findUnique({
       where: { email: input.email },
       select: USER_SELECT,
     });
+    const user = found && scope.includes(found.role) ? found : null;
 
     const now = Date.now();
     const locked = !!user?.lockedUntil && user.lockedUntil.getTime() > now;
@@ -155,6 +173,20 @@ export class AuthService {
     return this.completeLogin(user, userAgent);
   }
 
+  /** Starts a session for a user who just proved who they are. */
+  startSession(
+    user: {
+      id: string;
+      name: string;
+      email: string | null;
+      role: AuthUser["role"];
+      tokenVersion: number;
+    },
+    userAgent?: string,
+  ): Promise<SessionResult> {
+    return this.completeLogin(user, userAgent);
+  }
+
   private async completeLogin(
     user: {
       id: string;
@@ -177,6 +209,7 @@ export class AuthService {
   async refresh(
     rawToken: string | undefined,
     userAgent?: string,
+    scope: RoleScope = STAFF_ROLES,
   ): Promise<SessionResult> {
     if (!rawToken) throw sessionExpired();
     const result = await this.tokens.rotate(rawToken, userAgent);
@@ -186,7 +219,7 @@ export class AuthService {
       where: { id: result.userId },
       select: USER_SELECT,
     });
-    if (!user?.isActive) {
+    if (!user?.isActive || !scope.includes(user.role)) {
       await this.tokens.revokeFamily(result.refresh.familyId);
       throw sessionExpired();
     }

@@ -106,6 +106,7 @@ export function PaymentsScreen() {
             <option value="">{tp.allMethods}</option>
             <option value="BKASH">{t.paymentMethod.BKASH}</option>
             <option value="NAGAD">{t.paymentMethod.NAGAD}</option>
+            <option value="SSLCOMMERZ">{t.paymentMethod.SSLCOMMERZ}</option>
           </NativeSelect>
         </div>
       </div>

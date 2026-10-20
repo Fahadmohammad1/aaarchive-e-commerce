@@ -27,6 +27,7 @@ import { PrismaService } from "../../prisma/prisma.service.js";
 import { PricingService } from "../cart/pricing.service.js";
 import { MailService } from "../mail/mail.service.js";
 import { RevalidationService } from "../revalidation/revalidation.service.js";
+import { SslcommerzService } from "../sslcommerz/sslcommerz.service.js";
 import {
   type AdminOrder,
   adminOrderListSelect,
@@ -36,6 +37,7 @@ import {
 } from "./admin-orders.mapper.js";
 import { orderStatusMail } from "./order-mail.js";
 import { outOfStock } from "./orders.service.js";
+import { restoreStock } from "./restore-stock.js";
 
 type ListQuery = z.output<typeof adminOrderListQuerySchema>;
 export type OrderFilters = Omit<ListQuery, "page" | "limit">;
@@ -78,9 +80,12 @@ export class AdminOrdersService {
     private readonly pricing: PricingService,
     private readonly mail: MailService,
     private readonly revalidation: RevalidationService,
+    private readonly sslcommerz: SslcommerzService,
   ) {}
 
   async list(query: ListQuery) {
+    // Staff open this often: a good moment to expire unpaid online orders.
+    void this.sslcommerz.expireStale();
     const where = orderWhere(query);
     const [rows, total] = await Promise.all([
       this.prisma.order.findMany({
@@ -429,25 +434,6 @@ export class AdminOrdersService {
       cacheTags.products,
       ...unique.map(cacheTags.product),
     ]);
-  }
-}
-
-/** Puts each line's quantity back on its variant (PRD §5.6 rule 7). */
-export async function restoreStock(
-  tx: Prisma.TransactionClient,
-  items: ReadonlyArray<{ variantId: string | null; quantity: number }>,
-) {
-  const lines = items
-    .filter((i): i is { variantId: string; quantity: number } =>
-      Boolean(i.variantId),
-    )
-    .sort((a, b) => a.variantId.localeCompare(b.variantId));
-  for (const line of lines) {
-    // updateMany: a deleted variant (SetNull) is simply skipped.
-    await tx.variant.updateMany({
-      where: { id: line.variantId },
-      data: { stock: { increment: line.quantity } },
-    });
   }
 }
 

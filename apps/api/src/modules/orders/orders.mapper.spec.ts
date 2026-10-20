@@ -56,4 +56,18 @@ describe("toPublicOrder", () => {
       "https://track.example/PT123",
     );
   });
+
+  it("never shows an online (SSLCommerz) payment as a wallet payment", () => {
+    const online: PublicOrderRow = {
+      ...row,
+      paymentMethod: "SSLCOMMERZ",
+      paymentStatus: "PAID",
+      payments: [{ method: "SSLCOMMERZ", amount: 4130, status: "VERIFIED" }],
+    };
+    expect(toPublicOrder(online)).toMatchObject({
+      walletPayment: null,
+      payOnDelivery: 0,
+      paymentStatus: "PAID",
+    });
+  });
 });
