@@ -447,6 +447,55 @@ describe.skipIf(!TEST_DB)("order management (e2e, real database)", () => {
     ).toBe(true);
   });
 
+  it("reports sales analytics to the owner only", async () => {
+    expect((await admin("get", "/admin/reports/sales")).status).toBe(403);
+    const ownerToken = await signIn(owner.email);
+    const res = await admin("get", "/admin/reports/sales", ownerToken);
+    expect(res.status).toBe(200);
+    expect(res.headers["cache-control"]).toBe("no-store");
+    expect(res.body.daily).toHaveLength(30);
+    expect(res.body.range.days.at(-1)).toBe(res.body.range.to);
+    expect(res.body.totals.orders).toBeGreaterThan(0);
+    expect(res.body.totals.unitsSold).toBeGreaterThan(0);
+    expect(
+      res.body.daily.reduce(
+        (sum: number, d: { orders: number }) => sum + d.orders,
+        0,
+      ),
+    ).toBe(res.body.totals.orders);
+    expect(
+      res.body.byStatus.reduce(
+        (sum: number, s: { orders: number }) => sum + s.orders,
+        0,
+      ),
+    ).toBe(res.body.totals.orders);
+    expect(
+      res.body.topProducts.some(
+        (b: { productName: string }) => b.productName === `E2E ${run} Panjabi`,
+      ),
+    ).toBe(true);
+    expect(res.body.customers.total).toBeGreaterThan(0);
+    expect(res.body.customers.returning).toBe(
+      res.body.customers.total - res.body.customers.new,
+    );
+    // Stock never appears in a report about sales.
+    expect(JSON.stringify(res.body)).not.toMatch(/"stock"/);
+
+    for (const query of [
+      "?from=2026-10-31&to=2026-10-01",
+      "?from=2024-01-01&to=2026-10-01",
+      "?from=2026-02-30",
+      "?days=7",
+    ]) {
+      const bad = await admin(
+        "get",
+        `/admin/reports/sales${query}`,
+        ownerToken,
+      );
+      expect(bad.status).toBe(400);
+    }
+  });
+
   it("lets the owner set couriers and shows customers the tracking link", async () => {
     const ownerToken = await signIn(owner.email);
     const before = await db().setting.findUnique({
@@ -520,6 +569,7 @@ describe.skipIf(!TEST_DB)("order management (e2e, real database)", () => {
       "/admin/payments",
       "/admin/customers",
       "/admin/reports/summary",
+      "/admin/reports/sales",
     ]) {
       expect((await admin("get", path, customerToken)).status).toBe(403);
     }

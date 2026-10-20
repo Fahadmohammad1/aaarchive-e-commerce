@@ -173,6 +173,7 @@ The cart stores only `variantId` + `quantity` (+ a display snapshot). It never s
 | Images | `components/store/media-image.tsx`: `<img srcset>` over the stored WebP widths (works in Server Components; no optimiser). `next/image` only for bundled assets (logo) and dev placeholders | built |
 | Bot protection | Cloudflare Turnstile widget | planned |
 | Analytics | GA4, Meta Pixel, Microsoft Clarity via `lib/analytics/` (IDs from Settings → Tracking, loaded after idle) | built (Phase 7) |
+| Charts (admin only) | **recharts 3** through shadcn's `components/ui/chart.tsx` (owner approved 2026-10-20). Never imported by storefront code | built (sales analytics) |
 | Hosting | **Testing (2026-10-20):** Vercel Hobby, test data only, no real orders (§8.1). **Launch:** must move off Vercel Hobby (non-commercial licence): a VPS is planned, Cloudflare Workers via OpenNext is the free alternative | testing |
 | Browser tests | Playwright (`e2e/checkout.spec.ts`, Pixel 7 profile) against the built web + API on a disposable DB | built (Phase 7) |
 
@@ -252,10 +253,12 @@ apps/web/
 │   │       ├── settings/          # tabs: store, payments, stock & delivery, SEO, tracking (Owner only)
 │   │       ├── staff/             # Owner only
 │   │       ├── _components/dashboard-home.tsx    # PRD §6.1 numbers (GET /admin/reports/summary, refreshed each minute)
+│   │       ├── analytics/         # Owner only: sales analytics (GET /admin/reports/sales) — range-filter (presets + custom dates in the
+│   │       │                      #   URL), kpi-grid (vs previous period), daily-chart (shadcn chart/recharts + table view), breakdown (BarList)
 │   │       ├── content/ · settings/
 │   └── api/revalidate/            # the ONLY route handler: cache-tag webhook from the API
 ├── components/
-│   ├── ui/                        # shadcn/ui primitives — the base for storefront and admin
+│   ├── ui/                        # shadcn/ui primitives — the base for storefront and admin (chart.tsx = recharts, admin only)
 │   ├── store/                     # storefront pieces on shadcn: Logo, Tag, ArrowButton, ScrollSlider, ProductCard, CategoryCard,
 │   │                              #   SectionHeading, IndexMarkers, KanthaDivider, Wordmark, ColorSwatches,
 │   │                              #   RichText (Markdown-lite → React elements, never HTML; also the editor preview),
@@ -288,14 +291,14 @@ apps/web/
 │   │                              #   cart-types, use-cart-validation, use-coupon-quote (all Zod-free)
 │   ├── order/                     # storefront: order-store-api (place, track), order-types, use-orders, last-order (sessionStorage)
 │   │                              #   admin: order-api, order-schemas, order-keys, use-admin-orders
-│   ├── payment/ · customer/ · report/  # admin api/keys/schemas/hooks for payments, customers + blocklist, dashboard summary
+│   ├── payment/ · customer/ · report/  # admin api/keys/schemas/hooks for payments, customers + blocklist, dashboard summary + sales analytics
 │   ├── content/                   # content-store-api (cached server fetchers) + content-store-schemas, content-client-api
 │   │                              #   (menu, contact form; Zod-free), admin content-api/-admin-schemas/use-content, content-keys
 │   ├── staff/                     # staff-api, staff-schemas, staff-keys, use-staff
 │   ├── coupon/ · delivery-zone/   # admin api/keys/schemas/hooks + *-store-api (Zod-free) for checkout
 │   ├── settings/                  # settings-store-api (GET /settings/public), settings-keys, use-public-settings
 │   ├── auth/ · size/ · color/ · size-chart/
-│   └── content/ · upload/
+│   └── content/ · upload/         # upload/: upload-api, upload-keys, use-media, shrink-image (browser pre-shrink > 4 MB)
 └── public/
     ├── logo.png · logo.jpeg       # logo originals as supplied (black background)
     ├── images/logo-*.png          # transparent web cuts: wordmark (header/menu), full (footer)
@@ -447,6 +450,7 @@ request → helmet/CORS → body limit (100 KB) → ProxySecretMiddleware → /a
   - `GET /admin/payments` (`paymentListQuerySchema`: `q` TrxID/sender/order no., `status` PENDING|VERIFIED|REJECTED, `method`, dates; pending sorted oldest first), `POST /admin/payments/:id/verify { note? }` / `reject { note }` → order `PAID` (wallet order, or COD already delivered), `PARTIALLY_PAID` (COD advance) or `UNPAID` (rejected), plus a PAYMENT event; `409 PAYMENT_ALREADY_DECIDED`.
   - `GET /admin/customers` (`customerListQuerySchema`: `q`, `blocked=1|0`) → per phone `{ phone, name (latest), email, orders, delivered, cancelledOrReturned, successRate (delivered ÷ finished, %), totalSpent (delivered), firstOrderAt, lastOrderAt, blocked }` (raw SQL in `customers.query.ts`); `GET /admin/customers/:phone` → `{ phone, customer, block, orders }`. `GET|POST /admin/blocked-phones`, `DELETE /admin/blocked-phones/:id` (`409 PHONE_ALREADY_BLOCKED`).
   - `GET /admin/reports/summary` (no-store) → `{ today, month: { orders, revenue (Delivered or Paid, not cancelled/returned), pending (open, unpaid) }, byStatus, paymentsAwaiting, lowStockThreshold (setting), lowStock (top 10 active variants ≤ product or store threshold), bestSellers (top 5 this month by quantity), generatedAt }`; periods are Dhaka calendar days by order date.
+  - `GET /admin/reports/sales?from&to` (**OWNER only**, no-store; `salesReportQuerySchema`: Dhaka days, inclusive, ≤ 366 days, defaults to the last 30 days) → `{ range: { from, to, days[], previousFrom, previousTo }, totals, previous: SalesTotals, daily: [{ date, orders, grossSales, revenue }] (every day, zeros filled), byStatus: [{ status, orders, value }], byPaymentMethod / byZone: [{ …, orders, value }], topProducts (10, by sales), byCategory: [{ categoryId|null, name|null, quantity, revenue }], bySize / byColor: [{ name, quantity }] (12), coupons: [{ code, orders, discount }] (10), customers: { total, new, returning }, generatedAt }`. `SalesTotals` = `{ orders (all placed), validOrders, grossSales, revenue, pending, discount, deliveryCharges, unitsSold, delivered, cancelled, returned }`. Same money rules as the summary: sales exclude Cancelled/Returned, revenue is Delivered or Paid; `previous` is the same number of days just before `from`; "new" customer = first order ever (by phone) inside the range. No stock data. Service: `reports/sales-report.service.ts`.
   - Couriers (user 2026-10-19: the store may use several): `GET /admin/settings/couriers` (OWNER/STAFF) and `PUT /admin/settings/couriers` (OWNER, `courierSettingsSchema`: up to 20 `{ name, trackingUrl }`, names unique ignoring case, link `https://…{tracking}…` or empty) stored in the `couriers` Setting row. The Shipped dialog suggests these names (free text still allowed); `POST /orders/track` adds `courier.trackingUrl` via `courierTrackingUrl()` (name matched ignoring case, number URL-encoded). Editor: Delivery zones page → Couriers.
   - Exports (Staff allowed, 10/min, same filters as the lists; phone columns are type `phone`: CSV writes `="01712…"` so spreadsheets keep the leading 0, only for all-digit values): `GET /admin/orders/export`, `GET /admin/orders/items/export`, `GET /admin/payments/export`, `GET /admin/customers/export`.
 - **Phase 6 (built 2026-10-20):**
@@ -458,7 +462,7 @@ request → helmet/CORS → body limit (100 KB) → ProxySecretMiddleware → /a
   - Two-factor sign-in (OWNER and STAFF may turn it on; the dashboard nudges Owners): `POST /auth/login` answers either the session or `{ mfaRequired: true, mfaToken }` (JWT, audience `aaarchive-mfa`, 5 min); `POST /auth/login/totp { mfaToken, code }` (6-digit code or a backup code; 10/15 min; wrong codes count toward the account lockout; `401 INVALID_TOTP_CODE / MFA_EXPIRED`). Signed in: `GET /auth/totp` → `{ enabled, backupCodesLeft }`; `POST /auth/totp/setup` → `{ secret, uri }` (otpauth link) (pending until confirmed; `409 TOTP_ALREADY_ON`); `POST /auth/totp/enable { code }` → `{ backupCodes }` (10, shown once; `400 TOTP_SETUP_MISSING`); `POST /auth/totp/disable { password, code }` (ends every session). Secrets are AES-256-GCM encrypted with `TOTP_ENCRYPTION_KEY`; a used time step is stored so a code cannot be replayed; backup codes are stored hashed and work once. Migration `20261020000000_user_totp`.
 - **Admin, built (Phase 2):** `GET|POST /admin/categories`, `GET|PATCH|DELETE /admin/categories/:id`; same for `/admin/collections`; `GET|POST /admin/sizes`, `PATCH|DELETE /admin/sizes/:id`; same for `/admin/colors`; `POST|GET /admin/media`, `DELETE /admin/media/:id`. Reads OWNER/STAFF, writes OWNER only. Lists take `q`, `page`, `limit` (≤ 100, default 100) and return `{ data, meta }`. Responses: category `{ id, name, slug, description, image: { mediaId, alt, media } | null, sortOrder, showOnHome, productCount, createdAt, updatedAt }` (collection adds `isActive`); size `{ id, name, sortOrder, variantCount }` (colour adds `hex`). Slugs are generated from the name when omitted (`hoodies`, `hoodies-2`…), kept on rename, `409 SLUG_TAKEN` when taken; deleting a category with products → `409 CATEGORY_IN_USE`, a size/colour used by variants → `409 SIZE_IN_USE` / `COLOR_IN_USE`; deleting a collection only unlinks its products. Size charts: `GET|POST /admin/size-charts`, `GET|PATCH|DELETE /admin/size-charts/:id`, body `sizeChartInputSchema` (`@aaarchive/shared/catalog`) on both POST and PATCH (always the whole chart), response `{ id, name, columns: string[], rows: string[][], productCount, updatedAt }`; cells are strings (`"40"`, `"27.5"`, `"38-40"`, `""`), first column = size label; names unique ignoring case (`409 NAME_TAKEN`); deleting a chart used by products → `409 SIZE_CHART_IN_USE`; editing a used chart revalidates `products`. These endpoints only see templates (`isTemplate = true`); a product's custom table is a `SizeChart` row with `isTemplate = false`, written through the product and deleted with it (or when the product switches away).
 - **Admin products (Phase 2):** `GET /admin/products` (`adminProductListQuerySchema`: `q` over name/slug/SKU, `categoryId`, `status`, `stock=low|out`, `sort=updated|newest|name|stock_asc|stock_desc`, `page`, `limit` ≤ 50, default 20) → `{ data: [{ id, name, slug, status, isFeatured, category, basePrice, salePrice, saleActive, image, variantCount, totalStock, lowStockCount, outOfStockCount, updatedAt }], meta }`; `GET|PATCH|DELETE /admin/products/:id`, `POST /admin/products` (`productInputSchema`; PATCH `productUpdateSchema`, lists such as `images` and `collectionIds` replace whole); `POST /admin/products/:id/duplicate` (DRAFT copy, variants with stock 0, new SKUs); `POST /admin/products/:id/variants` (`variantGenerateSchema`: adds missing size × colour pairs, SKU from `skuFor()` made unique, ≤ 200 per product); `PATCH /admin/products/:id/variants` (`variantBulkUpdateSchema`, one transaction, `409 STOCK_CHANGED` when `expectedStock` no longer matches); `DELETE /admin/products/:id/variants/:variantId`. Every write returns the full admin product `{ …, sizeChart: { kind: none | template | custom }, images: [{ id, mediaId, alt, colorId, media }], variants: [{ id, sizeId, sizeName, colorId, colorName, colorHex, sku, stock, stockStatus, priceOverride, isActive, hasOrders }] }`. Rules: publishing needs ≥ 1 image (`400 PUBLISH_NEEDS_IMAGE`) and, when becoming published, ≥ 1 active variant (`400 PUBLISH_NEEDS_VARIANT`, so a new product is created as a draft); sale price < base price and end > start, also re-checked on the merged record for PATCH (`400 SALE_NOT_BELOW_BASE / SALE_PRICE_REQUIRED / SALE_END_BEFORE_START`, `details.field`); references checked (`400 CATEGORY_NOT_FOUND / COLLECTION_NOT_FOUND / MEDIA_NOT_FOUND / COLOR_NOT_FOUND / SIZE_CHART_NOT_FOUND`); products or variants with orders cannot be deleted (`409 PRODUCT_HAS_ORDERS / VARIANT_HAS_ORDERS`: archive or deactivate); `409 SLUG_TAKEN / SKU_TAKEN`. Reads OWNER/STAFF, writes OWNER. Product writes revalidate `products`, `product:<slug>` (old and new) and `home`. The list's stock sort runs one raw SQL query for the page's ids, then Prisma loads the rows.
-- **Admin** (auth + role on every route): CRUD `/admin/products`, `/admin/variants`, `/admin/categories`, `/admin/collections`, `/admin/sizes`, `/admin/colors`, `/admin/size-charts`, `/admin/coupons`, `/admin/zones`, `/admin/pages`, `/admin/faq`, `/admin/social-posts`, `/admin/blocked-phones`. Content: `GET /admin/content`, `GET|PUT /admin/content/:key`. Settings: `GET|PUT /admin/settings/:key`. Also `GET /admin/orders`, `PATCH /admin/orders/:id/status`, `POST /admin/orders/:id/notes`, `POST /admin/payments/:id/verify|reject`, `GET /admin/reports/summary`, `POST /admin/uploads/sign`.
+- **Admin** (auth + role on every route): CRUD `/admin/products`, `/admin/variants`, `/admin/categories`, `/admin/collections`, `/admin/sizes`, `/admin/colors`, `/admin/size-charts`, `/admin/coupons`, `/admin/zones`, `/admin/pages`, `/admin/faq`, `/admin/social-posts`, `/admin/blocked-phones`. Content: `GET /admin/content`, `GET|PUT /admin/content/:key`. Settings: `GET|PUT /admin/settings/:key`. Also `GET /admin/orders`, `PATCH /admin/orders/:id/status`, `POST /admin/orders/:id/notes`, `POST /admin/payments/:id/verify|reject`, `GET /admin/reports/summary`, `GET /admin/reports/sales`, `POST /admin/uploads/sign`.
 - **Infra:** `GET /health`.
 
 After an admin write that changes the storefront, the service calls `RevalidationService.revalidate(tags)` (global `modules/revalidation/`), without awaiting it. That POSTs `{ tags }` to `FRONTEND_REVALIDATE_URL` with the `x-revalidate-secret` header (5 s timeout, ≤ 50 tags, a no-op when the URL is unset). A failure is logged, not thrown. Tag names come from `@aaarchive/shared/cache-tags` so both apps use the same strings; the web's `app/api/revalidate/route.ts` checks the secret (constant-time), validates the body and calls `revalidateTag(tag, "max")`. Categories revalidate `categories`, `category:<slug>` (old and new), `home`, `products`; collections the same with `collection…`; sizes/colours `products` when used by variants.
@@ -487,7 +491,7 @@ After an admin write that changes the storefront, the service calls `Revalidatio
 
 ```
 dashboard ──multipart POST /admin/media (file ≤ 8 MB, OWNER/STAFF, rate-limited)──► API
-   sharp: decode (real JPG/PNG/WebP by content, not name) · reject > 40 MP (decompression bombs)
+   sharp: decode (real JPG/JPEG/PNG/WebP by content, not name) · reject > 40 MP (decompression bombs)
           auto-rotate · strip ALL metadata (EXIF/GPS) · resize to 400/800/1200/1600 (never upscale)
           · encode WebP · 16-px blur placeholder
    S3 PutObject ×4 → bucket "media" (Cache-Control: public, max-age=86400)
@@ -496,6 +500,7 @@ dashboard ──multipart POST /admin/media (file ≤ 8 MB, OWNER/STAFF, rate-li
 storefront: <MediaImage> → <img srcset> over {MEDIA_PUBLIC_BASE_URL}/{storageKey}/{w}.webp (no optimiser needed)
 ```
 
+- **Browser pre-shrink (2026-10-21):** files over 4 MB are scaled to ≤ 2560px (then ≤ 1600px) and re-encoded in the browser before upload (`lib/upload/shrink-image.ts`, called by `useUploadMedia`), so phone photos fit host body limits and send faster on mobile data. The API still decodes, validates and re-encodes everything; originals over 8 MB are still refused (PRD §9).
 - **Why through the API and not a direct browser upload:** the API can prove the file is an image, strip location data from staff phone photos, and produce consistent WebP sizes once — no paid image transformation or optimisation service is needed at view time.
 - **Credentials:** Supabase **S3 access keys** (Storage → S3 Connection), held only by the API. They reach Storage only — never the `service_role` key, which bypasses everything.
 - **Bucket `media`:** public read (product images are public), Supabase-enforced limits: `image/webp` only, 2 MB per object. Only the API writes to it.
@@ -598,7 +603,8 @@ Code both apps need, written once. Compiled with `tsc` to `dist/` (ESM + `.d.ts`
 | `@aaarchive/shared/export` | `EXPORT_FORMATS`, `exportFormatSchema`, `EXPORT_MAX_ROWS` (50,000) |
 | `@aaarchive/shared/rich-text` | Markdown-lite for descriptions: `parseRichText()` → paragraph/list blocks with bold runs, `richTextToPlain()` |
 | `@aaarchive/shared/cache-tags` | `cacheTags` (storefront cache tag names), `REVALIDATE_SECRET_HEADER`, `REVALIDATE_MAX_TAGS` |
-| `@aaarchive/shared/media` | media purposes, widths, upload limits, `mediaAssetSchema`, `pickRendition()` |
+| `@aaarchive/shared/media` | media purposes, widths, upload limits, `MEDIA_ACCEPTED_TYPES` / `MEDIA_ACCEPTED_EXTENSIONS` / `MEDIA_ACCEPT_ATTR` (file input `accept`), `isAcceptedImageFile()` (browser pre-check by type **or** extension: jpg, jpeg, png, webp), `mediaAssetSchema`, `pickRendition()` |
+| `@aaarchive/shared/report` | `salesReportQuerySchema` (Dhaka days, ≤ 366), `resolveSalesRange()` (defaults + previous period), `dhakaToday()`, `addDays()`, `daySpan()` |
 | `@aaarchive/shared/content` | `contentSchemas` registry for every editable section (PRD §6.7), plus `imageSchema`, `linkSchema`, `hrefSchema` (blocks `javascript:` and plain http), `PROMISE_ICONS` |
 
 Rules:
@@ -690,7 +696,7 @@ Two Vercel projects from this repo, both with *Include files outside the Root Di
 - Fluid compute stays on (turning it off did not change the loader).
 
 **Known limits of the test setup** (not problems for testing; fixed by the move):
-- Vercel Functions accept request bodies up to **4.5 MB**, so photo uploads above that fail (the API allows 8 MB). Resize before uploading while testing.
+- Vercel Functions accept request bodies up to **4.5 MB** (larger bodies get `413 FUNCTION_PAYLOAD_TOO_LARGE` before the API runs). Since 2026-10-21 the dashboard shrinks photos over 4 MB in the browser before sending (`lib/upload/shrink-image.ts`: ≤ 2560px, then ≤ 1600px, WebP or JPEG on Safari, EXIF rotation applied), and a 413 shows `PAYLOAD_TOO_LARGE` text instead of a generic error.
 - Rate limits and login lockout counters live in memory **per function instance**, so they are looser than on one server.
 - Cold starts: the first request after idle pays the Nest start-up cost.
 

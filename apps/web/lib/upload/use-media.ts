@@ -6,6 +6,7 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
+import { shrinkForUpload } from "./shrink-image";
 import { listMedia, uploadMedia } from "./upload-api";
 import { mediaKeys } from "./upload-keys";
 
@@ -28,7 +29,8 @@ export function useMediaLibrary(
 export function useUploadMedia(purpose: MediaPurpose) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (file: File) => uploadMedia(file, purpose),
+    mutationFn: async (file: File) =>
+      uploadMedia(await shrinkForUpload(file), purpose),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: mediaKeys.all }),
   });
 }

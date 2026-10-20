@@ -1,7 +1,8 @@
 "use client";
 
 import {
-  MEDIA_ACCEPTED_TYPES,
+  isAcceptedImageFile,
+  MEDIA_ACCEPT_ATTR,
   MEDIA_MAX_UPLOAD_BYTES,
   type MediaAsset,
 } from "@aaarchive/shared/media";
@@ -106,7 +107,7 @@ function Gallery({
         setProblem(errorText("FILE_TOO_BIG"));
         continue;
       }
-      if (!(MEDIA_ACCEPTED_TYPES as readonly string[]).includes(file.type)) {
+      if (!isAcceptedImageFile(file)) {
         setProblem(errorText("UNSUPPORTED_IMAGE"));
         continue;
       }
@@ -172,7 +173,7 @@ function Gallery({
           ref={fileInput}
           type="file"
           multiple
-          accept={MEDIA_ACCEPTED_TYPES.join(",")}
+          accept={MEDIA_ACCEPT_ATTR}
           className="sr-only"
           tabIndex={-1}
           aria-hidden

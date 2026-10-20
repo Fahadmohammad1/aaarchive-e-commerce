@@ -12,6 +12,7 @@ import {
   ShoppingBag,
   Tag,
   TicketPercent,
+  TrendingUp,
   Truck,
   Type,
   UserCog,
@@ -58,6 +59,12 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   {
     label: "sales",
     items: [
+      {
+        label: "analytics",
+        href: "/admin/analytics",
+        icon: TrendingUp,
+        roles: ["OWNER"],
+      },
       { label: "customers", href: "/admin/customers", icon: Users },
       { label: "blocklist", href: "/admin/blocked-phones", icon: Ban },
       { label: "coupons", href: "/admin/coupons", icon: TicketPercent },

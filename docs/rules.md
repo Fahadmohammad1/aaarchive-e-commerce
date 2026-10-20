@@ -54,6 +54,7 @@ Breaking any of these is a bug, however good the rest of the change is.
 | Class merging | `cn()` from `@/lib/utils` (shadcn's `cn` package) |
 | Icons | **Lucide** (`lucide-react`, shadcn's icon library), outline, 1.25–1.5px stroke |
 | Images | `MediaImage` (`<img srcset>` over stored WebP sizes) for uploaded media; `next/image` for bundled assets |
+| Charts (admin only) | **recharts 3** via shadcn `components/ui/chart.tsx` (owner approved 2026-10-20). Never in storefront code (JS budget). Recharts pulls in Redux Toolkit internally; that is not app-level Redux, which stays banned (§3) |
 | Fonts | `next/font/google`, self-hosted: Alfa Slab One, JetBrains Mono, Inter, Hind Siliguri |
 | HTTP | The project's fetch client in `lib/api/` |
 | Bot protection | Cloudflare Turnstile widget |
@@ -265,8 +266,8 @@ Install a listed-but-not-yet-installed library when its phase arrives. Anything 
 - React escapes output by default. **Never** use `dangerouslySetInnerHTML` except for rich text that was sanitised **on the server when saved** (allow-list HTML sanitiser, Phase 6).
 - **Product descriptions, content pages and FAQ answers are Markdown-lite, never HTML** (user decisions 2026-10-19 / 2026-10-20): blank line = paragraph, `- ` = bullet, `**bold**`, `## ` = heading. Parse with `@aaarchive/shared/rich-text` and render with `components/store/rich-text.tsx` (React elements). No rich-text editor dependency and no HTML sanitiser are needed for descriptions.
 - Links saved by admins go through `hrefSchema` (only `/…` or `https://…`; no `javascript:`).
-- The API never fetches a URL supplied by a user (no SSRF). Images are uploaded to the API (`POST /admin/media`), which validates and re-encodes them before storing in Supabase Storage. Short-lived upload — the API only signs.
-- Uploads: jpg/png/webp only (checked by decoding with `sharp`, not by name or MIME header), ≤ 8 MB in, ≤ 40 megapixels, all metadata stripped, re-encoded to WebP; the bucket accepts only `image/webp` ≤ 2 MB; storage keys are random ids, never user file names.
+- The API never fetches a URL supplied by a user (no SSRF). *Owner decision 2026-10-20: no "add image from URL" option; images come from the device or the media library only.* Images are uploaded to the API (`POST /admin/media`), which validates and re-encodes them before storing in Supabase Storage. Short-lived upload — the API only signs.
+- Uploads: jpg/jpeg/png/webp only (checked by decoding with `sharp`, not by name or MIME header; the browser pre-check `isAcceptedImageFile()` takes the MIME type **or** the extension, because phones often report an empty or non-standard type such as `image/jpg` — user, 2026-10-20), ≤ 8 MB in, ≤ 40 megapixels, all metadata stripped, re-encoded to WebP; the bucket accepts only `image/webp` ≤ 2 MB; storage keys are random ids, never user file names.
 - Money and stock are computed on the server; stock numbers never leave admin routes.
 - Exports: CSV-injection guard; same role checks as the screen. Phone columns use the `phone` export type so CSVs keep the leading 0 (user, 2026-10-19).
 

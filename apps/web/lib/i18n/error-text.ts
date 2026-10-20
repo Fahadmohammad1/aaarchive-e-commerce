@@ -12,7 +12,10 @@ export function errorText(error: unknown): string {
   const code = ApiError.isApiError(error)
     ? error.status === 429
       ? "RATE_LIMITED"
-      : error.code
+      : // The host refused the body before it reached the API (Vercel: 4.5 MB).
+        error.status === 413
+        ? "PAYLOAD_TOO_LARGE"
+        : error.code
     : typeof error === "string"
       ? error
       : "DEFAULT";

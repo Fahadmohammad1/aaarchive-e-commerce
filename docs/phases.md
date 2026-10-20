@@ -222,6 +222,7 @@ The build is split into **Phases 0–7**, which together deliver the MVP (PRD "R
 
 **Goal:** production-ready, measured, backed up, and launched (PRD §9, §10, §13.1).
 
+- [x] [shared][api][web] *(Owner request 2026-10-20)* Sales analytics at `/admin/analytics` (Owner only; `GET /admin/reports/sales`) and jpg/jpeg/png/webp accepted by extension or type in every photo picker (2026-10-20)
 - [x] [web] `sitemap.ts`, `robots.ts`, canonical URLs on filtered listings, `Organization` JSON-LD (2026-10-20)
 - [x] [web] GA4, Meta Pixel, Microsoft Clarity wired through `lib/analytics/` (IDs from settings) (2026-10-20)
 - [x] [api] Facebook catalog feed `GET /feeds/facebook.xml` (2026-10-20)

@@ -48,6 +48,11 @@ describe("processImage", () => {
     expect(out.renditions.map((r) => r.width)).toEqual([300]);
   });
 
+  it("accepts WebP uploads", async () => {
+    const out = await processImage(await photo(900, 1100).webp().toBuffer());
+    expect(out.renditions.map((r) => r.width)).toEqual([400, 800, 900]);
+  });
+
   it.each([
     [
       "a text file pretending to be an image",

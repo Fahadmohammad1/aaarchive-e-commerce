@@ -1,7 +1,8 @@
 "use client";
 
 import {
-  MEDIA_ACCEPTED_TYPES,
+  isAcceptedImageFile,
+  MEDIA_ACCEPT_ATTR,
   MEDIA_MAX_UPLOAD_BYTES,
   type MediaAsset,
   type MediaPurpose,
@@ -72,7 +73,7 @@ export function ImagePicker({
       setProblem(errorText("FILE_TOO_BIG"));
       return;
     }
-    if (!(MEDIA_ACCEPTED_TYPES as readonly string[]).includes(file.type)) {
+    if (!isAcceptedImageFile(file)) {
       setProblem(errorText("UNSUPPORTED_IMAGE"));
       return;
     }
@@ -143,7 +144,7 @@ export function ImagePicker({
           <input
             ref={fileInput}
             type="file"
-            accept={MEDIA_ACCEPTED_TYPES.join(",")}
+            accept={MEDIA_ACCEPT_ATTR}
             className="sr-only"
             tabIndex={-1}
             aria-hidden
